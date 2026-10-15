@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Boxes, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, FileBarChart, FileClock, LayoutDashboard, LogOut, Menu, Moon, Package, RotateCcw, Settings, ShieldCheck, ShoppingBag, Sun, Tags, Users, X } from 'lucide-react'
+import { Boxes, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, FileBarChart, FileClock, LayoutDashboard, LogOut, Menu, Moon, Package, RotateCcw, Settings, ShieldCheck, ShoppingBag, Sun, Tags, Truck, Users, X } from 'lucide-react'
 import { useAdminAuth } from '../store/auth'
 import { api } from '../lib/api'
 
@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { label: 'Coupons', to: '/admin/coupons', icon: Tags, permission: 'manage_catalog' },
   { label: 'Inventory', to: '/admin/inventory', icon: Boxes, permission: 'manage_inventory' },
   { label: 'Orders', to: '/admin/orders', icon: ClipboardList, permission: 'manage_orders' },
+  { label: 'Shipping', to: '/admin/shipping', icon: Truck, permission: 'manage_orders' },
   { label: 'Payments', to: '/admin/payments', icon: CircleDollarSign, permission: 'manage_orders' },
   { label: 'Refunds', to: '/admin/refunds', icon: RotateCcw, permission: 'manage_orders' },
   { label: 'Reports', to: '/admin/reports', icon: FileBarChart, permission: null },

@@ -1,0 +1,23 @@
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Card, ErrorState, LoadingState, PageHeader, StatusBadge } from '../components/ui'
+import { adminApi } from '../services/adminApi'
+
+export function ShippingPage() {
+  const client = useQueryClient()
+  const [carrierName, setCarrierName] = useState('')
+  const [carrierCode, setCarrierCode] = useState('')
+  const [carrierUrl, setCarrierUrl] = useState('')
+  const [riderName, setRiderName] = useState('')
+  const [riderPhone, setRiderPhone] = useState('')
+  const [riderUserId, setRiderUserId] = useState('')
+  const carriers = useQuery({ queryKey: ['shipping-carriers'], queryFn: () => adminApi.carriers({ per_page: '100' }) })
+  const riders = useQuery({ queryKey: ['shipping-riders'], queryFn: () => adminApi.riders({ per_page: '100' }) })
+  const createCarrier = useMutation({ mutationFn: () => adminApi.createCarrier({ name: carrierName.trim(), code: carrierCode.trim() || undefined, type: 'external_courier', tracking_url: carrierUrl.trim() || undefined }), onSuccess: () => { setCarrierName(''); setCarrierCode(''); setCarrierUrl(''); client.invalidateQueries({ queryKey: ['shipping-carriers'] }) } })
+  const toggleCarrier = useMutation({ mutationFn: (item: { id: number; is_active: boolean }) => adminApi.updateCarrier(item.id, { is_active: !item.is_active }), onSuccess: () => client.invalidateQueries({ queryKey: ['shipping-carriers'] }) })
+  const createRider = useMutation({ mutationFn: () => adminApi.createRider({ user_id: riderUserId ? Number(riderUserId) : undefined, name: riderName.trim(), phone: riderPhone.trim() || undefined, status: 'active' }), onSuccess: () => { setRiderName(''); setRiderPhone(''); setRiderUserId(''); client.invalidateQueries({ queryKey: ['shipping-riders'] }) } })
+  const toggleRider = useMutation({ mutationFn: (item: { id: number; status: string }) => adminApi.updateRider(item.id, { status: item.status === 'active' ? 'inactive' : 'active' }), onSuccess: () => client.invalidateQueries({ queryKey: ['shipping-riders'] }) })
+  if (carriers.isLoading || riders.isLoading) return <LoadingState />
+  if (carriers.isError || riders.isError || !carriers.data || !riders.data) return <ErrorState message="Unable to load shipping configuration." />
+  return <div className="page-stack"><PageHeader eyebrow="Operations" title="Shipping" description="Configure external couriers and authorized self-delivery riders. Existing shipments are preserved when a provider is disabled." /><div className="detail-grid"><Card><h2>External carriers</h2><form className="inline-form" onSubmit={(event) => { event.preventDefault(); createCarrier.mutate() }}><input required placeholder="Carrier name" value={carrierName} onChange={(event) => setCarrierName(event.target.value)} /><input placeholder="Code" value={carrierCode} onChange={(event) => setCarrierCode(event.target.value)} /><input type="url" placeholder="Tracking website (optional)" value={carrierUrl} onChange={(event) => setCarrierUrl(event.target.value)} /><button className="button primary" disabled={createCarrier.isPending}>Add carrier</button></form>{carriers.data.data.map((item) => <div className="activity-line" key={item.id}><span><strong>{item.name}</strong><small>{item.code} · {item.tracking_url ?? 'No tracking website'}</small></span><button className="text-button" onClick={() => toggleCarrier.mutate(item)}>{item.is_active ? 'Disable' : 'Activate'}</button></div>)}{!carriers.data.data.length ? <p className="muted">No carriers configured.</p> : null}</Card><Card><h2>Self-delivery riders</h2><form className="inline-form" onSubmit={(event) => { event.preventDefault(); createRider.mutate() }}><input required placeholder="Rider name" value={riderName} onChange={(event) => setRiderName(event.target.value)} /><input placeholder="Phone" value={riderPhone} onChange={(event) => setRiderPhone(event.target.value)} /><input type="number" min="1" placeholder="Existing user ID (optional)" value={riderUserId} onChange={(event) => setRiderUserId(event.target.value)} /><button className="button primary" disabled={createRider.isPending}>Add rider</button></form>{riders.data.data.map((item) => <div className="activity-line" key={item.id}><span><strong>{item.name}</strong><small>{item.phone ?? 'No phone'} · {item.seller?.store_name ?? 'Kipi-managed'}</small></span><span><StatusBadge value={item.status} /><button className="text-button" onClick={() => toggleRider.mutate(item)}>{item.status === 'active' ? 'Disable' : 'Activate'}</button></span></div>)}{!riders.data.data.length ? <p className="muted">No riders configured.</p> : null}</Card></div></div>
+}

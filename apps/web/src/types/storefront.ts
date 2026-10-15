@@ -153,8 +153,17 @@ export interface Payment {
 export interface Shipment {
   id: number
   status: string
+  delivery_method?: 'self_delivery' | 'external_courier' | string | null
   carrier: string | null
   tracking_number: string | null
+  internal_tracking_id?: string | null
+  shipped_at?: string | null
+  delivered_at?: string | null
+  estimated_delivery_at?: string | null
+  metadata?: { tracking_url?: string | null } | null
+  method?: { name: string; code: string } | null
+  seller_order?: { seller?: SellerSummary | null } | null
+  rider?: { name: string; phone?: string | null } | null
   tracking?: TrackingEvent[]
   items?: { id: number; order_item_id: number; quantity: number }[]
 }

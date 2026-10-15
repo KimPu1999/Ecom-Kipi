@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\Admin\CouponController;
 use App\Http\Controllers\Api\V1\Admin\FulfillmentController;
 use App\Http\Controllers\Api\V1\Admin\MarketplaceController;
 use App\Http\Controllers\Api\V1\Admin\RefundController;
+use App\Http\Controllers\Api\V1\Admin\ShippingManagementController;
 use App\Http\Controllers\Api\V1\Auth\AuthController;
 use App\Http\Controllers\Api\V1\Cart\CartController;
 use App\Http\Controllers\Api\V1\Catalog\CatalogController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Order\OrderController;
 use App\Http\Controllers\Api\V1\PaymentController;
 use App\Http\Controllers\Api\V1\ReviewController;
+use App\Http\Controllers\Api\V1\RiderController;
 use App\Http\Controllers\Api\V1\ShippingController;
 use App\Http\Controllers\Api\V1\WebhookController;
 use App\Http\Controllers\Api\V1\WishlistController;
@@ -116,6 +118,11 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::put('settings', [SellerController::class, 'updateSettings']);
     });
 
+    Route::prefix('rider')->middleware('auth:sanctum')->group(function () {
+        Route::get('shipments', [RiderController::class, 'shipments']);
+        Route::patch('shipments/{shipment}/status', [RiderController::class, 'updateShipment']);
+    });
+
     Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {
         Route::get('dashboard', [AdminController::class, 'dashboard']);
 
@@ -171,6 +178,12 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             Route::get('orders/{order}/refunds', [RefundController::class, 'index']);
             Route::post('orders/{order}/refunds', [RefundController::class, 'store']);
             Route::post('payments/{payment}/collect-cod', [PaymentController::class, 'collectCod']);
+            Route::get('shipping/carriers', [ShippingManagementController::class, 'carriers']);
+            Route::post('shipping/carriers', [ShippingManagementController::class, 'storeCarrier']);
+            Route::patch('shipping/carriers/{carrier}', [ShippingManagementController::class, 'updateCarrier']);
+            Route::get('shipping/riders', [ShippingManagementController::class, 'riders']);
+            Route::post('shipping/riders', [ShippingManagementController::class, 'storeRider']);
+            Route::patch('shipping/riders/{rider}', [ShippingManagementController::class, 'updateRider']);
         });
 
         Route::middleware('permission:view_audit_logs')->group(function () {

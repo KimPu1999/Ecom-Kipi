@@ -6,7 +6,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ShipmentTracking extends Model
 {
-    protected $fillable = ['shipment_id', 'status', 'location', 'message', 'occurred_at'];
+    protected $table = 'shipment_tracking';
+
+    protected $fillable = ['shipment_id', 'status', 'previous_status', 'location', 'message', 'actor_id', 'actor_role', 'source', 'proof_reference', 'occurred_at'];
 
     protected function casts(): array
     {
@@ -16,5 +18,10 @@ class ShipmentTracking extends Model
     public function shipment(): BelongsTo
     {
         return $this->belongsTo(Shipment::class);
+    }
+
+    public function actor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'actor_id');
     }
 }

@@ -18,7 +18,7 @@ class ShippingController extends Controller
     {
         $order = $request->user()->orders()->findOrFail($id);
 
-        return ApiResponse::success($order->shipments()->with(['items.orderItem', 'tracking', 'method'])->latest()->get(), 'Shipments retrieved');
+        return ApiResponse::success($order->shipments()->with(['items.orderItem', 'tracking', 'method', 'carrierRecord', 'rider', 'sellerOrder.seller'])->latest()->get(), 'Shipments retrieved');
     }
 
     public function tracking(Request $request, int $id)

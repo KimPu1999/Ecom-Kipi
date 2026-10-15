@@ -141,7 +141,7 @@ class SellerController extends Controller
 
     public function orders(Request $request)
     {
-        $orders = $this->seller($request)->orders()->with(['order.user', 'items', 'shipments'])->latest()->paginate(min((int) $request->input('per_page', 20), 100));
+        $orders = $this->seller($request)->orders()->with(['order.user', 'items', 'shipments.carrierRecord', 'shipments.rider'])->latest()->paginate(min((int) $request->input('per_page', 20), 100));
 
         return ApiResponse::paginated($orders, $orders->items(), 'Seller orders retrieved');
     }
@@ -149,7 +149,11 @@ class SellerController extends Controller
     public function createShipment(Request $request, SellerOrder $sellerOrder)
     {
         abort_unless((int) $sellerOrder->seller_id === (int) $this->seller($request)->id, 404);
-        $data = $request->validate(['carrier' => ['nullable', 'string', 'max:100'], 'tracking_number' => ['nullable', 'string', 'max:100']]);
+        $data = $request->validate(['delivery_method' => ['sometimes', 'in:self_delivery,external_courier'], 'carrier_id' => ['nullable', 'integer', 'exists:shipping_carriers,id'], 'carrier' => ['nullable', 'string', 'max:100'], 'tracking_number' => ['required_if:delivery_method,external_courier', 'nullable', 'string', 'max:120'], 'tracking_url' => ['nullable', 'url:http,https', 'max:500'], 'rider_id' => ['nullable', 'integer', 'exists:riders,id'], 'estimated_delivery_at' => ['nullable', 'date', 'after_or_equal:today'], 'notes' => ['nullable', 'string', 'max:2000']]);
+        $data['delivery_method'] = $data['delivery_method'] ?? (empty($data['tracking_number']) ? 'self_delivery' : 'external_courier');
+        $data['actor_id'] = $request->user()->id;
+        $data['actor_role'] = 'seller';
+        $data['idempotency_key'] = substr($request->header('Idempotency-Key', ''), 0, 120) ?: null;
 
         return ApiResponse::success($this->fulfillment->create($sellerOrder->load(['order', 'items']), $data), 'Seller shipment created', 201);
     }
@@ -159,7 +163,7 @@ class SellerController extends Controller
         abort_unless($shipment->sellerOrder && (int) $shipment->sellerOrder->seller_id === (int) $this->seller($request)->id, 404);
         $data = $request->validate(['status' => ['required', 'string'], 'message' => ['nullable', 'string'], 'location' => ['nullable', 'string']]);
 
-        return ApiResponse::success($this->fulfillment->transition($shipment->load('sellerOrder'), $data['status'], $data['message'] ?? null, $data['location'] ?? null, $request->user()->id), 'Seller shipment updated');
+        return ApiResponse::success($this->fulfillment->transition($shipment->load('sellerOrder'), $data['status'], $data['message'] ?? null, $data['location'] ?? null, $request->user()->id, 'seller'), 'Seller shipment updated');
     }
 
     public function earnings(Request $request)

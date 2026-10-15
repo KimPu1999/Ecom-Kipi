@@ -1,6 +1,6 @@
 import { useEffect, useState, type InputHTMLAttributes } from 'react'
 import { ApiClientError } from '@kipi/api-client'
-import { ArrowRight, Bell, Edit3, FileText, LogOut, MapPin, Plus, Trash2 } from 'lucide-react'
+import { ArrowRight, Bell, Copy, Edit3, FileText, LogOut, MapPin, Plus, Trash2 } from 'lucide-react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -145,7 +145,11 @@ export function OrderTrackingPage() {
 
 function TrackingShipment({ shipment }: { shipment: Shipment }) {
   const tracking = useQuery({ queryKey: ['tracking', shipment.id], queryFn: () => storefrontApi.tracking(shipment.id) })
-  return <Card><div className="card-heading"><div><span className="eyebrow">Shipment #{shipment.id}</span><h2>{shipment.carrier ?? 'Carrier pending'}</h2></div><StatusBadge value={shipment.status} /></div>{shipment.tracking_number ? <p className="muted">Tracking number: {shipment.tracking_number}</p> : null}{tracking.isLoading ? <LoadingState /> : tracking.data?.data.length ? <div className="timeline">{tracking.data.data.map((event: TrackingEvent) => <div className="timeline-item" key={event.id}><span className="timeline-dot" /><div><strong>{event.status.replaceAll('_', ' ')}</strong><small>{new Date(event.occurred_at).toLocaleString()}</small><p>{event.message ?? event.location ?? 'Shipment update received.'}</p></div></div>)}</div> : <p className="muted">No tracking events have been recorded yet.</p>}</Card>
+  const [copied, setCopied] = useState(false)
+  async function copyTracking() { if (!trackingNumber) return; await navigator.clipboard.writeText(trackingNumber); setCopied(true); window.setTimeout(() => setCopied(false), 1800) }
+  const trackingUrl = shipment.metadata?.tracking_url
+  const trackingNumber = shipment.tracking_number ?? shipment.internal_tracking_id
+  return <Card><div className="card-heading"><div><span className="eyebrow">Shipment #{shipment.id}</span><h2>{shipment.carrier ?? 'Kipi Self Delivery'}</h2><p className="muted">{shipment.delivery_method === 'self_delivery' ? 'Self delivery' : 'External courier'} · {shipment.method?.name ?? 'Shipping method unavailable'}{shipment.seller_order?.seller?.store_name ? ` · ${shipment.seller_order.seller.store_name}` : ''}</p></div><StatusBadge value={shipment.status} /></div>{trackingNumber ? <div className="tracking-summary"><div><span className="muted">{shipment.internal_tracking_id ? 'Internal tracking ID' : 'Tracking number'}</span><strong>{trackingNumber}</strong></div><button className="button secondary" type="button" onClick={copyTracking}><Copy size={15} />{copied ? 'Copied' : 'Copy'}</button>{trackingUrl ? <a className="button primary" href={trackingUrl} target="_blank" rel="noreferrer">Track package</a> : null}</div> : <p className="muted">Tracking number has not been added yet.</p>}{shipment.rider ? <p className="muted">Assigned rider: {shipment.rider.name}</p> : null}{shipment.shipped_at ? <p className="muted">Shipped {new Date(shipment.shipped_at).toLocaleString()}</p> : null}{shipment.estimated_delivery_at ? <p className="muted">Estimated delivery: {new Date(shipment.estimated_delivery_at).toLocaleDateString()}</p> : null}{shipment.delivered_at ? <p className="muted">Delivered {new Date(shipment.delivered_at).toLocaleString()}</p> : null}{tracking.isLoading ? <LoadingState /> : tracking.data?.data.length ? <div className="timeline">{tracking.data.data.map((event: TrackingEvent) => <div className="timeline-item" key={event.id}><span className="timeline-dot" /><div><strong>{event.status.replaceAll('_', ' ')}</strong><small>{new Date(event.occurred_at).toLocaleString()}</small><p>{event.message ?? event.location ?? 'Shipment update received.'}</p></div></div>)}</div> : <p className="muted">No tracking events have been recorded yet.</p>}</Card>
 }
 
 function SummaryRow({ label, value, currency }: { label: string; value: number; currency: string }) { return <div className="summary-row"><span>{label}</span><span>{value.toLocaleString()} {currency}</span></div> }

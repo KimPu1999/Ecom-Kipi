@@ -12,34 +12,40 @@ class SellerFulfillmentService
 {
     public function create(SellerOrder $sellerOrder, array $data): Shipment
     {
-        if ($sellerOrder->payment_status !== 'paid' || $sellerOrder->order->payment_status !== 'paid') {
+        if (! empty($data['idempotency_key'])) {
+            $existing = $sellerOrder->shipments()->where('idempotency_key', $data['idempotency_key'])->first();
+            if ($existing) return $existing->load(['items.orderItem', 'tracking', 'method', 'carrierRecord', 'rider']);
+        }
+        $isCod = $sellerOrder->order->payments()->where('provider', 'cod')->exists();
+        if (! $isCod && ($sellerOrder->payment_status !== 'paid' || $sellerOrder->order->payment_status !== 'paid')) {
             throw ValidationException::withMessages(['order' => 'A seller shipment requires verified payment.']);
         }
 
         return DB::transaction(function () use ($sellerOrder, $data) {
-            $shipment = $sellerOrder->order->shipments()->create(['seller_order_id' => $sellerOrder->id, 'shipping_method_id' => $sellerOrder->order->shipping_method_id, 'status' => 'pending', 'carrier' => $data['carrier'] ?? null, 'tracking_number' => $data['tracking_number'] ?? null]);
+            $deliveryMethod = $data['delivery_method'] ?? 'external_courier';
+            $shipment = $sellerOrder->order->shipments()->create(['seller_order_id' => $sellerOrder->id, 'shipping_method_id' => $sellerOrder->order->shipping_method_id, 'delivery_method' => $deliveryMethod, 'carrier_id' => $data['carrier_id'] ?? null, 'status' => 'pending', 'carrier' => $deliveryMethod === 'self_delivery' ? ($data['carrier'] ?? 'Kipi Self Delivery') : ($data['carrier'] ?? null), 'tracking_number' => $deliveryMethod === 'external_courier' ? ($data['tracking_number'] ?? null) : null, 'internal_tracking_id' => $deliveryMethod === 'self_delivery' ? Shipment::nextInternalTrackingId() : null, 'rider_id' => $data['rider_id'] ?? null, 'estimated_delivery_at' => $data['estimated_delivery_at'] ?? null, 'notes' => $data['notes'] ?? null, 'created_by' => $data['actor_id'] ?? null, 'idempotency_key' => $data['idempotency_key'] ?? null, 'metadata' => array_filter(['tracking_url' => $data['tracking_url'] ?? null])]);
             foreach ($sellerOrder->items as $item) {
                 $shipment->items()->create(['order_item_id' => $item->order_item_id, 'quantity' => $item->quantity]);
             }
-            $shipment->tracking()->create(['status' => 'pending', 'occurred_at' => now()]);
+            $shipment->tracking()->create(['status' => 'pending', 'actor_id' => $data['actor_id'] ?? null, 'actor_role' => $data['actor_role'] ?? null, 'source' => 'manual', 'occurred_at' => now()]);
 
             return $shipment->load(['items.orderItem', 'tracking', 'method']);
         });
     }
 
-    public function transition(Shipment $shipment, string $next, ?string $message = null, ?string $location = null, ?int $changedBy = null): Shipment
+    public function transition(Shipment $shipment, string $next, ?string $message = null, ?string $location = null, ?int $changedBy = null, ?string $actorRole = null): Shipment
     {
-        $allowed = ['pending' => ['preparing', 'failed_delivery'], 'preparing' => ['shipped', 'failed_delivery'], 'shipped' => ['in_transit', 'delivered', 'failed_delivery'], 'in_transit' => ['out_for_delivery', 'delivered', 'failed_delivery'], 'out_for_delivery' => ['delivered', 'failed_delivery'], 'delivered' => [], 'failed_delivery' => ['preparing', 'returned'], 'returned' => []];
+        $allowed = ['pending' => ['preparing', 'picked_up', 'failed_delivery'], 'preparing' => ['picked_up', 'shipped', 'failed_delivery'], 'picked_up' => ['shipped', 'in_transit', 'failed_delivery'], 'shipped' => ['in_transit', 'delivered', 'failed_delivery'], 'in_transit' => ['out_for_delivery', 'delivered', 'failed_delivery'], 'out_for_delivery' => ['delivered', 'failed_delivery'], 'delivered' => [], 'failed_delivery' => ['preparing', 'returned'], 'returned' => []];
         if (! in_array($next, $allowed[$shipment->status] ?? [], true)) {
             throw ValidationException::withMessages(['status' => 'Invalid shipment status transition.']);
         }
 
-        return DB::transaction(function () use ($shipment, $next, $message, $location, $changedBy) {
+        return DB::transaction(function () use ($shipment, $next, $message, $location, $changedBy, $actorRole) {
             $from = $shipment->status;
-            $shipment->update(['status' => $next, 'shipped_at' => in_array($next, ['shipped', 'in_transit', 'out_for_delivery'], true) ? ($shipment->shipped_at ?? now()) : $shipment->shipped_at, 'delivered_at' => $next === 'delivered' ? now() : $shipment->delivered_at]);
-            $shipment->tracking()->create(['status' => $next, 'message' => $message, 'location' => $location, 'occurred_at' => now()]);
+            $shipment->update(['status' => $next, 'shipped_at' => in_array($next, ['picked_up', 'shipped', 'in_transit', 'out_for_delivery'], true) ? ($shipment->shipped_at ?? now()) : $shipment->shipped_at, 'delivered_at' => $next === 'delivered' ? now() : $shipment->delivered_at]);
+            $shipment->tracking()->create(['status' => $next, 'previous_status' => $from, 'message' => $message, 'location' => $location, 'actor_id' => $changedBy, 'actor_role' => $actorRole, 'source' => 'manual', 'occurred_at' => now()]);
             $sellerOrder = $shipment->sellerOrder()->lockForUpdate()->firstOrFail();
-            $sellerStatus = in_array($next, ['shipped', 'in_transit', 'out_for_delivery'], true) ? 'shipped' : ($next === 'delivered' ? 'delivered' : $sellerOrder->status);
+            $sellerStatus = in_array($next, ['picked_up', 'shipped', 'in_transit', 'out_for_delivery'], true) ? 'shipped' : ($next === 'delivered' ? 'delivered' : $sellerOrder->status);
             if ($sellerStatus !== $sellerOrder->status) {
                 $sellerOrder->update(['fulfillment_status' => $sellerStatus, 'status' => $sellerStatus]);
                 $sellerOrder->statusHistory()->create(['from_status' => $sellerOrder->getOriginal('status'), 'to_status' => $sellerStatus, 'changed_by' => $changedBy, 'note' => $message]);

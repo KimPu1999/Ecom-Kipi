@@ -402,7 +402,7 @@ class AdminController extends Controller
 
     public function showOrder(Order $order)
     {
-        return ApiResponse::success(new OrderResource($order->load(['user', 'items', 'sellerOrders.seller', 'sellerOrders.items', 'statusHistory', 'notes.user', 'shippingMethod', 'payments', 'shipments.tracking', 'refunds'])), 'Order retrieved');
+        return ApiResponse::success(new OrderResource($order->load(['user', 'items', 'sellerOrders.seller', 'sellerOrders.items', 'statusHistory', 'notes.user', 'shippingMethod', 'payments', 'shipments.tracking', 'shipments.carrierRecord', 'shipments.rider', 'refunds'])), 'Order retrieved');
     }
 
     public function updateOrderStatus(OrderStatusRequest $request, Order $order, InventoryReservationService $reservations)
