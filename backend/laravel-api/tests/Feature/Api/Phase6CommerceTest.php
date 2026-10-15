@@ -70,6 +70,20 @@ class Phase6CommerceTest extends TestCase
             ->assertStatus(400);
     }
 
+    public function test_cash_on_delivery_checkout_creates_pending_cod_payment(): void
+    {
+        [$variant, $user] = $this->catalogFixture(1);
+        Sanctum::actingAs($user);
+        $this->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])->assertOk();
+
+        $order = $this->postJson('/api/v1/checkout/confirm', $this->checkoutPayload('cod-order') + ['payment_method' => 'cod'])
+            ->assertCreated()
+            ->json('data');
+
+        $this->assertDatabaseHas('payments', ['order_id' => $order['id'], 'provider' => 'cod', 'status' => 'pending']);
+        $this->assertDatabaseHas('orders', ['id' => $order['id'], 'payment_status' => 'pending']);
+    }
+
     private function catalogFixture(int $quantity): array
     {
         $user = User::factory()->create();
