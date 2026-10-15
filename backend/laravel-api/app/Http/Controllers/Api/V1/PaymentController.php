@@ -54,4 +54,18 @@ class PaymentController extends Controller
 
         return ApiResponse::success(['payment' => $payment->fresh(), 'order' => $payment->order->fresh()], 'COD payment collected');
     }
+
+    public function verifyManual(Request $request, Payment $payment, PaymentService $payments)
+    {
+        if (! in_array($payment->provider, ['kbzpay', 'wavepay', 'bank_transfer'], true)) {
+            throw ValidationException::withMessages(['payment' => 'Only manual online payments can be verified here.']);
+        }
+        if ($payment->status === 'paid') {
+            return ApiResponse::success(['payment' => $payment->fresh(), 'order' => $payment->order->fresh()], 'Manual payment already verified');
+        }
+
+        $payment = $payments->verifyManual($payment, $request->user()->id);
+
+        return ApiResponse::success(['payment' => $payment->fresh(), 'order' => $payment->order->fresh()], 'Manual payment verified');
+    }
 }

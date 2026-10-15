@@ -29,6 +29,8 @@ class CheckoutConfirmRequest extends FormRequest
             'idempotency_key' => ['nullable', 'string', 'max:120'],
             'payment_method' => ['sometimes', 'string', 'in:cod,kbzpay,wavepay,bank_transfer,card'],
             'payment_metadata' => ['nullable', 'array'],
+            'payment_metadata.sender_phone' => ['required_if:payment_method,kbzpay,wavepay,bank_transfer', 'string', 'max:30', 'regex:/^[0-9+()\-\s]{6,30}$/'],
+            'payment_metadata.transaction_code' => ['required_if:payment_method,kbzpay,wavepay,bank_transfer', 'string', 'max:120', 'regex:/^[A-Za-z0-9._\/-]{4,120}$/'],
         ];
     }
 

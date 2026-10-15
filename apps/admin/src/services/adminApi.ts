@@ -36,6 +36,7 @@ export const adminApi = {
   createShipment: (id: number, data: unknown) => request<unknown>({ url: '/admin/orders/' + id + '/shipments', method: 'POST', data }),
   updateShipment: (id: number, data: unknown) => request<unknown>({ url: '/admin/shipments/' + id + '/status', method: 'PATCH', data }),
   collectCodPayment: (paymentId: number) => request<unknown>({ url: '/admin/payments/' + paymentId + '/collect-cod', method: 'POST' }),
+  verifyManualPayment: (paymentId: number) => request<unknown>({ url: '/admin/payments/' + paymentId + '/verify-manual', method: 'POST' }),
   carriers: (params: Record<string, string> = {}) => request<Pagination<{ id: number; name: string; code: string; type: string; tracking_url: string | null; is_active: boolean; sort_order: number }>>({ url: '/admin/shipping/carriers', params }),
   createCarrier: (data: unknown) => request<unknown>({ url: '/admin/shipping/carriers', method: 'POST', data }),
   updateCarrier: (id: number, data: unknown) => request<unknown>({ url: '/admin/shipping/carriers/' + id, method: 'PATCH', data }),

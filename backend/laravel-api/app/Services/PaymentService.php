@@ -113,6 +113,42 @@ class PaymentService
         });
     }
 
+    public function verifyManual(Payment $payment, int $verifierId): Payment
+    {
+        return DB::transaction(function () use ($payment, $verifierId): Payment {
+            $payment = Payment::query()->whereKey($payment->id)->lockForUpdate()->with('order')->firstOrFail();
+            if (! in_array($payment->provider, ['kbzpay', 'wavepay', 'bank_transfer'], true)) {
+                throw ValidationException::withMessages(['payment' => 'Only manual online payments can be verified here.']);
+            }
+            if ($payment->status === 'paid') {
+                return $payment->fresh();
+            }
+
+            $order = $payment->order()->lockForUpdate()->firstOrFail();
+            $this->reservations->commitOrder($order, $order->user_id);
+            $payment->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'metadata' => array_merge($payment->metadata ?? [], [
+                    'collection_status' => 'verified',
+                    'verified_by' => $verifierId,
+                    'verified_at' => now()->toISOString(),
+                ]),
+            ]);
+            $order->update(['payment_status' => 'paid', 'fulfillment_status' => 'confirmed']);
+            $this->marketplace->markPaid($order);
+            $order->statusHistory()->create([
+                'status_type' => 'payment',
+                'from_status' => 'pending',
+                'to_status' => 'paid',
+                'changed_by' => $verifierId,
+                'note' => 'Manual online payment verified by an authorized administrator.',
+            ]);
+
+            return $payment->fresh();
+        });
+    }
+
     public function handleWebhook(string $provider, string $payload, string $signature): void
     {
         if ($provider !== 'stripe') {

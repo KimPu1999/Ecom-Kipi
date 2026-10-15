@@ -180,6 +180,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             Route::get('orders/{order}/refunds', [RefundController::class, 'index']);
             Route::post('orders/{order}/refunds', [RefundController::class, 'store']);
             Route::post('payments/{payment}/collect-cod', [PaymentController::class, 'collectCod']);
+            Route::post('payments/{payment}/verify-manual', [PaymentController::class, 'verifyManual']);
             Route::get('shipping/carriers', [ShippingManagementController::class, 'carriers']);
             Route::post('shipping/carriers', [ShippingManagementController::class, 'storeCarrier']);
             Route::patch('shipping/carriers/{carrier}', [ShippingManagementController::class, 'updateCarrier']);

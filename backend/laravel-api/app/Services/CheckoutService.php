@@ -66,13 +66,17 @@ class CheckoutService
             }
             $this->marketplace->createSellerOrders($order);
             $this->reservations->reserveOrder($order, $pricing['lines'], $user->id);
-            if (($data['payment_method'] ?? null) === 'cod') {
+            $paymentMethod = $data['payment_method'] ?? 'card';
+            if (in_array($paymentMethod, ['cod', 'kbzpay', 'wavepay', 'bank_transfer'], true)) {
+                $paymentMetadata = array_merge($data['payment_metadata'] ?? [], [
+                    'collection_status' => $paymentMethod === 'cod' ? 'awaiting_delivery' : 'awaiting_admin_verification',
+                ]);
                 $payment = $order->payments()->create([
-                    'provider' => 'cod',
+                    'provider' => $paymentMethod,
                     'status' => 'pending',
                     'amount_minor' => $order->grand_total_minor,
                     'currency' => $order->currency,
-                    'metadata' => array_merge($data['payment_metadata'] ?? [], ['collection_status' => 'awaiting_delivery']),
+                    'metadata' => $paymentMetadata,
                 ]);
                 $payment->attempts()->create([
                     'attempt_number' => 1,

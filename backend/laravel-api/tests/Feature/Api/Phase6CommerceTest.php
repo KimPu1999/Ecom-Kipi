@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Inventory;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -82,6 +83,33 @@ class Phase6CommerceTest extends TestCase
 
         $this->assertDatabaseHas('payments', ['order_id' => $order['id'], 'provider' => 'cod', 'status' => 'pending']);
         $this->assertDatabaseHas('orders', ['id' => $order['id'], 'payment_status' => 'pending']);
+    }
+
+    public function test_manual_online_payment_is_pending_until_authorized_admin_verification(): void
+    {
+        [$variant, $user] = $this->catalogFixture(1);
+        Sanctum::actingAs($user);
+        $this->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])->assertOk();
+
+        $order = $this->postJson('/api/v1/checkout/confirm', $this->checkoutPayload('kbzpay-order') + [
+            'payment_method' => 'kbzpay',
+            'payment_metadata' => ['sender_phone' => '0912345678', 'transaction_code' => 'KBZ-TEST-1234'],
+        ])->assertCreated()->json('data');
+
+        $payment = Payment::query()->where('order_id', $order['id'])->firstOrFail();
+        $this->assertSame('kbzpay', $payment->provider);
+        $this->assertSame('pending', $payment->status);
+        $this->assertSame('KBZ-TEST-1234', $payment->metadata['transaction_code']);
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::query()->create(['name' => 'super_admin', 'label' => 'Super Administrator']));
+        Sanctum::actingAs($admin);
+        $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertOk();
+        $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertOk();
+
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'paid']);
+        $this->assertDatabaseHas('orders', ['id' => $order['id'], 'payment_status' => 'paid', 'fulfillment_status' => 'confirmed']);
+        $this->assertDatabaseHas('inventory_reservations', ['order_id' => $order['id'], 'status' => 'committed']);
     }
 
     private function catalogFixture(int $quantity): array
