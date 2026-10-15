@@ -1,0 +1,254 @@
+.shipment-list,
+.shipment-details-page {
+  display: grid;
+  gap: 20px;
+}
+
+.shipment-order-card,
+.shipment-summary-card,
+.shipment-status-card,
+.shipment-timeline-card,
+.shipment-items-card {
+  padding: clamp(20px, 3vw, 32px);
+}
+
+.shipment-order-heading,
+.shipment-details-topbar,
+.shipment-form-heading,
+.shipment-list-row,
+.shipment-details-page .page-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.shipment-order-heading h2,
+.shipment-summary-card h2,
+.shipment-status-card h2,
+.shipment-timeline-card h2,
+.shipment-items-card h2 {
+  margin: 4px 0 0;
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.shipment-order-badges,
+.shipment-tracking-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.shipment-create-form {
+  display: grid;
+  gap: 18px;
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.shipment-form-heading small,
+.shipment-list-row small,
+.shipment-timeline-event small,
+.shipment-meta span,
+.shipment-items-card small {
+  display: block;
+  margin-top: 5px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.status-note {
+  color: #166534;
+  background: #dcfce7;
+  border-radius: 999px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.shipment-form-grid,
+.shipment-details-grid,
+.shipment-meta-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.shipment-form-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.shipment-details-grid {
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, .8fr);
+}
+
+.shipment-meta-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: 22px;
+}
+
+.shipment-create-form label,
+.shipment-status-card label {
+  display: grid;
+  gap: 7px;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.shipment-create-form input,
+.shipment-create-form select,
+.shipment-status-card select {
+  min-width: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  padding: 11px 12px;
+}
+
+.shipment-create-form input:focus,
+.shipment-create-form select:focus,
+.shipment-status-card select:focus {
+  outline: 3px solid rgba(37, 99, 235, .14);
+  border-color: #2563eb;
+}
+
+.readonly-field {
+  display: flex;
+  align-items: center;
+  min-height: 42px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  color: #64748b;
+  padding: 10px 12px;
+  font-weight: 500;
+}
+
+.shipment-status-card {
+  align-self: start;
+}
+
+.shipment-status-card .select {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.shipment-meta {
+  min-height: 65px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.shipment-meta strong {
+  display: block;
+  margin-top: 5px;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+}
+
+.shipment-tracking-actions {
+  margin-top: 22px;
+}
+
+.shipment-list-row {
+  padding: 15px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.shipment-list-row:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.shipment-list-row > div,
+.shipment-list-row > span:first-child {
+  min-width: 0;
+  flex: 1;
+}
+
+.shipment-timeline {
+  display: grid;
+  gap: 0;
+  margin-top: 20px;
+}
+
+.shipment-timeline-event {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 12px;
+  min-height: 75px;
+}
+
+.shipment-timeline-event:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 18px;
+  bottom: 0;
+  left: 7px;
+  width: 2px;
+  background: #dbeafe;
+}
+
+.timeline-dot {
+  position: relative;
+  z-index: 1;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 4px solid #dbeafe;
+  border-radius: 50%;
+  background: #2563eb;
+}
+
+.shipment-timeline-event strong {
+  color: #1d4ed8;
+  text-transform: capitalize;
+}
+
+.shipment-timeline-event p {
+  margin: 8px 0 0;
+  color: #475569;
+}
+
+.shipment-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+@media (max-width: 960px) {
+  .shipment-form-grid,
+  .shipment-meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .shipment-details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .shipment-order-heading,
+  .shipment-details-topbar,
+  .shipment-list-row,
+  .shipment-details-page .page-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .shipment-form-grid,
+  .shipment-meta-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shipment-list-row .button {
+    width: 100%;
+  }
+}

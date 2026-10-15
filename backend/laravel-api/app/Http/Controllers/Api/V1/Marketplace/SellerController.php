@@ -10,6 +10,7 @@ use App\Http\Resources\ProductResource;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\Rider;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
@@ -21,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class SellerController extends Controller
 {
@@ -141,9 +143,21 @@ class SellerController extends Controller
 
     public function orders(Request $request)
     {
-        $orders = $this->seller($request)->orders()->with(['order.user', 'items', 'shipments.carrierRecord', 'shipments.rider'])->latest()->paginate(min((int) $request->input('per_page', 20), 100));
+        $orders = $this->seller($request)->orders()->with(['order.user', 'items', 'shipments.tracking', 'shipments.items.orderItem', 'shipments.method', 'shipments.carrierRecord', 'shipments.rider'])->latest()->paginate(min((int) $request->input('per_page', 20), 100));
 
         return ApiResponse::paginated($orders, $orders->items(), 'Seller orders retrieved');
+    }
+
+    public function riders(Request $request)
+    {
+        $seller = $this->seller($request);
+        $riders = Rider::query()
+            ->where('status', 'active')
+            ->where(fn ($query) => $query->whereNull('seller_id')->orWhere('seller_id', $seller->id))
+            ->orderBy('name')
+            ->get(['id', 'name', 'phone', 'seller_id', 'status']);
+
+        return ApiResponse::success($riders, 'Authorized riders retrieved');
     }
 
     public function createShipment(Request $request, SellerOrder $sellerOrder)
@@ -151,11 +165,27 @@ class SellerController extends Controller
         abort_unless((int) $sellerOrder->seller_id === (int) $this->seller($request)->id, 404);
         $data = $request->validate(['delivery_method' => ['sometimes', 'in:self_delivery,external_courier'], 'carrier_id' => ['nullable', 'integer', 'exists:shipping_carriers,id'], 'carrier' => ['nullable', 'string', 'max:100'], 'tracking_number' => ['required_if:delivery_method,external_courier', 'nullable', 'string', 'max:120'], 'tracking_url' => ['nullable', 'url:http,https', 'max:500'], 'rider_id' => ['nullable', 'integer', 'exists:riders,id'], 'estimated_delivery_at' => ['nullable', 'date', 'after_or_equal:today'], 'notes' => ['nullable', 'string', 'max:2000']]);
         $data['delivery_method'] = $data['delivery_method'] ?? (empty($data['tracking_number']) ? 'self_delivery' : 'external_courier');
+        if ($data['delivery_method'] !== 'self_delivery' && ! empty($data['rider_id'])) {
+            throw ValidationException::withMessages(['rider_id' => 'A rider can only be assigned to self delivery.']);
+        }
+        if (! empty($data['rider_id'])) {
+            $authorizedRider = Rider::query()->whereKey($data['rider_id'])->where('status', 'active')->where(fn ($query) => $query->whereNull('seller_id')->orWhere('seller_id', $this->seller($request)->id))->exists();
+            if (! $authorizedRider) {
+                throw ValidationException::withMessages(['rider_id' => 'This rider is not authorized for your store.']);
+            }
+        }
         $data['actor_id'] = $request->user()->id;
         $data['actor_role'] = 'seller';
         $data['idempotency_key'] = substr($request->header('Idempotency-Key', ''), 0, 120) ?: null;
 
         return ApiResponse::success($this->fulfillment->create($sellerOrder->load(['order', 'items']), $data), 'Seller shipment created', 201);
+    }
+
+    public function showShipment(Request $request, Shipment $shipment)
+    {
+        abort_unless($shipment->sellerOrder && (int) $shipment->sellerOrder->seller_id === (int) $this->seller($request)->id, 404);
+
+        return ApiResponse::success($shipment->load(['order', 'sellerOrder.seller', 'items.orderItem', 'tracking.actor', 'method', 'carrierRecord', 'rider']), 'Seller shipment retrieved');
     }
 
     public function updateShipment(Request $request, Shipment $shipment)

@@ -116,7 +116,7 @@ export interface Order {
   items?: { product_name: string; sku: string; quantity: number; unit_price_minor: number }[]
   status_history?: { id: number; from_status: string | null; to_status: string; note: string | null; created_at: string }[]
   notes?: { id: number; note: string; created_at: string; user?: User }[]
-  payments?: { id: number; status: string; amount_minor: number; currency: string; provider_payment_id: string | null }[]
+  payments?: { id: number; provider: string; status: string; amount_minor: number; currency: string; provider_payment_id: string | null }[]
   shipments?: { id: number; status: string; carrier: string | null; tracking_number: string | null }[]
   refunds?: { id: number; status: string; amount_minor: number; currency: string; reason: string | null }[]
 }

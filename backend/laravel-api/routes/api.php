@@ -109,7 +109,9 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::post('products/{product}/images', [SellerController::class, 'storeImage']);
         Route::get('inventory', [SellerController::class, 'inventory']);
         Route::get('orders', [SellerController::class, 'orders']);
+        Route::get('riders', [SellerController::class, 'riders']);
         Route::post('orders/{sellerOrder}/shipments', [SellerController::class, 'createShipment']);
+        Route::get('shipments/{shipment}', [SellerController::class, 'showShipment']);
         Route::patch('shipments/{shipment}/status', [SellerController::class, 'updateShipment']);
         Route::get('earnings', [SellerController::class, 'earnings']);
         Route::get('payouts', [SellerController::class, 'payouts']);

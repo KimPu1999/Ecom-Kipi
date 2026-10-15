@@ -3,9 +3,13 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Rider;
 use App\Models\Role;
+use App\Models\Seller;
+use App\Models\SellerOrder;
 use App\Models\Shipment;
+use App\Models\SellerOrderItem;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -54,5 +58,35 @@ class ShippingManagementTest extends TestCase
         Sanctum::actingAs($assignedUser);
         $this->patchJson('/api/v1/rider/shipments/'.$shipment->id.'/status', ['status' => 'picked_up'])->assertOk();
         $this->assertDatabaseHas('shipment_tracking', ['shipment_id' => $shipment->id, 'previous_status' => 'pending', 'actor_id' => $assignedUser->id, 'actor_role' => 'rider']);
+    }
+
+    public function test_seller_shipment_creation_is_idempotent_and_details_are_owner_scoped(): void
+    {
+        $sellerUser = User::factory()->create();
+        $otherSellerUser = User::factory()->create();
+        $customer = User::factory()->create();
+        $seller = Seller::query()->create(['owner_user_id' => $sellerUser->id, 'store_name' => 'Seller One', 'slug' => 'seller-one-'.uniqid(), 'status' => 'approved']);
+        $otherSeller = Seller::query()->create(['owner_user_id' => $otherSellerUser->id, 'store_name' => 'Seller Two', 'slug' => 'seller-two-'.uniqid(), 'status' => 'approved']);
+        $order = Order::query()->create(['user_id' => $customer->id, 'order_number' => 'ORD-SELLER-SHIP-'.uniqid(), 'shipping_address' => ['line1' => 'Main'], 'subtotal_minor' => 1000, 'grand_total_minor' => 1000, 'currency' => 'MMK', 'payment_status' => 'paid', 'fulfillment_status' => 'confirmed']);
+        $orderItem = OrderItem::query()->create(['order_id' => $order->id, 'product_name' => 'Shipment product', 'sku' => 'SHIP-'.uniqid(), 'quantity' => 1, 'unit_price_minor' => 1000, 'line_total_minor' => 1000, 'seller_id' => $seller->id]);
+        $sellerOrder = SellerOrder::query()->create(['order_id' => $order->id, 'seller_id' => $seller->id, 'order_number' => 'SELLER-'.uniqid(), 'status' => 'confirmed', 'payment_status' => 'paid', 'fulfillment_status' => 'confirmed', 'subtotal_minor' => 1000, 'commission_minor' => 50, 'net_minor' => 950, 'currency' => 'MMK']);
+        SellerOrderItem::query()->create(['seller_order_id' => $sellerOrder->id, 'order_item_id' => $orderItem->id, 'product_name' => 'Shipment product', 'sku' => $orderItem->sku, 'quantity' => 1, 'unit_price_minor' => 1000, 'line_total_minor' => 1000]);
+
+        Sanctum::actingAs($sellerUser);
+        $payload = ['delivery_method' => 'self_delivery', 'carrier' => 'Kipi Self Delivery'];
+        $first = $this->withHeader('Idempotency-Key', 'seller-shipment-test-key')->postJson('/api/v1/seller/orders/'.$sellerOrder->id.'/shipments', $payload)->assertCreated();
+        $shipmentId = $first->json('data.id');
+        $this->withHeader('Idempotency-Key', 'seller-shipment-test-key')->postJson('/api/v1/seller/orders/'.$sellerOrder->id.'/shipments', $payload)->assertCreated()->assertJsonPath('data.id', $shipmentId);
+        $this->assertDatabaseCount('shipments', 1);
+        $this->getJson('/api/v1/seller/shipments/'.$shipmentId)->assertOk()->assertJsonPath('data.id', $shipmentId)->assertJsonPath('data.delivery_method', 'self_delivery');
+
+        Sanctum::actingAs($customer);
+        $this->getJson('/api/v1/orders/'.$order->id.'/shipments')->assertOk()->assertJsonPath('data.0.id', $shipmentId);
+        Sanctum::actingAs(User::factory()->create());
+        $this->getJson('/api/v1/orders/'.$order->id.'/shipments')->assertNotFound();
+
+        Sanctum::actingAs($otherSellerUser);
+        $this->getJson('/api/v1/seller/shipments/'.$shipmentId)->assertNotFound();
+        $this->assertDatabaseHas('sellers', ['id' => $otherSeller->id]);
     }
 }

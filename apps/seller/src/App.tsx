@@ -10,6 +10,8 @@ import { api, sellerRequest } from './lib/api'
 import { useSellerAuth } from './lib/auth'
 import './product-form.css'
 import './seller-custom-layout.css'
+import './shipment-workflow.css'
+import { FulfillmentPage, ShipmentDetailsPage } from './pages/FulfillmentPages'
 
 type Seller = { id: number; store_name: string; slug: string; status: string }
 type Dashboard = { seller: Seller; products: number; orders: number; earnings: { gross_minor: number; available_minor: number; currency: string } }
@@ -220,4 +222,4 @@ function Loading() { return <div className="card loading">Loading seller data…
 function ErrorBox({ message }: { message: string }) { return <div className="error block">{message}</div> }
 function Empty({ text }: { text: string }) { return <div className="empty">{text}</div> }
 
-export function App() { return <BrowserRouter><Routes><Route path="/seller/login" element={<Login />} /><Route element={<Protected />}><Route element={<Layout />}><Route path="/seller" element={<Overview />} /><Route path="/seller/products" element={<Products />} /><Route path="/seller/products/new" element={<NewProduct />} /><Route path="/seller/products/create" element={<NewProduct />} /><Route path="/seller/products/:id/edit" element={<EditProduct />} /><Route path="/seller/inventory" element={<Inventory />} /><Route path="/seller/orders" element={<Orders />} /><Route path="/seller/fulfillment" element={<Fulfillment />} /><Route path="/seller/earnings" element={<Earnings />} /><Route path="/seller/payouts" element={<Payouts />} /><Route path="/seller/settings" element={<SettingsPage />} /></Route></Route><Route path="*" element={<Navigate to="/seller" replace />} /></Routes></BrowserRouter> }
+export function App() { return <BrowserRouter><Routes><Route path="/seller/login" element={<Login />} /><Route element={<Protected />}><Route element={<Layout />}><Route path="/seller" element={<Overview />} /><Route path="/seller/products" element={<Products />} /><Route path="/seller/products/new" element={<NewProduct />} /><Route path="/seller/products/create" element={<NewProduct />} /><Route path="/seller/products/:id/edit" element={<EditProduct />} /><Route path="/seller/inventory" element={<Inventory />} /><Route path="/seller/orders" element={<Orders />} /><Route path="/seller/fulfillment" element={<FulfillmentPage />} /><Route path="/seller/shipments/:id" element={<ShipmentDetailsPage />} /><Route path="/seller/earnings" element={<Earnings />} /><Route path="/seller/payouts" element={<Payouts />} /><Route path="/seller/settings" element={<SettingsPage />} /></Route></Route><Route path="*" element={<Navigate to="/seller" replace />} /></Routes></BrowserRouter> }

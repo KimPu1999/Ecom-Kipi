@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Notifications\OrderShipmentNotification;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -21,16 +22,25 @@ class SellerFulfillmentService
             throw ValidationException::withMessages(['order' => 'A seller shipment requires verified payment.']);
         }
 
-        return DB::transaction(function () use ($sellerOrder, $data) {
-            $deliveryMethod = $data['delivery_method'] ?? 'external_courier';
-            $shipment = $sellerOrder->order->shipments()->create(['seller_order_id' => $sellerOrder->id, 'shipping_method_id' => $sellerOrder->order->shipping_method_id, 'delivery_method' => $deliveryMethod, 'carrier_id' => $data['carrier_id'] ?? null, 'status' => 'pending', 'carrier' => $deliveryMethod === 'self_delivery' ? ($data['carrier'] ?? 'Kipi Self Delivery') : ($data['carrier'] ?? null), 'tracking_number' => $deliveryMethod === 'external_courier' ? ($data['tracking_number'] ?? null) : null, 'internal_tracking_id' => $deliveryMethod === 'self_delivery' ? Shipment::nextInternalTrackingId() : null, 'rider_id' => $data['rider_id'] ?? null, 'estimated_delivery_at' => $data['estimated_delivery_at'] ?? null, 'notes' => $data['notes'] ?? null, 'created_by' => $data['actor_id'] ?? null, 'idempotency_key' => $data['idempotency_key'] ?? null, 'metadata' => array_filter(['tracking_url' => $data['tracking_url'] ?? null])]);
-            foreach ($sellerOrder->items as $item) {
-                $shipment->items()->create(['order_item_id' => $item->order_item_id, 'quantity' => $item->quantity]);
-            }
-            $shipment->tracking()->create(['status' => 'pending', 'actor_id' => $data['actor_id'] ?? null, 'actor_role' => $data['actor_role'] ?? null, 'source' => 'manual', 'occurred_at' => now()]);
+        try {
+            return DB::transaction(function () use ($sellerOrder, $data) {
+                $deliveryMethod = $data['delivery_method'] ?? 'external_courier';
+                $shipment = $sellerOrder->order->shipments()->create(['seller_order_id' => $sellerOrder->id, 'shipping_method_id' => $sellerOrder->order->shipping_method_id, 'delivery_method' => $deliveryMethod, 'carrier_id' => $data['carrier_id'] ?? null, 'status' => 'pending', 'carrier' => $deliveryMethod === 'self_delivery' ? ($data['carrier'] ?? 'Kipi Self Delivery') : ($data['carrier'] ?? null), 'tracking_number' => $deliveryMethod === 'external_courier' ? ($data['tracking_number'] ?? null) : null, 'internal_tracking_id' => $deliveryMethod === 'self_delivery' ? Shipment::nextInternalTrackingId() : null, 'rider_id' => $data['rider_id'] ?? null, 'estimated_delivery_at' => $data['estimated_delivery_at'] ?? null, 'notes' => $data['notes'] ?? null, 'created_by' => $data['actor_id'] ?? null, 'idempotency_key' => $data['idempotency_key'] ?? null, 'metadata' => array_filter(['tracking_url' => $data['tracking_url'] ?? null])]);
+                foreach ($sellerOrder->items as $item) {
+                    $shipment->items()->create(['order_item_id' => $item->order_item_id, 'quantity' => $item->quantity]);
+                }
+                $shipment->tracking()->create(['status' => 'pending', 'actor_id' => $data['actor_id'] ?? null, 'actor_role' => $data['actor_role'] ?? null, 'source' => 'manual', 'occurred_at' => now()]);
 
-            return $shipment->load(['items.orderItem', 'tracking', 'method']);
-        });
+                return $shipment->load(['items.orderItem', 'tracking', 'method']);
+            });
+        } catch (QueryException $exception) {
+            if (! empty($data['idempotency_key']) && in_array((string) $exception->getCode(), ['23000', '23505'], true)) {
+                $existing = $sellerOrder->shipments()->where('idempotency_key', $data['idempotency_key'])->first();
+                if ($existing) return $existing->load(['items.orderItem', 'tracking', 'method', 'carrierRecord', 'rider']);
+            }
+
+            throw $exception;
+        }
     }
 
     public function transition(Shipment $shipment, string $next, ?string $message = null, ?string $location = null, ?int $changedBy = null, ?string $actorRole = null): Shipment
