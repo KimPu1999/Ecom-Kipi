@@ -292,6 +292,22 @@ h3 { margin-bottom: 4px; }
 .checkout-item small { margin-top: 3px; color: var(--muted); font-size: .72rem; }
 .checkout-item b { white-space: nowrap; }
 @media(max-width:700px){.checkout-progress{gap:6px;padding:10px;font-size:.68rem;overflow:auto}.checkout-progress span{flex:0 0 auto}.checkout-progress span + span::before{margin-right:0}.checkout-trust{align-items:flex-start;flex-direction:column;gap:3px}.checkout-item{font-size:.76rem}}
+
+/* Plain customer navigation: text links only, without the category bar treatment. */
+.site-header .category-bar { min-height: 0; gap: clamp(16px, 2.4vw, 32px); padding: 0 24px 14px; color: #073B9A; background: #fff; box-shadow: none; }
+.site-header .category-bar a,
+.site-header .category-bar .category-trigger,
+.site-header .category-bar .all-categories { min-height: 0; padding: 4px 0; border-radius: 0; color: #073B9A; background: transparent; box-shadow: none; font-size: .88rem; font-weight: 700; }
+.site-header .category-bar .all-categories { border: 0; }
+.site-header .category-bar a:hover,
+.site-header .category-bar .category-trigger:hover,
+.site-header .category-bar .all-categories:hover { color: #0866FF; background: transparent; transform: none; }
+.site-header .category-bar .category-home:after { display: none; }
+.site-header .category-bar > .all-categories svg,
+.site-header .category-bar > .category-home svg,
+.site-header .category-bar > .category-trigger svg { display: none; }
+.site-header .category-bar:after { display: none; }
+@media(max-width:700px){.site-header .category-bar { gap: 18px; padding: 0 14px 11px; overflow-x: auto; }.site-header .category-bar a,.site-header .category-bar .category-trigger,.site-header .category-bar .all-categories { font-size: .78rem; }}
 .address-select-list { display: grid; gap: 9px; margin-top: 18px; }
 .address-select { display: flex; align-items: flex-start; gap: 12px; padding: 14px; color: var(--ink); background: var(--surface); text-align: left; }
 .address-select.selected { border-color: var(--primary); background: var(--accent); }
