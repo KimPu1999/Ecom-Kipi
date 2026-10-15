@@ -1,0 +1,13 @@
+{
+  "name": "@kipi/api-client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@kipi/types": "workspace:*",
+    "axios": "^1.8.4"
+  }
+}

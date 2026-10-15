@@ -1,0 +1,33 @@
+{
+  "name": "kipi-ecommerce-platform",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "corepack pnpm --filter @kipi/web dev",
+    "dev:admin": "corepack pnpm --filter @kipi/admin dev",
+    "dev:seller": "corepack pnpm --filter @kipi/seller dev",
+    "dev:mobile": "corepack pnpm --filter @kipi/mobile start",
+    "build": "corepack pnpm -r build",
+    "lint": "corepack pnpm -r lint",
+    "typecheck": "corepack pnpm -r typecheck",
+    "test": "corepack pnpm -r test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@eslint/js": "^9.21.0",
+    "@playwright/test": "^1.51.1",
+    "@tailwindcss/vite": "^4.3.3",
+    "eslint": "^9.21.0",
+    "prettier": "^3.5.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.24.0"
+  }
+}

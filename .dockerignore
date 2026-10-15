@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+apps/*/node_modules
+backend/laravel-api/.env
+backend/laravel-api/storage/logs
+backend/laravel-api/storage/framework/cache
+backend/laravel-api/storage/framework/sessions
+backend/laravel-api/storage/framework/views
+backend/laravel-api/vendor
+apps/*/dist
+backups
+.env
+.env.*
+!.env.example

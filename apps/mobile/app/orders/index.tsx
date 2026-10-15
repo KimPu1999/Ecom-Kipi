@@ -1,0 +1,11 @@
+import { useQuery } from '@tanstack/react-query'
+import { router } from 'expo-router'
+import { FlatList, Pressable, RefreshControl, Text, View } from 'react-native'
+import type { ReactNode } from 'react'
+import { commerceApi } from '../../src/commerce'
+import { EmptyState, ErrorState, Heading, LoadingState, Price, Screen, styles } from '../../src/components'
+import { useMobileAuth } from '../../src/auth'
+import { colors } from '../../src/theme'
+
+export default function Orders() { const user = useMobileAuth((state) => state.user); const query = useQuery({ queryKey: ['mobile-orders'], queryFn: () => commerceApi.orders(), enabled: !!user }); if (!user) return <Screen><EmptyState title="Sign in to view orders" message="Your order history will appear here." action={{ title: 'Sign in', onPress: () => router.push('/(auth)/login' as never) }} /></Screen>; if (query.isLoading) return <LoadingState />; if (query.isError) return <ErrorState onRetry={() => query.refetch()} />; return <Screen><Heading eyebrow="Your account" title="Orders" subtitle="Payment and fulfillment updates from the server." />{query.data?.data.length ? <FlatList data={query.data.data} keyExtractor={(item) => String(item.id)} refreshControl={<RefreshControl refreshing={query.isFetching} onRefresh={() => query.refetch()} />} renderItem={({ item }) => <Pressable style={styles.card} onPress={() => router.push(('/orders/' + item.id) as never)}><Text style={{ color: colors.ink, fontWeight: '800', fontSize: 16 }}>{item.order_number}</Text><Text style={styles.productMeta}>{item.placed_at ? new Date(item.placed_at).toLocaleDateString() : 'Pending'} · {item.payment_status}</Text><ViewRow label="Total" value={<Price amount={item.grand_total_minor} currency={item.currency} />} /><ViewRow label="Fulfillment" value={<Text style={{ color: colors.primary, fontWeight: '800' }}>{item.fulfillment_status}</Text>} /></Pressable>} /> : <EmptyState title="No orders yet" message="Your next order will show here." action={{ title: 'Browse products', onPress: () => router.push('/search' as never) }} />}</Screen> }
+function ViewRow({ label, value }: { label: string; value: ReactNode }) { return <View style={styles.sectionRow}><Text style={styles.subtitle}>{label}</Text>{value}</View> }

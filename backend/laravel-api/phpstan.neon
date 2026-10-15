@@ -1,0 +1,9 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+
+parameters:
+    level: 5
+    paths:
+        - app/Http/Controllers/Api/V1/HealthController.php
+        - app/Support/ApiResponse.php
+    tmpDir: storage/framework/phpstan

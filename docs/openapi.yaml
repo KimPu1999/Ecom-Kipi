@@ -1,0 +1,318 @@
+openapi: 3.0.3
+info:
+  title: Kipi E-Commerce API
+  version: 1.0.0
+  description: Versioned REST API for React web, React Native mobile, and admin clients.
+servers:
+  - url: http://localhost:8000/api/v1
+tags:
+  - name: Authentication
+  - name: Catalog
+  - name: Customer
+  - name: Cart
+  - name: Orders
+  - name: Admin
+paths:
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Create a Sanctum token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /auth/me:
+    get:
+      tags: [Authentication]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /categories:
+    get:
+      tags: [Catalog]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /brands:
+    get:
+      tags: [Catalog]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /products:
+    get:
+      tags: [Catalog]
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: category, in: query, schema: { type: string } }
+        - { name: brand, in: query, schema: { type: string } }
+        - { name: min_price, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: max_price, in: query, schema: { type: integer, minimum: 0 } }
+        - { name: available, in: query, schema: { type: boolean } }
+        - { name: sort, in: query, schema: { type: string, enum: [latest, name, price_asc, price_desc] } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { $ref: '#/components/responses/PaginatedSuccess' }
+  /products/featured:
+    get:
+      tags: [Catalog]
+      responses:
+        '200': { $ref: '#/components/responses/PaginatedSuccess' }
+  /products/{slug}:
+    get:
+      tags: [Catalog]
+      parameters:
+        - { $ref: '#/components/parameters/Slug' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /profile:
+    get:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    put:
+      tags: [Customer]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                phone: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /cart:
+    get:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    delete:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /cart/items:
+    post:
+      tags: [Cart]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [variant_id, quantity]
+              properties:
+                variant_id: { type: integer }
+                quantity: { type: integer, minimum: 1 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders:
+    get:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/PaginatedSuccess' }
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { name: Idempotency-Key, in: header, schema: { type: string, maxLength: 100 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderRequest'
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /orders/{id}:
+    get:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /orders/{id}/cancel:
+    post:
+      tags: [Orders]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /admin/products:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/PaginatedSuccess' }
+    post:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductRequest'
+      responses:
+        '201': { $ref: '#/components/responses/Success' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /admin/orders:
+    get:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/PaginatedSuccess' }
+  /admin/orders/{id}/status:
+    patch:
+      tags: [Admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Id' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [pending, processing, shipped, delivered, cancelled] }
+                note: { type: string }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password, password_confirmation]
+      properties:
+        name: { type: string, maxLength: 120 }
+        email: { type: string, format: email }
+        phone: { type: string }
+        password: { type: string, format: password, minLength: 8 }
+        password_confirmation: { type: string, format: password }
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        device_name: { type: string }
+    ProductRequest:
+      type: object
+      required: [category_id, name, slug, status]
+      properties:
+        category_id: { type: integer }
+        brand_id: { type: integer, nullable: true }
+        name: { type: string }
+        slug: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [draft, published, archived] }
+        is_featured: { type: boolean }
+    OrderRequest:
+      type: object
+      required: [shipping_address]
+      properties:
+        shipping_address: { type: object }
+        billing_address: { type: object, nullable: true }
+        discount_minor: { type: integer, minimum: 0 }
+        shipping_minor: { type: integer, minimum: 0 }
+        tax_minor: { type: integer, minimum: 0 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        idempotency_key: { type: string, maxLength: 100 }
+    ApiResponse:
+      type: object
+      required: [success, message, data]
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+        data: {}
+    ErrorResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors: { type: object }
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    Slug:
+      name: slug
+      in: path
+      required: true
+      schema: { type: string }
+  responses:
+    Success:
+      description: Successful response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+    PaginatedSuccess:
+      description: Paginated successful response
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/ApiResponse'
+              - type: object
+                properties:
+                  meta: { type: object }
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication failed
+    Forbidden:
+      description: Authorization failed
+    NotFound:
+      description: Resource not found

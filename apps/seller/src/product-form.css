@@ -1,0 +1,30 @@
+.form-section {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e4ece6;
+}
+
+.form-section:last-of-type {
+  border-bottom: 0;
+}
+
+.form-section > .kicker {
+  color: #52705c;
+}
+
+.form-card label small {
+  color: #ba5b4d;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.form-card label > small:not(:empty) {
+  color: #829087;
+}
+
+.form-card .muted {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.6;
+}

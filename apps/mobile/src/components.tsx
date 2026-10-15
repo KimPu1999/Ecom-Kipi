@@ -1,0 +1,37 @@
+import { Image } from 'expo-image'
+import { router } from 'expo-router'
+import { PropsWithChildren } from 'react'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native'
+import type { Product } from '@kipi/types'
+import { colors, spacing } from './theme'
+
+export function Screen({ children, scroll = false }: PropsWithChildren<{ scroll?: boolean }>) {
+  const content = <View style={styles.screen}>{children}</View>
+  return scroll ? <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>{content}</ScrollView> : content
+}
+
+export function Heading({ eyebrow, title, subtitle }: { eyebrow?: string; title: string; subtitle?: string }) {
+  return <View style={styles.heading}>{eyebrow ? <Text style={styles.eyebrow}>{eyebrow}</Text> : null}<Text style={styles.headingTitle}>{title}</Text>{subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}</View>
+}
+
+export function Button({ title, onPress, secondary = false, disabled = false }: { title: string; onPress: () => void; secondary?: boolean; disabled?: boolean }) {
+  return <Pressable accessibilityRole="button" accessibilityLabel={title} onPress={onPress} disabled={disabled} style={({ pressed }) => [styles.button, secondary && styles.buttonSecondary, disabled && styles.disabled, pressed && styles.pressed]}><Text style={[styles.buttonText, secondary && styles.buttonTextSecondary]}>{title}</Text></Pressable>
+}
+
+export function Input({ label, error, ...props }: TextInputProps & { label?: string; error?: string }) {
+  return <View style={styles.inputWrap}>{label ? <Text style={styles.label}>{label}</Text> : null}<TextInput accessibilityLabel={label} placeholderTextColor={colors.muted} style={styles.input} {...props} />{error ? <Text style={styles.error}>{error}</Text> : null}</View>
+}
+
+export function Card({ children }: PropsWithChildren) { return <View style={styles.card}>{children}</View> }
+export function Price({ amount, currency, compareAt }: { amount: number; currency: string; compareAt?: number | null }) { return <View style={styles.price}><Text style={styles.priceText}>{amount.toLocaleString()} {currency}</Text>{compareAt ? <Text style={styles.compare}>{compareAt.toLocaleString()} {currency}</Text> : null}</View> }
+export function LoadingState() { return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /><Text style={styles.subtitle}>Loading…</Text></View> }
+export function ErrorState({ message = 'We could not load this right now.', onRetry }: { message?: string; onRetry?: () => void }) { return <View style={styles.center}><Text style={styles.errorTitle}>Something went wrong</Text><Text style={styles.subtitle}>{message}</Text>{onRetry ? <Button title="Try again" onPress={onRetry} secondary /> : null}</View> }
+export function EmptyState({ title, message, action }: { title: string; message: string; action?: { title: string; onPress: () => void } }) { return <View style={styles.center}><Text style={styles.emptyIcon}>✦</Text><Text style={styles.errorTitle}>{title}</Text><Text style={styles.subtitle}>{message}</Text>{action ? <Button title={action.title} onPress={action.onPress} /> : null}</View> }
+
+export function ProductCard({ product }: { product: Product }) {
+  const variant = product.variants?.[0]
+  const image = product.images?.[0]
+  return <Pressable accessibilityRole="button" accessibilityLabel={'Open ' + product.name} onPress={() => router.push(('/products/' + product.slug) as never)} style={({ pressed }) => [styles.productCard, pressed && styles.pressed]}><View style={styles.productImage}>{image ? <Image source={image.url} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} /> : <Text style={styles.placeholder}>{product.name.slice(0, 1)}</Text>}</View><Text style={styles.productName} numberOfLines={2}>{product.name}</Text><Text style={styles.productMeta}>{product.seller?.store_name ?? product.category?.name ?? 'Kipi collection'}</Text>{variant ? <Price amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <Text style={styles.muted}>Unavailable</Text>}</Pressable>
+}
+
+export const styles = StyleSheet.create({ screen: { flex: 1, backgroundColor: colors.background, padding: spacing.md }, scroll: { flexGrow: 1, backgroundColor: colors.background }, heading: { marginBottom: spacing.lg }, eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '800', letterSpacing: 1.4, textTransform: 'uppercase' }, headingTitle: { color: colors.ink, fontSize: 30, lineHeight: 36, fontWeight: '800', marginTop: 6 }, subtitle: { color: colors.muted, fontSize: 15, lineHeight: 22, marginTop: 6 }, button: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 12, minHeight: 48, justifyContent: 'center', paddingHorizontal: spacing.md, marginTop: spacing.sm }, buttonSecondary: { backgroundColor: colors.softBlue, borderWidth: 1, borderColor: '#BFDBFE' }, buttonText: { color: colors.white, fontSize: 16, fontWeight: '800' }, buttonTextSecondary: { color: colors.primary }, disabled: { opacity: 0.45 }, pressed: { opacity: 0.72 }, inputWrap: { marginBottom: spacing.sm }, label: { color: colors.ink, fontSize: 13, fontWeight: '700', marginBottom: 6 }, input: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 12, borderWidth: 1, color: colors.ink, minHeight: 48, paddingHorizontal: 14, fontSize: 16 }, error: { color: colors.danger, fontSize: 13, marginTop: 4 }, card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 16, borderWidth: 1, padding: spacing.md, marginBottom: spacing.md }, center: { alignItems: 'center', justifyContent: 'center', flex: 1, padding: spacing.xl }, errorTitle: { color: colors.ink, fontSize: 18, fontWeight: '800', textAlign: 'center', marginTop: spacing.sm }, emptyIcon: { color: colors.primary, fontSize: 40 }, price: { flexDirection: 'row', alignItems: 'center', gap: 7, marginTop: 5 }, priceText: { color: colors.ink, fontSize: 15, fontWeight: '800' }, compare: { color: colors.muted, fontSize: 12, textDecorationLine: 'line-through' }, productCard: { width: '48%', marginBottom: spacing.lg }, productImage: { aspectRatio: 0.9, backgroundColor: '#E0ECFF', borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginBottom: 9 }, placeholder: { color: colors.primary, fontSize: 44, fontWeight: '800' }, productName: { color: colors.ink, fontSize: 15, fontWeight: '700', lineHeight: 20 }, productMeta: { color: colors.muted, fontSize: 12, marginTop: 3 }, muted: { color: colors.muted, fontSize: 14, marginTop: 6 }, search: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: 14, height: 48, justifyContent: 'center', paddingHorizontal: 15, marginBottom: spacing.md }, searchText: { color: colors.muted, fontSize: 15 }, sectionRow: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing.sm }, sectionTitle: { color: colors.ink, fontSize: 20, fontWeight: '800' }, link: { color: colors.primary, fontSize: 14, fontWeight: '700' }, row: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm }, divider: { borderBottomColor: colors.border, borderBottomWidth: 1, marginVertical: spacing.md }, badge: { borderRadius: 99, paddingHorizontal: 9, paddingVertical: 5, backgroundColor: colors.softBlue }, badgeText: { color: colors.primary, fontSize: 12, fontWeight: '800' } })

@@ -1,0 +1,8 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { router } from 'expo-router'
+import { Pressable, Text } from 'react-native'
+import { commerceApi } from '../../src/commerce'
+import { Button, EmptyState, ErrorState, Heading, LoadingState, Screen, styles } from '../../src/components'
+import { colors } from '../../src/theme'
+
+export default function Addresses() { const client = useQueryClient(); const query = useQuery({ queryKey: ['mobile-addresses'], queryFn: commerceApi.addresses }); const remove = useMutation({ mutationFn: commerceApi.removeAddress, onSuccess: () => client.invalidateQueries({ queryKey: ['mobile-addresses'] }) }); if (query.isLoading) return <LoadingState />; if (query.isError) return <ErrorState onRetry={() => query.refetch()} />; return <Screen><Heading eyebrow="Delivery" title="Addresses" subtitle="Keep your delivery details ready for checkout." /><Button title="Add address" onPress={() => router.push('/addresses/edit' as never)} />{query.data?.data.length ? query.data.data.map((address) => <Pressable key={address.id} style={styles.card} onPress={() => router.push(('/addresses/edit?id=' + address.id) as never)}><Text style={{ color: colors.ink, fontWeight: '800' }}>{address.label || 'Delivery address'} {address.is_default ? '· Default' : ''}</Text><Text style={styles.subtitle}>{address.recipient_name}{'\n'}{address.line1}, {address.city}, {address.country}</Text><Text style={{ color: colors.danger, marginTop: 10 }} onPress={() => remove.mutate(address.id)}>Remove</Text></Pressable>) : <EmptyState title="No addresses" message="Add a delivery address to check out." />}</Screen> }

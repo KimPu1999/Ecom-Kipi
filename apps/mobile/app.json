@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Kipi Commerce",
+    "slug": "kipi-commerce",
+    "scheme": "kipi",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "bundleIdentifier": "com.kipi.commerce",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.kipi.commerce",
+      "permissions": ["POST_NOTIFICATIONS"]
+    },
+    "plugins": ["expo-router", "expo-secure-store", "expo-notifications", ["@stripe/stripe-react-native", { "merchantIdentifier": "merchant.com.kipi.commerce" }]],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
