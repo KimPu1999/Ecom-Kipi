@@ -333,7 +333,7 @@
 /* Soft light theme tokens */
 :root {
   --header-bg: #ffffff;
-  --sidebar-bg: #f8fafc;
+  --sidebar-bg: #f1f5f9;
   --body-bg: #f1f5f9;
   --surface-bg: #ffffff;
   --text-primary: #1e293b;
@@ -450,6 +450,85 @@ select,
 
 .card:hover { box-shadow: 0 6px 18px rgba(15, 23, 42, .12); }
 
+.language-menu {
+  position: relative;
+}
+
+.language-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  background: transparent;
+  font-size: .78rem;
+  font-weight: 700;
+}
+
+.language-trigger:hover,
+.language-trigger[aria-expanded='true'] {
+  color: var(--primary);
+  border-color: var(--border-color);
+  background: #f8fafc;
+}
+
+.language-trigger:focus-visible,
+.language-dropdown button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.language-chevron {
+  transition: transform .18s ease;
+}
+
+.language-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.language-dropdown {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  min-width: 174px;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-bg);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+}
+
+.language-dropdown button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: transparent;
+  text-align: left;
+}
+
+.language-dropdown button:hover,
+.language-dropdown button.selected {
+  color: var(--primary);
+  background: #eff6ff;
+}
+
+.language-dropdown small {
+  color: var(--text-secondary);
+  font-size: .7rem;
+}
+
 /* Bring legacy page surfaces into the same global layout language. */
 .page-heading {
   display: flex;
@@ -534,4 +613,6 @@ select,
   .admin-content { padding: 16px 12px 36px; }
   .page-stack { gap: 16px; }
   .page-actions { justify-content: flex-start; }
+  .topbar-actions { gap: 6px; }
+  .language-trigger { padding-inline: 6px; }
 }

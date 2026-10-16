@@ -1,8 +1,9 @@
-import { useEffect, useState, type MouseEvent } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Boxes, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, FileBarChart, FileClock, LayoutDashboard, LogOut, Menu, Moon, Package, Percent, RotateCcw, Settings, ShieldCheck, ShoppingBag, Sun, Tags, Truck, Users, X } from 'lucide-react'
+import { Boxes, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, FileBarChart, FileClock, Languages, LayoutDashboard, LogOut, Menu, Moon, Package, Percent, RotateCcw, Settings, ShieldCheck, ShoppingBag, Sun, Tags, Truck, Users, X } from 'lucide-react'
 import { useAdminAuth } from '../store/auth'
 import { api } from '../lib/api'
+import { useLanguage } from '../store/language'
 
 type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; permission: string | null; superAdminOnly?: boolean }
 type NavSection = { key: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }
@@ -48,7 +49,10 @@ export function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
   const [openSection, setOpenSection] = useState<string | null>(null)
   const [flyout, setFlyout] = useState<{ key: string; top: number } | null>(null)
+  const [languageOpen, setLanguageOpen] = useState(false)
+  const languageMenuRef = useRef<HTMLDivElement>(null)
   const [dark, setDark] = useState(() => localStorage.getItem('kipi.admin.theme') === 'dark')
+  const { language, setLanguage, t } = useLanguage()
   const user = useAdminAuth((state) => state.user)
   const clear = useAdminAuth((state) => state.clear)
   const location = useLocation()
@@ -70,10 +74,19 @@ export function AdminLayout() {
       if (event.key === 'Escape') {
         setOpen(false)
         setFlyout(null)
+        setLanguageOpen(false)
       }
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [])
+
+  useEffect(() => {
+    const closeLanguageOnOutsideClick = (event: globalThis.MouseEvent) => {
+      if (languageMenuRef.current && event.target instanceof Node && !languageMenuRef.current.contains(event.target)) setLanguageOpen(false)
+    }
+    document.addEventListener('mousedown', closeLanguageOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeLanguageOnOutsideClick)
   }, [])
 
   useEffect(() => {
@@ -121,7 +134,7 @@ export function AdminLayout() {
     <div className={'mobile-backdrop ' + (open ? 'visible' : '')} onClick={() => setOpen(false)} />
     <aside className={'sidebar ' + (open ? 'open' : '')}>
       <div className="sidebar-top"><Link className="admin-brand" to="/admin" onClick={closeNavigation}><span className="brand-mark">K</span><span className="brand-name">Kipi <em>Control</em></span></Link><button className="icon-button mobile-close" onClick={closeNavigation} aria-label="Close navigation"><X size={20} /></button></div>
-      <p className="sidebar-label">Navigation</p>
+      <p className="sidebar-label">{t('Navigation')}</p>
       <nav className="sidebar-nav" aria-label="Admin navigation">
         {visibleSections.map((section) => {
           const SectionIcon = section.icon
@@ -129,19 +142,19 @@ export function AdminLayout() {
           const expanded = openSection === section.key
           const isDashboard = section.key === 'dashboard'
           return <div className={'sidebar-nav-group ' + (active ? 'has-active' : '')} key={section.key}>
-            {isDashboard ? <NavLink className="sidebar-nav-link sidebar-dashboard-link" title={collapsed ? section.label : undefined} aria-label={section.label} to={section.items[0].to} end onClick={closeNavigation}><SectionIcon size={24} /><span>{section.label}</span></NavLink> : <>
-              <button className={'sidebar-section-toggle ' + (active ? 'active' : '')} title={collapsed ? section.label : undefined} aria-label={section.label} aria-expanded={collapsed ? flyout?.key === section.key : expanded} aria-controls={'sidebar-submenu-' + section.key} onClick={(event) => toggleSection(section, event)}><SectionIcon size={25} /><span>{section.label}</span><ChevronDown className={'sidebar-section-chevron ' + (expanded ? 'expanded' : '')} size={19} /></button>
-              <div id={'sidebar-submenu-' + section.key} className={'sidebar-submenu ' + (expanded ? 'expanded' : '')} aria-hidden={!expanded}>{section.items.map((item) => { const ItemIcon = item.icon; return <NavLink className="sidebar-submenu-link" tabIndex={collapsed || !expanded ? -1 : 0} key={item.to} aria-label={item.label} to={item.to} end={item.to === '/admin'} onClick={closeNavigation}><ItemIcon size={18} /><span>{item.label}</span></NavLink> })}</div>
+            {isDashboard ? <NavLink className="sidebar-nav-link sidebar-dashboard-link" title={collapsed ? t(section.label) : undefined} aria-label={t(section.label)} to={section.items[0].to} end onClick={closeNavigation}><SectionIcon size={24} /><span>{t(section.label)}</span></NavLink> : <>
+              <button className={'sidebar-section-toggle ' + (active ? 'active' : '')} title={collapsed ? t(section.label) : undefined} aria-label={t(section.label)} aria-expanded={collapsed ? flyout?.key === section.key : expanded} aria-controls={'sidebar-submenu-' + section.key} onClick={(event) => toggleSection(section, event)}><SectionIcon size={25} /><span>{t(section.label)}</span><ChevronDown className={'sidebar-section-chevron ' + (expanded ? 'expanded' : '')} size={19} /></button>
+              <div id={'sidebar-submenu-' + section.key} className={'sidebar-submenu ' + (expanded ? 'expanded' : '')} aria-hidden={!expanded}>{section.items.map((item) => { const ItemIcon = item.icon; return <NavLink className="sidebar-submenu-link" tabIndex={collapsed || !expanded ? -1 : 0} key={item.to} aria-label={t(item.label)} to={item.to} end={item.to === '/admin'} onClick={closeNavigation}><ItemIcon size={18} /><span>{t(item.label)}</span></NavLink> })}</div>
             </>}
           </div>
         })}
       </nav>
-      {collapsed && flyout ? (() => { const section = visibleSections.find((item) => item.key === flyout.key); if (!section) return null; return <div className="sidebar-flyout" style={{ top: flyout.top }} role="menu" aria-label={section.label}><strong>{section.label}</strong>{section.items.map((item) => { const ItemIcon = item.icon; return <NavLink className="sidebar-flyout-link" role="menuitem" key={item.to} to={item.to} end={item.to === '/admin'} onClick={closeNavigation}><ItemIcon size={18} /><span>{item.label}</span></NavLink> })}</div> })() : null}
-      <div className="sidebar-bottom"><div className="admin-mini"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{isSuperAdmin ? 'Super admin' : 'Administrator'}</small></span></div><button className="logout-link" onClick={logout}><LogOut size={17} />Log out</button></div>
-      <button className="sidebar-collapse" onClick={() => { setCollapsed((value) => !value); setOpenSection(null); setFlyout(null) }} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}<span>{collapsed ? 'Expand' : 'Collapse'}</span></button>
+      {collapsed && flyout ? (() => { const section = visibleSections.find((item) => item.key === flyout.key); if (!section) return null; return <div className="sidebar-flyout" style={{ top: flyout.top }} role="menu" aria-label={t(section.label)}><strong>{t(section.label)}</strong>{section.items.map((item) => { const ItemIcon = item.icon; return <NavLink className="sidebar-flyout-link" role="menuitem" key={item.to} to={item.to} end={item.to === '/admin'} onClick={closeNavigation}><ItemIcon size={18} /><span>{t(item.label)}</span></NavLink> })}</div> })() : null}
+      <div className="sidebar-bottom"><div className="admin-mini"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{isSuperAdmin ? t('Super admin') : t('Administrator')}</small></span></div><button className="logout-link" onClick={logout}><LogOut size={17} />{t('Log out')}</button></div>
+      <button className="sidebar-collapse" onClick={() => { setCollapsed((value) => !value); setOpenSection(null); setFlyout(null) }} aria-label={collapsed ? t('Expand sidebar') : t('Collapse sidebar')} title={collapsed ? t('Expand sidebar') : t('Collapse sidebar')}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}<span>{collapsed ? t('Expand sidebar') : t('Collapse sidebar')}</span></button>
     </aside>
     <main className="admin-main">
-      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => { setCollapsed(false); setOpen(true) }} aria-label="Open navigation" aria-expanded={open}><Menu size={21} /></button><div className="breadcrumbs"><span>Control center</span><b>/</b><strong>{current?.label ?? 'Page'}</strong></div><div className="topbar-actions"><button className="icon-button" onClick={() => setDark((value) => !value)} aria-label="Toggle theme">{dark ? <Sun size={18} /> : <Moon size={18} />}</button><div className="topbar-profile"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{user?.name}</strong><small>{user?.email}</small></span></div></div></header>
+      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => { setCollapsed(false); setOpen(true) }} aria-label={t('Open navigation')} aria-expanded={open}><Menu size={21} /></button><div className="breadcrumbs"><span>{t('Control center')}</span><b>/</b><strong>{current ? t(current.label) : t('Page')}</strong></div><div className="topbar-actions"><button className="icon-button" onClick={() => setDark((value) => !value)} aria-label={t('Toggle theme')}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button><div className="language-menu" ref={languageMenuRef}><button className="language-trigger" type="button" onClick={() => setLanguageOpen((value) => !value)} aria-label={t('Language')} aria-expanded={languageOpen} aria-haspopup="menu"><Languages size={18} /><span>{language === 'my' ? 'မြန်မာ' : 'English'}</span><ChevronDown className={languageOpen ? 'language-chevron expanded' : 'language-chevron'} size={16} /></button>{languageOpen ? <div className="language-dropdown" role="menu" aria-label={t('Language')}><button type="button" role="menuitemradio" aria-checked={language === 'en'} className={language === 'en' ? 'selected' : ''} onClick={() => { setLanguage('en'); setLanguageOpen(false) }}><span>English</span><small>English</small></button><button type="button" role="menuitemradio" aria-checked={language === 'my'} className={language === 'my' ? 'selected' : ''} onClick={() => { setLanguage('my'); setLanguageOpen(false) }}><span>မြန်မာ</span><small>{t('Burmese')}</small></button></div> : null}</div><div className="topbar-profile"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{user?.name}</strong><small>{user?.email}</small></span></div></div></header>
       <div className="admin-content"><Outlet /></div>
     </main>
   </div>
