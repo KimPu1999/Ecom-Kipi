@@ -74,6 +74,11 @@ class Seller extends Model
         return $this->hasMany(SellerPayout::class);
     }
 
+    public function payoutMethods(): HasMany
+    {
+        return $this->hasMany(SellerPayoutMethod::class);
+    }
+
     public function approvalHistory(): HasMany
     {
         return $this->hasMany(SellerApprovalHistory::class);

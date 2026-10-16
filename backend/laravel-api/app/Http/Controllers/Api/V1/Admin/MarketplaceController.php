@@ -11,6 +11,7 @@ use App\Models\SellerDocument;
 use App\Models\SellerPayout;
 use App\Services\SellerApprovalService;
 use App\Services\CommissionService;
+use App\Services\SellerPayoutService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -230,8 +231,43 @@ class MarketplaceController extends Controller
         }
     }
 
-    public function payouts()
+    public function payouts(SellerPayoutService $payouts)
     {
-        return ApiResponse::success(SellerPayout::with('seller')->latest()->paginate(30), 'Marketplace payouts retrieved');
+        $query = SellerPayout::with('seller')->latest();
+        if (Schema::hasColumn('seller_payouts', 'payout_method_id') && Schema::hasTable('seller_payout_methods')) {
+            $query->with('payoutMethod');
+        }
+        $page = $query->paginate(30);
+        $rows = collect($page->items())->map(function (SellerPayout $payout) use ($payouts): array {
+            $row = $payouts->safePayout($payout);
+            $row['seller'] = $payout->seller ? [
+                'id' => $payout->seller->id,
+                'store_name' => $payout->seller->store_name,
+            ] : null;
+
+            return $row;
+        });
+
+        return ApiResponse::paginated($page, $rows, 'Marketplace payouts retrieved');
+    }
+
+    public function updatePayoutStatus(Request $request, SellerPayout $sellerPayout, SellerPayoutService $payouts)
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:approved,processing,paid,rejected,cancelled'],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'provider_reference' => ['nullable', 'string', 'max:255'],
+        ]);
+        $updated = $payouts->transition($sellerPayout, $request->user(), $data['status'], $data['note'] ?? null, $data['provider_reference'] ?? null);
+
+        return ApiResponse::success($payouts->safePayout($updated), 'Payout status updated');
+    }
+
+    public function verifyPayoutMethod(Request $request, int $payoutMethod, SellerPayoutService $payouts)
+    {
+        $data = $request->validate(['verification_status' => ['required', 'in:unverified,verified,rejected']]);
+        $method = $payouts->verifyMethod($payoutMethod, $request->user(), $data['verification_status']);
+
+        return ApiResponse::success($method->safeArray(), 'Payout method verification updated');
     }
 }

@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SellerPayout extends Model
 {
-    protected $fillable = ['seller_id', 'status', 'amount_minor', 'currency', 'provider', 'provider_payout_id', 'idempotency_key', 'failure_message', 'requested_at', 'processed_at'];
+    protected $fillable = ['seller_id', 'payout_method_id', 'status', 'amount_minor', 'currency', 'provider', 'provider_payout_id', 'idempotency_key', 'failure_message', 'requested_at', 'processed_at'];
 
     protected function casts(): array
     {
@@ -19,6 +19,11 @@ class SellerPayout extends Model
         return $this->belongsTo(Seller::class);
     }
 
+    public function payoutMethod(): BelongsTo
+    {
+        return $this->belongsTo(SellerPayoutMethod::class, 'payout_method_id');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(SellerPayoutItem::class);
@@ -27,5 +32,10 @@ class SellerPayout extends Model
     public function reconciliation(): HasMany
     {
         return $this->hasMany(PayoutReconciliationRecord::class);
+    }
+
+    public function statusHistory(): HasMany
+    {
+        return $this->hasMany(SellerPayoutStatusHistory::class, 'seller_payout_id')->latest();
     }
 }

@@ -924,6 +924,188 @@ header {
   }
 }
 
+/* Seller payout workflow */
+.payout-stat-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.payout-workflow-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(300px, .8fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.payout-methods-card,
+.payout-request-card {
+  min-width: 0;
+}
+
+.payout-method-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--seller-border);
+}
+
+.payout-method-row > div:first-child {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.payout-method-row span,
+.payout-history-card td small {
+  display: block;
+  color: var(--seller-muted);
+  font-size: 12px;
+}
+
+.payout-method-actions,
+.payout-method-actions > * {
+  flex: 0 0 auto;
+}
+
+.payout-method-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payout-method-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--seller-border);
+}
+
+.payout-method-form h3 {
+  margin: 0;
+  color: var(--seller-text);
+  font-size: 15px;
+}
+
+.payout-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.payout-form-grid label,
+.payout-request-card label {
+  display: grid;
+  gap: 5px;
+  color: var(--seller-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.payout-form-grid input,
+.payout-form-grid select,
+.payout-request-card input,
+.payout-request-card select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid var(--seller-border);
+  border-radius: 7px;
+  color: var(--seller-text);
+  background: var(--seller-input-bg);
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--seller-muted);
+  font-size: 12px;
+}
+
+.checkbox-label input {
+  accent-color: var(--seller-action);
+}
+
+.payout-balance-list {
+  display: grid;
+  gap: 0;
+  margin: 0 0 18px;
+}
+
+.payout-balance-list div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--seller-border);
+}
+
+.payout-balance-list dt {
+  color: var(--seller-muted);
+  font-size: 12px;
+}
+
+.payout-balance-list dd {
+  margin: 0;
+  color: var(--seller-text);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.payout-request-card form {
+  display: grid;
+  gap: 12px;
+}
+
+.payout-request-card .button {
+  width: 100%;
+}
+
+.payout-history-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.payout-history-card .table-scroll {
+  overflow-x: auto;
+}
+
+.payout-history-card table {
+  min-width: 820px;
+}
+
+@media (max-width: 1000px) {
+  .payout-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .payout-workflow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .payout-stat-grid,
+  .payout-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payout-method-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .payout-method-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: .01ms !important;

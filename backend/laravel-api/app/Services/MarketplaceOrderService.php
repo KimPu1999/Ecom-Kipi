@@ -114,6 +114,12 @@ class MarketplaceOrderService
         $paid = (int) $payouts
             ->filter(fn (SellerPayout $payout): bool => in_array(strtolower((string) $payout->status), $paidPayoutStatuses, true))
             ->sum('amount_minor');
+        $reservedPayoutStatuses = ['pending', 'approved', 'processing'];
+        $reserved = (int) $payouts
+            ->filter(fn (SellerPayout $payout): bool => in_array(strtolower((string) $payout->status), $reservedPayoutStatuses, true))
+            ->sum('amount_minor');
+        $pendingPayouts = $payouts->filter(fn (SellerPayout $payout): bool => strtolower((string) $payout->status) === 'pending');
+        $processingPayouts = $payouts->filter(fn (SellerPayout $payout): bool => in_array(strtolower((string) $payout->status), ['approved', 'processing'], true));
 
         $history = $sellerOrders->flatMap(function (SellerOrder $sellerOrder) use ($entries, $payouts, $refundAllocations): Collection {
             $orderEntries = $entries->where('seller_order_id', $sellerOrder->id);
@@ -170,7 +176,17 @@ class MarketplaceOrderService
             'refund_adjustments_minor' => $refundAdjustments,
             // Keep these legacy keys for the existing dashboard contract.
             'gross_minor' => $gross,
-            'available_minor' => max(0, $net),
+            'total_earnings_minor' => $net,
+            'available_minor' => max(0, $net - $paid - $reserved),
+            'available_balance_minor' => max(0, $net - $paid - $reserved),
+            'reserved_payout_minor' => $reserved,
+            'pending_payout_requests' => $pendingPayouts->count(),
+            'pending_payout_amount_minor' => (int) $pendingPayouts->sum('amount_minor'),
+            'processing_payouts' => $processingPayouts->count(),
+            'processing_payout_amount_minor' => (int) $processingPayouts->sum('amount_minor'),
+            'total_paid_out_minor' => $paid,
+            'payout_min_minor' => (int) config('marketplace.payout_min_minor', 1),
+            'payout_max_minor' => (int) config('marketplace.payout_max_minor', 0),
             'currency' => $currency,
             'payout_processing_configured' => (bool) config('marketplace.stripe_connect_enabled'),
             'commission_history' => $history,

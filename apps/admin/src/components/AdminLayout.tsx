@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Boxes, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, FileBarChart, FileClock, Languages, LayoutDashboard, LogOut, Menu, Moon, Package, Percent, RotateCcw, Settings, ShieldCheck, ShoppingBag, Sun, Tags, Truck, Users, X } from 'lucide-react'
+import { Boxes, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, FileBarChart, FileClock, Languages, LayoutDashboard, LogOut, Menu, Moon, Package, Percent, RotateCcw, Settings, ShieldCheck, ShoppingBag, Sun, Tags, Truck, Users, Wallet, X } from 'lucide-react'
 import { useAdminAuth } from '../store/auth'
 import { api } from '../lib/api'
 import { useAppearance } from '../store/appearance'
@@ -32,6 +32,7 @@ const navSections: NavSection[] = [
   ] },
   { key: 'payments', label: 'Payments', icon: CircleDollarSign, items: [
     { label: 'Transactions', to: '/admin/payments', icon: CircleDollarSign, permission: 'manage_orders' },
+    { label: 'Seller Payouts', to: '/admin/payouts', icon: Wallet, permission: 'manage_marketplace' },
     { label: 'Refunds', to: '/admin/refunds', icon: RotateCcw, permission: 'manage_orders' },
   ] },
   { key: 'commission', label: 'Commission', icon: Percent, items: [

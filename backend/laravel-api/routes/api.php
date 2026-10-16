@@ -117,6 +117,10 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('earnings', [SellerController::class, 'earnings']);
         Route::get('payouts', [SellerController::class, 'payouts']);
         Route::post('payouts', [SellerController::class, 'requestPayout']);
+        Route::get('payout-methods', [SellerController::class, 'payoutMethods']);
+        Route::post('payout-methods', [SellerController::class, 'storePayoutMethod']);
+        Route::patch('payout-methods/{payoutMethod}', [SellerController::class, 'updatePayoutMethod']);
+        Route::post('payouts/{sellerPayout}/cancel', [SellerController::class, 'cancelPayout']);
         Route::get('settings', [SellerController::class, 'settings']);
         Route::put('settings', [SellerController::class, 'updateSettings']);
     });
@@ -205,6 +209,8 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             Route::get('commission-settings', [MarketplaceController::class, 'commissionSettings']);
             Route::get('commission-rules', [MarketplaceController::class, 'commissionRules']);
             Route::get('payouts', [MarketplaceController::class, 'payouts']);
+            Route::patch('payouts/{sellerPayout}/status', [MarketplaceController::class, 'updatePayoutStatus']);
+            Route::patch('payout-methods/{payoutMethod}/verification', [MarketplaceController::class, 'verifyPayoutMethod']);
         });
         Route::prefix('marketplace')->middleware('super_admin')->group(function () {
             Route::put('commission-settings', [MarketplaceController::class, 'updateCommissionSettings']);

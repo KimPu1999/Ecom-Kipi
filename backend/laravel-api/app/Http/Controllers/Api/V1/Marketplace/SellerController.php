@@ -20,6 +20,7 @@ use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Services\MarketplaceOrderService;
 use App\Services\SellerFulfillmentService;
+use App\Services\SellerPayoutService;
 use App\Services\InventoryService;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
@@ -30,7 +31,7 @@ use Illuminate\Validation\ValidationException;
 
 class SellerController extends Controller
 {
-    public function __construct(private readonly MarketplaceOrderService $marketplace, private readonly SellerFulfillmentService $fulfillment) {}
+    public function __construct(private readonly MarketplaceOrderService $marketplace, private readonly SellerFulfillmentService $fulfillment, private readonly SellerPayoutService $payouts) {}
 
     private function seller(Request $request): Seller
     {
@@ -458,21 +459,71 @@ class SellerController extends Controller
 
     public function payouts(Request $request)
     {
-        return ApiResponse::success($this->seller($request)->payouts()->latest()->get(), 'Seller payouts retrieved');
+        $seller = $this->seller($request);
+        $rows = $seller->payouts()->latest()->get()->map(fn ($payout): array => $this->payouts->safePayout($payout))->values();
+
+        return ApiResponse::success($rows, 'Seller payouts retrieved');
     }
 
     public function requestPayout(Request $request)
     {
         $seller = $this->seller($request);
-        if (! config('marketplace.stripe_connect_enabled') || ! $seller->payout_provider_account_id) {
-            return ApiResponse::error('Payout provider onboarding is not configured for this seller.', 422);
+        $rules = ['amount_minor' => ['required', 'integer', 'min:1'], 'payout_method_id' => ['nullable', 'integer']];
+        $maximum = (int) config('marketplace.payout_max_minor', 0);
+        if ($maximum > 0) {
+            $rules['amount_minor'][] = 'max:'.$maximum;
         }
-        $data = $request->validate(['amount_minor' => ['required', 'integer', 'min:1']]);
-        $earnings = $this->marketplace->earnings($seller->id);
-        abort_if($data['amount_minor'] > $earnings['available_minor'], 422, 'Requested payout exceeds available balance.');
-        $payout = $seller->payouts()->create(['status' => 'pending', 'amount_minor' => $data['amount_minor'], 'currency' => $earnings['currency'], 'provider' => 'stripe_connect', 'idempotency_key' => 'payout:'.Str::uuid(), 'requested_at' => now()]);
+        $data = $request->validate($rules);
+        $idempotencyKey = trim((string) $request->header('Idempotency-Key'));
+        if ($idempotencyKey === '' || strlen($idempotencyKey) > 120) {
+            throw ValidationException::withMessages(['idempotency_key' => 'An Idempotency-Key header of 1–120 characters is required.']);
+        }
+        $result = $this->payouts->request($seller, (int) $data['amount_minor'], isset($data['payout_method_id']) ? (int) $data['payout_method_id'] : null, $idempotencyKey);
 
-        return ApiResponse::success($payout, 'Payout request queued for provider processing', 201);
+        return ApiResponse::success($this->payouts->safePayout($result['payout']), $result['replayed'] ? 'Existing payout request returned' : 'Payout request submitted', $result['replayed'] ? 200 : 201);
+    }
+
+    public function payoutMethods(Request $request)
+    {
+        return ApiResponse::success($this->payouts->methods($this->seller($request)), 'Seller payout methods retrieved');
+    }
+
+    public function storePayoutMethod(Request $request)
+    {
+        $data = $request->validate([
+            'method' => ['required', 'string', 'in:kbzpay,wavepay,bank_transfer,other'],
+            'provider_name' => ['nullable', 'string', 'max:120'],
+            'account_holder_name' => ['required', 'string', 'max:150'],
+            'account_identifier' => ['required', 'string', 'min:4', 'max:255'],
+            'is_default' => ['sometimes', 'boolean'],
+        ]);
+        $method = $this->payouts->createMethod($this->seller($request), $data);
+
+        return ApiResponse::success($method->safeArray(), 'Payout method added', 201);
+    }
+
+    public function updatePayoutMethod(Request $request, int $payoutMethod)
+    {
+        $data = $request->validate([
+            'method' => ['sometimes', 'string', 'in:kbzpay,wavepay,bank_transfer,other'],
+            'provider_name' => ['sometimes', 'nullable', 'string', 'max:120'],
+            'account_holder_name' => ['sometimes', 'string', 'max:150'],
+            'account_identifier' => ['sometimes', 'nullable', 'string', 'min:4', 'max:255'],
+            'is_default' => ['sometimes', 'boolean'],
+            'is_active' => ['sometimes', 'boolean'],
+        ]);
+        $method = $this->payouts->updateMethod($this->seller($request), $payoutMethod, $data);
+
+        return ApiResponse::success($method->safeArray(), 'Payout method updated');
+    }
+
+    public function cancelPayout(Request $request, int $sellerPayout)
+    {
+        $payout = $this->seller($request)->payouts()->findOrFail($sellerPayout);
+        $data = $request->validate(['note' => ['nullable', 'string', 'max:1000']]);
+        $payout = $this->payouts->transition($payout, $request->user(), 'cancelled', $data['note'] ?? 'Cancelled by seller.');
+
+        return ApiResponse::success($this->payouts->safePayout($payout), 'Payout request cancelled');
     }
 
     public function settings(Request $request)
