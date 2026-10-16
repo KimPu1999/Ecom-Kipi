@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from 'react'
-import { AlertCircle, ChevronLeft, ChevronRight, LoaderCircle, Search } from 'lucide-react'
+import { useRef } from 'react'
+import { AlertCircle, ChevronLeft, ChevronRight, LoaderCircle, Search, X } from 'lucide-react'
 import { useLanguage } from '../store/language'
 
 export function PageHeader({ action }: { eyebrow?: string; title?: string; description?: string; action?: ReactNode }) {
@@ -34,7 +35,19 @@ export function EmptyState({ title, message }: { title: string; message: string 
 
 export function SearchBox({ value, onChange, placeholder = 'Search…' }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
   const { t } = useLanguage()
-  return <label className="search-box"><Search size={18} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={t(placeholder)} /></label>
+  const label = t(placeholder)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const clearSearch = () => {
+    onChange('')
+    inputRef.current?.focus()
+  }
+
+  return <div className="search-box">
+    <Search size={18} aria-hidden="true" />
+    <input ref={inputRef} className="search-box-input" type="text" value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} aria-label={label} />
+    {value.length > 0 ? <button type="button" className="search-box-clear" aria-label={t('Clear search')} onMouseDown={(event) => event.preventDefault()} onClick={clearSearch}><X size={15} aria-hidden="true" /></button> : null}
+  </div>
 }
 
 export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {

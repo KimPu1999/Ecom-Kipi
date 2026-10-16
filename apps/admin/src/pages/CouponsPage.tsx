@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Edit3, Plus, Tag, Trash2 } from 'lucide-react'
 import { adminApi } from '../services/adminApi'
 import type { Coupon } from '../types/admin'
@@ -11,7 +11,7 @@ export function CouponsPage() {
   const client = useQueryClient()
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<Coupon | null>(null)
-  const query = useQuery({ queryKey: ['admin-coupons', search], queryFn: () => adminApi.coupons({ q: search }) })
+  const query = useQuery({ queryKey: ['admin-coupons', search], queryFn: () => adminApi.coupons({ q: search }), placeholderData: keepPreviousData })
   const save = useMutation({ mutationFn: (coupon: Coupon) => coupon.id ? adminApi.updateCoupon(coupon.id, payload(coupon)) : adminApi.createCoupon(payload(coupon)), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['admin-coupons'] }) } })
   const disable = useMutation({ mutationFn: adminApi.disableCoupon, onSuccess: () => client.invalidateQueries({ queryKey: ['admin-coupons'] }) })
   if (query.isLoading) return <LoadingState />

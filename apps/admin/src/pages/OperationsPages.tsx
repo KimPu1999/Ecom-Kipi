@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ClipboardCheck, SlidersHorizontal } from 'lucide-react'
 import { adminApi } from '../services/adminApi'
 import { useAdminAuth } from '../store/auth'
@@ -17,7 +17,7 @@ export function UsersPage() {
   const { search, setSearch, page, setPage } = useListSearch()
   const [role, setRole] = useState('')
   const client = useQueryClient()
-  const query = useQuery({ queryKey: ['admin-users', search, role, page], queryFn: () => adminApi.users({ q: search, role, page: String(page) }) })
+  const query = useQuery({ queryKey: ['admin-users', search, role, page], queryFn: () => adminApi.users({ q: search, role, page: String(page) }), placeholderData: keepPreviousData })
   const mutation = useMutation({ mutationFn: (payload: { id: number; status: string }) => adminApi.updateUserStatus(payload.id, payload.status), onSuccess: () => client.invalidateQueries({ queryKey: ['admin-users'] }) })
   if (query.isLoading) return <LoadingState />
   if (query.isError || !query.data) return <ErrorState />
@@ -37,7 +37,7 @@ export function InventoryPage() {
   const [lowStock, setLowStock] = useState(false)
   const [adjusting, setAdjusting] = useState<InventoryRow | null>(null)
   const client = useQueryClient()
-  const query = useQuery({ queryKey: ['admin-inventory', search, lowStock, page], queryFn: () => adminApi.inventory({ q: search, low_stock: String(lowStock), page: String(page) }) })
+  const query = useQuery({ queryKey: ['admin-inventory', search, lowStock, page], queryFn: () => adminApi.inventory({ q: search, low_stock: String(lowStock), page: String(page) }), placeholderData: keepPreviousData })
   const mutation = useMutation({ mutationFn: (payload: { id: number; data: { delta: number; note: string; low_stock_threshold: number } }) => adminApi.adjustInventory(payload.id, payload.data), onSuccess: () => { setAdjusting(null); client.invalidateQueries({ queryKey: ['admin-inventory'] }); client.invalidateQueries({ queryKey: ['admin-dashboard'] }) } })
   if (query.isLoading) return <LoadingState />
   if (query.isError || !query.data) return <ErrorState />
@@ -57,7 +57,7 @@ export function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState<number | null>(null)
   const orderDetailRef = useRef<HTMLDivElement>(null)
   const client = useQueryClient()
-  const query = useQuery({ queryKey: ['admin-orders', search, status, page], queryFn: () => adminApi.orders({ q: search, fulfillment_status: status, page: String(page), per_page: '10' }) })
+  const query = useQuery({ queryKey: ['admin-orders', search, status, page], queryFn: () => adminApi.orders({ q: search, fulfillment_status: status, page: String(page), per_page: '10' }), placeholderData: keepPreviousData })
   const mutation = useMutation({ mutationFn: (payload: { id: number; status: string }) => adminApi.updateOrderStatus(payload.id, payload.status), onSuccess: () => { client.invalidateQueries({ queryKey: ['admin-orders'] }); client.invalidateQueries({ queryKey: ['admin-dashboard'] }) } })
   useEffect(() => { if (selectedOrder) orderDetailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [selectedOrder])
   if (query.isLoading) return <LoadingState />
@@ -107,7 +107,7 @@ function formatAddress(address: unknown) {
 
 export function AuditLogsPage() {
   const { search, setSearch, page, setPage } = useListSearch()
-  const query = useQuery({ queryKey: ['admin-audit-logs', search, page], queryFn: () => adminApi.auditLogs({ q: search, page: String(page) }) })
+  const query = useQuery({ queryKey: ['admin-audit-logs', search, page], queryFn: () => adminApi.auditLogs({ q: search, page: String(page) }), placeholderData: keepPreviousData })
   if (query.isLoading) return <LoadingState />
   if (query.isError || !query.data) return <ErrorState message="Audit logs are restricted to authorized administrators." />
   return <div className="page-stack"><PageHeader eyebrow="Governance" title="Audit logs" description="Append-only administrative activity with sensitive fields excluded." /><Card><div className="toolbar"><SearchBox value={search} onChange={setSearch} placeholder="Search actions or resources" /></div>{query.data.data.length ? <div className="table-wrap"><table><thead><tr><th>Action</th><th>Actor</th><th>Resource</th><th>IP address</th><th>When</th></tr></thead><tbody>{query.data.data.map((log) => <tr key={log.id}><td><strong>{log.action}</strong></td><td>{log.actor?.name ?? 'System'}</td><td>{log.resource_type?.split('\\').pop() ?? '—'} {log.resource_id ?? ''}</td><td>{log.ip_address ?? '—'}</td><td>{new Date(log.created_at).toLocaleString()}</td></tr>)}</tbody></table></div> : <EmptyState title="No activity yet" message="Administrative actions will be recorded here." />}<Pagination page={query.data.meta?.current_page ?? 1} pages={query.data.meta?.last_page ?? 1} onChange={setPage} /></Card></div>

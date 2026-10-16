@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, Edit3, Eye, EyeOff, ImagePlus, Plus, Trash2 } from 'lucide-react'
 import { ApiClientError } from '@kipi/api-client'
 import { adminApi } from '../services/adminApi'
@@ -37,7 +37,7 @@ export function CategoriesPage() {
   const { search, setSearch, page, setPage } = useSearch()
   const [editing, setEditing] = useState<Category | null>(null)
   const client = useQueryClient()
-  const query = useQuery({ queryKey: ['admin-categories', search, page], queryFn: () => adminApi.categories({ q: search, page: String(page) }) })
+  const query = useQuery({ queryKey: ['admin-categories', search, page], queryFn: () => adminApi.categories({ q: search, page: String(page) }), placeholderData: keepPreviousData })
   const mutation = useMutation({ mutationFn: (payload: { id?: number; data: Record<string, unknown> }) => payload.id ? adminApi.updateCategory(payload.id, payload.data) : adminApi.createCategory(payload.data), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['admin-categories'] }) } })
   const visibilityMutation = useMutation({ mutationFn: (category: Category) => adminApi.updateCategory(category.id, { is_active: !category.is_active }), onSuccess: () => client.invalidateQueries({ queryKey: ['admin-categories'] }) })
   const deleteMutation = useMutation({ mutationFn: adminApi.deleteCategory, onSuccess: () => client.invalidateQueries({ queryKey: ['admin-categories'] }) })
@@ -50,7 +50,7 @@ export function BrandsPage() {
   const { search, setSearch, page, setPage } = useSearch()
   const [editing, setEditing] = useState<Brand | null>(null)
   const client = useQueryClient()
-  const query = useQuery({ queryKey: ['admin-brands', search, page], queryFn: () => adminApi.brands({ q: search, page: String(page) }) })
+  const query = useQuery({ queryKey: ['admin-brands', search, page], queryFn: () => adminApi.brands({ q: search, page: String(page) }), placeholderData: keepPreviousData })
   const mutation = useMutation({ mutationFn: (payload: { id?: number; data: Record<string, unknown> }) => payload.id ? adminApi.updateBrand(payload.id, payload.data) : adminApi.createBrand(payload.data), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['admin-brands'] }) } })
   const deleteMutation = useMutation({ mutationFn: adminApi.deleteBrand, onSuccess: () => client.invalidateQueries({ queryKey: ['admin-brands'] }) })
   if (query.isLoading) return <LoadingState />
@@ -64,7 +64,7 @@ export function ProductsPage() {
   const [variantProduct, setVariantProduct] = useState<Product | null>(null)
   const [imageProduct, setImageProduct] = useState<Product | null>(null)
   const client = useQueryClient()
-  const query = useQuery({ queryKey: ['admin-products', search, page], queryFn: () => adminApi.products({ q: search, page: String(page) }) })
+  const query = useQuery({ queryKey: ['admin-products', search, page], queryFn: () => adminApi.products({ q: search, page: String(page) }), placeholderData: keepPreviousData })
   const categories = useQuery({ queryKey: ['admin-categories', 'select'], queryFn: () => adminApi.categories({ per_page: '100' }) })
   const brands = useQuery({ queryKey: ['admin-brands', 'select'], queryFn: () => adminApi.brands({ per_page: '100' }) })
   const mutation = useMutation({ mutationFn: (payload: { id?: number; data: Record<string, unknown> }) => payload.id ? adminApi.updateProduct(payload.id, payload.data) : adminApi.createProduct(payload.data), onSuccess: () => { setEditing(null); client.invalidateQueries({ queryKey: ['admin-products'] }) } })

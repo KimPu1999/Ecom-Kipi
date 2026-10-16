@@ -779,3 +779,191 @@ select,
     height: 100dvh;
   }
 }
+
+/* Compact controls with minimal borders across the Admin panel. */
+:root {
+  --admin-control-height: 36px;
+  --admin-control-compact-height: 34px;
+  --admin-control-border: #f1f5f9;
+  --admin-control-bg: #ffffff;
+  --admin-search-bg: #f8fafc;
+  --admin-control-text: #334155;
+  --admin-control-placeholder: #94a3b8;
+}
+
+:root[data-theme='dark'] {
+  --admin-control-border: var(--border-color);
+  --admin-control-bg: var(--surface-bg);
+  --admin-search-bg: var(--body-bg);
+  --admin-control-text: var(--text-primary);
+  --admin-control-placeholder: #94a3b8;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='file']),
+select,
+.select {
+  height: var(--admin-control-height);
+  min-height: var(--admin-control-height);
+  padding: 7px 9px;
+  border: 1px solid var(--admin-control-border);
+  border-radius: 6px;
+  color: var(--admin-control-text);
+  background: var(--admin-control-bg);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.select.compact {
+  height: var(--admin-control-compact-height);
+  min-height: var(--admin-control-compact-height);
+  padding: 6px 8px;
+}
+
+textarea {
+  min-height: 88px;
+  padding: 7px 9px;
+  border: 1px solid var(--admin-control-border);
+  border-radius: 6px;
+  color: var(--admin-control-text);
+  background: var(--admin-control-bg);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+input[type='file'] {
+  min-height: var(--admin-control-height);
+  padding: 6px 8px;
+  border: 1px solid var(--admin-control-border);
+  border-radius: 6px;
+  color: var(--admin-control-text);
+  background: var(--admin-control-bg);
+  font-size: 13px;
+}
+
+.search-box {
+  position: relative;
+  min-height: var(--admin-control-height);
+  padding: 6px 9px;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--admin-search-bg);
+}
+
+.search-box svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+}
+
+.search-box input,
+.search-box-input {
+  flex: 1 1 auto;
+  width: 0;
+  height: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  color: var(--admin-control-text);
+  background: transparent;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.password-input {
+  border-color: var(--admin-control-border);
+}
+
+.password-input input {
+  height: auto;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--admin-control-placeholder);
+  opacity: 1;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='color']):not([type='file']):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--admin-control-border);
+  outline-offset: 1px;
+}
+
+.search-box:focus-within {
+  border-color: var(--admin-control-border);
+  box-shadow: none;
+}
+
+.search-box input:focus,
+.search-box input:focus-visible,
+.search-box-input:focus,
+.search-box-input:focus-visible,
+.password-input input:focus-visible {
+  outline: 0;
+  box-shadow: none;
+}
+
+.search-box-clear {
+  display: inline-grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 0 -2px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  color: var(--admin-control-placeholder);
+  background: transparent;
+}
+
+.search-box-clear:hover {
+  color: var(--admin-control-text);
+  background: var(--admin-control-border);
+}
+
+.search-box-clear:focus-visible {
+  outline: 2px solid var(--admin-control-border);
+  outline-offset: 1px;
+}
+
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--admin-search-bg) 72%, var(--admin-control-bg));
+}
+
+input[aria-invalid='true'],
+select[aria-invalid='true'],
+textarea[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.toolbar {
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.stack-form {
+  gap: 12px;
+}
+
+.stack-form label,
+.inline-form label {
+  gap: 5px;
+  font-size: 12px;
+}
+
+.inline-form {
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 10px;
+  border-color: var(--admin-control-border);
+}
