@@ -2070,3 +2070,336 @@ html[lang='my'] body {
     padding-inline: 7px;
   }
 }
+
+/* Payouts: finance controls stay compact while details remain easy to scan. */
+.payout-page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.payout-page-header h1 {
+  margin: 4px 0 6px;
+  color: var(--seller-text);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.1;
+  letter-spacing: -.04em;
+}
+
+.payout-page-header p,
+.payout-modal-intro {
+  margin: 0;
+  color: var(--seller-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.payout-page-header > .button {
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.payout-feedback {
+  margin: -4px 0 16px;
+}
+
+.payout-methods-card {
+  padding: 20px;
+}
+
+.payout-methods-card .card-heading {
+  margin-bottom: 4px;
+}
+
+.payout-methods-card .card-heading,
+.payout-methods-card .card-heading > div {
+  min-width: 0;
+}
+
+.payout-methods-card .card-heading p {
+  max-width: 520px;
+}
+
+.payout-method-row:last-of-type {
+  border-bottom: 0;
+}
+
+.payout-method-actions .pill,
+.payout-row-actions {
+  flex: 0 0 auto;
+}
+
+.payout-history-card {
+  margin-top: 16px;
+}
+
+.payout-history-filters {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.5fr) repeat(3, minmax(120px, .8fr)) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--seller-border);
+  background: var(--seller-surface-muted);
+}
+
+.payout-history-filters label {
+  display: grid;
+  gap: 5px;
+  color: var(--seller-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.payout-history-filters input,
+.payout-history-filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--seller-border);
+  border-radius: 7px;
+  color: var(--seller-text);
+  background: var(--seller-input-bg);
+}
+
+.payout-history-filters input:focus,
+.payout-history-filters select:focus,
+.payout-form-grid input:focus,
+.payout-form-grid select:focus,
+.payout-modal input:focus,
+.payout-modal select:focus {
+  border-color: var(--seller-primary);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seller-primary) 18%, transparent);
+}
+
+.payout-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.payout-history-card td small,
+.payout-detail-grid dd small {
+  margin-top: 3px;
+}
+
+.payout-status-paid,
+.payout-verification-verified {
+  color: var(--seller-success);
+  background: var(--seller-success-bg);
+}
+
+.payout-status-rejected,
+.payout-status-cancelled,
+.payout-verification-rejected {
+  color: var(--seller-danger);
+  background: var(--seller-danger-bg);
+}
+
+.payout-status-processing,
+.payout-status-approved,
+.payout-verification-pending {
+  color: var(--seller-primary);
+  background: var(--seller-soft);
+}
+
+.payout-status-history-title,
+.payout-history-title {
+  margin: 22px 0 10px;
+  color: var(--seller-text);
+  font-size: 14px;
+}
+
+.payout-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, .48);
+}
+
+.payout-modal {
+  width: min(100%, 520px);
+  max-height: min(760px, calc(100vh - 40px));
+  overflow-y: auto;
+  padding: 22px;
+  border: 1px solid var(--seller-border);
+  border-radius: 14px;
+  color: var(--seller-text);
+  background: var(--seller-surface);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
+}
+
+.payout-modal-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.payout-modal-heading h2 {
+  margin: 4px 0 0;
+  color: var(--seller-text);
+  font-size: 20px;
+}
+
+.payout-modal-heading .icon {
+  flex: 0 0 auto;
+  color: var(--seller-muted);
+}
+
+.payout-modal form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.payout-modal form label {
+  display: grid;
+  gap: 5px;
+  color: var(--seller-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.payout-modal input,
+.payout-modal select {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--seller-border);
+  border-radius: 7px;
+  color: var(--seller-text);
+  background: var(--seller-input-bg);
+}
+
+.payout-modal-actions {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.payout-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 20px 0 0;
+}
+
+.payout-detail-grid div {
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--seller-border);
+  border-radius: 8px;
+  background: var(--seller-surface-muted);
+}
+
+.payout-detail-grid dt {
+  color: var(--seller-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.payout-detail-grid dd {
+  min-width: 0;
+  margin: 5px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--seller-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.payout-status-history {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.payout-status-history li {
+  padding-left: 4px;
+  color: var(--seller-text);
+}
+
+.payout-status-history li > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.payout-status-history span,
+.payout-status-history p,
+.payout-status-history small {
+  color: var(--seller-muted);
+  font-size: 12px;
+}
+
+.payout-status-history p {
+  margin: 4px 0 0;
+}
+
+@media (max-width: 1000px) {
+  .payout-history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .payout-history-filters label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 620px) {
+  .payout-page-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .payout-page-header > .button {
+    width: 100%;
+  }
+
+  .payout-methods-card {
+    padding: 16px;
+  }
+
+  .payout-history-filters {
+    grid-template-columns: 1fr;
+    padding-inline: 16px;
+  }
+
+  .payout-history-filters label:first-child {
+    grid-column: auto;
+  }
+
+  .payout-history-filters .button {
+    width: 100%;
+  }
+
+  .payout-modal-backdrop {
+    align-items: end;
+    padding: 0;
+  }
+
+  .payout-modal {
+    max-height: calc(100vh - 16px);
+    border-radius: 14px 14px 0 0;
+    padding: 18px 16px;
+  }
+
+  .payout-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .payout-modal-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

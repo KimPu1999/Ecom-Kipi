@@ -64,10 +64,43 @@ describe('Seller payouts', () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     renderPayouts()
+    fireEvent.click(await screen.findByRole('button', { name: 'Request payout' }))
     fireEvent.change(await screen.findByLabelText('Amount (MMK)'), { target: { value: '500' } })
     fireEvent.change(screen.getByLabelText('Payout method'), { target: { value: '7' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Request payout' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Submit request' }))
 
     await waitFor(() => expect(request).toHaveBeenCalledWith(expect.objectContaining({ url: '/seller/payouts', method: 'POST', data: { amount_minor: 500, payout_method_id: 7 }, headers: expect.objectContaining({ 'Idempotency-Key': expect.any(String) }) })))
+  })
+
+  it('filters history and opens the server-provided payout details', async () => {
+    const payout = {
+      id: 12,
+      payout_method_id: 7,
+      payout_method: { id: 7, method: 'kbzpay', provider_name: 'KBZPay', account_holder_name: 'Seller', account_last4: '0123', masked_identifier: '••••0123', verification_status: 'verified', verified_at: null, is_default: true, is_active: true },
+      status: 'processing',
+      amount_minor: 700,
+      currency: 'MMK',
+      provider: 'KBZPay',
+      provider_payout_id: null,
+      failure_message: null,
+      requested_at: '2026-10-15T09:00:00Z',
+      processed_at: null,
+      status_history: [{ id: 1, from_status: 'approved', to_status: 'processing', note: 'Queued for transfer.', provider_reference: null, created_at: '2026-10-15T10:00:00Z' }],
+    }
+    vi.spyOn(api, 'request').mockImplementation(async (config) => {
+      if (config.url === '/seller/earnings') return { data: { data: earnings } } as never
+      if (config.url === '/seller/payout-methods') return { data: { data: [] } } as never
+      if (config.url === '/seller/payouts') return { data: { data: [payout] } } as never
+      return { data: { data: [] } } as never
+    })
+
+    renderPayouts()
+    expect(await screen.findByText('Payout history')).not.toBeNull()
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'does-not-exist' } })
+    expect(screen.getByText('No payout requests match these filters.')).not.toBeNull()
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: '12' } })
+    fireEvent.click(screen.getByRole('button', { name: 'View details' }))
+    expect(await screen.findByRole('heading', { name: 'Payout #12' })).not.toBeNull()
+    expect(screen.getByText('Queued for transfer.')).not.toBeNull()
   })
 })
