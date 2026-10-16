@@ -1597,3 +1597,214 @@ html[data-seller-theme='dark'] .status-note {
 .product-management-table tbody tr:hover td {
   background: var(--seller-surface-muted);
 }
+
+/* Add Product variant builder and gallery. */
+.variant-count {
+  grid-column: span 2;
+  min-height: 0;
+  padding: 12px 14px;
+}
+
+.variant-toggle {
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--seller-border);
+  border-radius: 12px;
+  background: var(--seller-surface-muted);
+}
+
+.variant-toggle input,
+.variant-active-toggle input {
+  accent-color: var(--seller-primary);
+}
+
+.variant-toggle span {
+  display: grid;
+  gap: 3px;
+}
+
+.variant-toggle strong,
+.option-builder-heading strong {
+  color: var(--seller-text);
+  font-size: 13px;
+}
+
+.variant-toggle small,
+.option-builder-heading p,
+.option-empty,
+.variant-empty {
+  color: var(--seller-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.option-builder {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--seller-border);
+  border-radius: 14px;
+  background: var(--seller-surface-muted);
+}
+
+.option-builder-heading,
+.option-editor-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.option-builder-heading p {
+  margin: 4px 0 0;
+}
+
+.option-editor {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--seller-border);
+  border-radius: 12px;
+  background: var(--seller-surface);
+}
+
+.option-editor-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.option-editor-top label {
+  gap: 5px;
+}
+
+.option-values {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.option-values-label {
+  color: var(--seller-muted);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.option-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.option-value input,
+.variant-builder-table input,
+.variant-builder-table select {
+  min-width: 0;
+  border: 1px solid var(--seller-border);
+  border-radius: 8px;
+  padding: 8px 9px;
+  color: var(--seller-text);
+  background: var(--seller-surface);
+  font-size: 12px;
+}
+
+.option-value input {
+  width: 120px;
+}
+
+.option-value .icon {
+  padding: 5px;
+}
+
+.option-empty,
+.variant-empty {
+  padding: 10px;
+  border: 1px dashed var(--seller-border-strong);
+  border-radius: 9px;
+  text-align: center;
+}
+
+.variant-warning {
+  padding: 10px 12px;
+  border: 1px solid var(--seller-danger);
+  border-radius: 9px;
+  color: var(--seller-danger);
+  background: var(--seller-danger-bg);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.variant-table-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--seller-border);
+  border-radius: 12px;
+}
+
+.variant-builder-table {
+  min-width: 820px;
+  background: var(--seller-surface);
+}
+
+.variant-builder-table th,
+.variant-builder-table td {
+  padding: 10px 12px;
+}
+
+.variant-builder-table td:first-child {
+  min-width: 160px;
+}
+
+.variant-builder-table td strong,
+.variant-builder-table td small {
+  display: block;
+}
+
+.variant-builder-table td small {
+  margin-top: 3px;
+  color: var(--seller-muted);
+  font-size: 10px;
+}
+
+.variant-builder-table input {
+  width: 120px;
+}
+
+.variant-active-toggle {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap;
+}
+
+.variant-active-toggle span {
+  color: var(--seller-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.product-image-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .variant-count {
+    grid-column: auto;
+  }
+
+  .option-builder-heading,
+  .option-editor-top {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .option-editor-top {
+    display: flex;
+  }
+
+  .option-editor-top .danger-link {
+    align-self: flex-start;
+  }
+}

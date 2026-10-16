@@ -175,6 +175,42 @@ class SellerApprovalTest extends TestCase
             ->assertJsonPath('data.0.id', $productA->id);
     }
 
+    public function test_seller_can_create_a_product_with_persistent_variant_inventory(): void
+    {
+        [$owner, , $existingProduct] = $this->approvedSeller('variant-create-store');
+        Sanctum::actingAs($owner);
+
+        $response = $this->postJson('/api/v1/seller/products', [
+            'category_id' => $existingProduct->category_id,
+            'name' => 'Configurable shirt',
+            'slug' => 'configurable-shirt',
+            'status' => 'draft',
+            'variants' => [
+                ['sku' => 'CONFIG-BLACK-M', 'price_minor' => 25000, 'currency' => 'MMK', 'attributes' => ['Color' => 'Black', 'Size' => 'M'], 'quantity' => 7],
+                ['sku' => 'CONFIG-WHITE-L', 'price_minor' => 26000, 'currency' => 'MMK', 'attributes' => ['Color' => 'White', 'Size' => 'L'], 'quantity' => 3],
+            ],
+        ])->assertCreated();
+
+        $productId = $response->json('data.id');
+        $this->assertDatabaseCount('product_variants', 2);
+        $this->assertDatabaseHas('product_variants', ['product_id' => $productId, 'sku' => 'CONFIG-BLACK-M']);
+        $this->assertDatabaseHas('inventories', ['quantity' => 7]);
+        $this->assertDatabaseHas('inventories', ['quantity' => 3]);
+        $this->assertSame('Black', $response->json('data.variants.0.attributes.Color'));
+
+        $this->postJson('/api/v1/seller/products', [
+            'category_id' => $existingProduct->category_id,
+            'name' => 'Duplicate combinations',
+            'slug' => 'duplicate-combinations',
+            'variants' => [
+                ['sku' => 'DUPLICATE-A', 'price_minor' => 1000, 'currency' => 'MMK', 'attributes' => ['Color' => 'Black'], 'quantity' => 1],
+                ['sku' => 'DUPLICATE-B', 'price_minor' => 1000, 'currency' => 'MMK', 'attributes' => ['color' => 'black'], 'quantity' => 1],
+            ],
+        ])->assertUnprocessable();
+
+        $this->assertDatabaseCount('products', 2);
+    }
+
     private function customer(): User
     {
         $user = User::factory()->create();

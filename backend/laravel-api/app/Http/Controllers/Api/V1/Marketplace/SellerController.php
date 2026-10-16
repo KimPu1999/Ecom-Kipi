@@ -243,8 +243,57 @@ class SellerController extends Controller
 
     public function storeProduct(Request $request)
     {
-        $data = $request->validate(['category_id' => ['required', 'exists:categories,id'], 'brand_id' => ['nullable', 'exists:brands,id'], 'name' => ['required', 'string', 'max:180'], 'slug' => ['required', 'string', 'max:180', 'unique:products,slug'], 'description' => ['nullable', 'string'], 'status' => ['nullable', 'in:draft,published']]);
-        $product = $this->seller($request)->products()->create($data + ['status' => $data['status'] ?? 'draft']);
+        $data = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'brand_id' => ['nullable', 'integer', 'exists:brands,id'],
+            'name' => ['required', 'string', 'max:180'],
+            'slug' => ['required', 'string', 'max:180', 'unique:products,slug'],
+            'description' => ['nullable', 'string'],
+            'status' => ['nullable', 'in:draft,published'],
+            'variants' => ['nullable', 'array', 'min:1', 'max:100'],
+            'variants.*.sku' => ['required', 'string', 'max:100', 'distinct', 'unique:product_variants,sku'],
+            'variants.*.price_minor' => ['required', 'integer', 'min:0'],
+            'variants.*.compare_at_price_minor' => ['nullable', 'integer', 'min:0'],
+            'variants.*.currency' => ['required', 'string', 'size:3'],
+            'variants.*.attributes' => ['nullable', 'array'],
+            'variants.*.attributes.*' => ['nullable', 'string', 'max:100'],
+            'variants.*.quantity' => ['nullable', 'integer', 'min:0'],
+            'variants.*.is_active' => ['sometimes', 'boolean'],
+        ]);
+        $variants = $data['variants'] ?? [];
+        unset($data['variants']);
+
+        $combinationKeys = [];
+        foreach ($variants as $index => $variant) {
+            $normalizedAttributes = [];
+            foreach (($variant['attributes'] ?? []) as $name => $value) {
+                $normalizedName = Str::lower(trim((string) $name));
+                $normalizedValue = Str::lower(trim((string) $value));
+                if ($normalizedName === '' || $normalizedValue === '') {
+                    throw ValidationException::withMessages(["variants.{$index}.attributes" => 'Variant option names and values cannot be empty.']);
+                }
+                $normalizedAttributes[$normalizedName] = $normalizedValue;
+            }
+            ksort($normalizedAttributes);
+            $combinationKey = json_encode($normalizedAttributes);
+            if (isset($combinationKeys[$combinationKey])) {
+                throw ValidationException::withMessages(["variants.{$index}.attributes" => 'Variant combinations must be unique.']);
+            }
+            $combinationKeys[$combinationKey] = true;
+        }
+
+        $product = DB::transaction(function () use ($data, $variants, $request) {
+            $product = $this->seller($request)->products()->create($data + ['status' => $data['status'] ?? 'draft']);
+
+            foreach ($variants as $variantData) {
+                $quantity = (int) ($variantData['quantity'] ?? 0);
+                unset($variantData['quantity']);
+                $variant = $product->variants()->create($variantData + ['currency' => 'MMK']);
+                $variant->inventory()->create(['quantity' => $quantity]);
+            }
+
+            return $product->load(['seller', 'variants.inventory']);
+        });
 
         return ApiResponse::success($product->load(['seller', 'variants']), 'Seller product created', 201);
     }

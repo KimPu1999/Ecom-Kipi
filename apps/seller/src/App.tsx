@@ -15,6 +15,7 @@ import './seller-custom-layout.css'
 import './shipment-workflow.css'
 import './theme.css'
 import { FulfillmentPage, ShipmentDetailsPage } from './pages/FulfillmentPages'
+import { buildVariantCombinations, emptyVariant, MAX_PRODUCT_VARIANTS, mergeVariantRows, optionSuggestion, type ProductOptionDraft, type VariantDraft, validateProductOptions, validateVariantRows, variantLabel } from './product-variants'
 
 type Seller = { id: number; store_name: string; slug: string; status: string }
 type Dashboard = { seller: Seller; products: number; orders: number; earnings: { gross_minor: number; available_minor: number; total_sales_minor?: number; commission_deducted_minor?: number; net_earnings_minor?: number; pending_earnings_minor?: number; paid_earnings_minor?: number; refund_adjustments_minor?: number; currency: string } }
@@ -26,11 +27,15 @@ type SellerDashboard = Dashboard & { metrics: SellerDashboardMetrics; range: { v
 type Product = { id: number; name: string; slug?: string; description?: string | null; status: string; average_rating?: number | null; review_count?: number | null; category?: { id: number; name: string }; brand?: { id: number; name: string }; images?: { id: number; url: string; alt_text: string | null; is_primary: boolean }[]; variants?: { id?: number; sku: string; price_minor: number; compare_at_price_minor?: number | null; attributes?: Record<string, string> | null; is_active?: boolean; quantity?: number; reserved_quantity?: number; low_stock_threshold?: number; available_quantity: number; currency?: string }[] }
 type Category = { id: number; name: string; slug: string; description: string | null; is_active: boolean }
 type Brand = { id: number; name: string; slug: string }
-type NewProductValues = { category_id: number; brand_id?: number; name: string; slug: string; description?: string; status: 'draft' | 'published'; sku: string; price_minor: number; compare_at_price_minor?: number; currency: string; quantity: number; option_name?: string; option_value?: string }
+type NewProductValues = { category_id: number; brand_id?: number; name: string; slug: string; description?: string; status: 'draft' | 'published'; currency: string }
 type SellerOrder = { id: number; order_number: string; status: string; payment_status?: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string; order_id?: number; created_at?: string; items?: { id: number; product_name: string; sku: string; quantity: number; unit_price_minor: number; line_total_minor: number }[]; order?: { user?: { name?: string | null; email?: string | null } | null; placed_at?: string | null; shipping_address?: Record<string, unknown> | null }; shipments?: { id: number; status: string; carrier: string | null; tracking_number: string | null }[] }
 type CommissionHistoryRow = { id: number; order_id: number; seller_order_id: number; order_number: string; brand: { id: number; name: string } | null; eligible_subtotal_minor: number; percentage_bps: number; fixed_minor: number; commission_minor: number; net_minor: number; currency: string; payment_status: string | null; payout_status: string | null; status: string; rule_source: string; confirmed_at: string | null; refund_adjustments_minor: number; commission_reversed_minor: number }
 type SellerEarnings = { total_sales_minor: number; commission_deducted_minor: number; commission_refunds_minor: number; net_earnings_minor: number; pending_earnings_minor: number; paid_earnings_minor: number; refund_adjustments_minor: number; gross_minor: number; available_minor: number; currency: string; payout_processing_configured: boolean; commission_history: CommissionHistoryRow[] }
 type NotificationPage = { read_at?: string | null }
+
+function createProductOptionId(): string {
+  return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `option-${Date.now()}-${Math.random().toString(36).slice(2)}`
+}
 
 function Login() {
   const navigate = useNavigate(); const setSession = useSellerAuth((s) => s.setSession); const clear = useSellerAuth((s) => s.clear); const [error, setError] = useState('')
@@ -252,14 +257,64 @@ function Products() {
 function NewProduct() {
   const navigate = useNavigate()
   const client = useQueryClient()
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState('')
+  const [imageFiles, setImageFiles] = useState<File[]>([])
+  const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [imageUrl, setImageUrl] = useState('')
   const [altText, setAltText] = useState('')
+  const [mediaError, setMediaError] = useState('')
+  const [hasVariants, setHasVariants] = useState(false)
+  const [options, setOptions] = useState<ProductOptionDraft[]>([])
+  const [rows, setRows] = useState<VariantDraft[]>([emptyVariant()])
   const categories = useQuery({ queryKey: ['seller-categories'], queryFn: () => sellerRequest<Category[]>('GET', '/categories') })
   const brands = useQuery({ queryKey: ['seller-brands'], queryFn: () => sellerRequest<Brand[]>('GET', '/brands') })
+  const combinations = buildVariantCombinations(options)
+  const combinationSignature = combinations.map((combination) => combination.key).join('\u0001')
+
+  useEffect(() => {
+    if (!hasVariants) {
+      setRows((previous) => [previous[0] ?? emptyVariant()])
+      return
+    }
+
+    setRows((previous) => mergeVariantRows(combinations, previous))
+  }, [combinationSignature, hasVariants])
+
+  useEffect(() => () => imagePreviews.forEach((preview) => URL.revokeObjectURL(preview)), [imagePreviews])
+
+  const updateVariant = (index: number, patch: Partial<VariantDraft>) => setRows((previous) => previous.map((row, rowIndex) => rowIndex === index ? { ...row, ...patch } : row))
+  const updateOption = (index: number, patch: Partial<ProductOptionDraft>) => setOptions((previous) => previous.map((option, optionIndex) => optionIndex === index ? { ...option, ...patch } : option))
+  const addOption = () => setOptions((previous) => [...previous, { id: createProductOptionId(), name: '', values: [''] }])
+  const removeOption = (index: number) => setOptions((previous) => previous.filter((_, optionIndex) => optionIndex !== index))
+  const addOptionValue = (index: number) => setOptions((previous) => previous.map((option, optionIndex) => optionIndex === index ? { ...option, values: [...option.values, ''] } : option))
+  const updateOptionValue = (optionIndex: number, valueIndex: number, value: string) => setOptions((previous) => previous.map((option, currentOptionIndex) => currentOptionIndex === optionIndex ? { ...option, values: option.values.map((item, currentValueIndex) => currentValueIndex === valueIndex ? value : item) } : option))
+  const removeOptionValue = (optionIndex: number, valueIndex: number) => setOptions((previous) => previous.map((option, currentOptionIndex) => currentOptionIndex === optionIndex ? { ...option, values: option.values.filter((_, currentValueIndex) => currentValueIndex !== valueIndex) } : option))
+  const applyOptionSuggestion = (index: number, suggestion: string) => {
+    if (!suggestion) return
+    setOptions((previous) => previous.map((option, optionIndex) => optionIndex === index ? { ...option, name: suggestion, values: optionSuggestion(suggestion) } : option))
+  }
+
+  const chooseImages = (files: File[]) => {
+    imagePreviews.forEach((preview) => URL.revokeObjectURL(preview))
+    const supported = files.filter((file) => ['image/jpeg', 'image/png', 'image/webp'].includes(file.type) && file.size <= 2 * 1024 * 1024)
+    setMediaError(supported.length === files.length ? '' : 'Only JPG, PNG, or WebP images up to 2 MB are allowed.')
+    setImageFiles(supported)
+    setImagePreviews(supported.map((file) => URL.createObjectURL(file)))
+  }
+
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(imagePreviews[index])
+    setImageFiles((previous) => previous.filter((_, fileIndex) => fileIndex !== index))
+    setImagePreviews((previous) => previous.filter((_, fileIndex) => fileIndex !== index))
+  }
+
   const save = useMutation({
     mutationFn: async (value: NewProductValues) => {
+      const draftRows = hasVariants ? rows : [rows[0] ?? emptyVariant()]
+      const optionError = hasVariants ? validateProductOptions(options) : null
+      if (optionError) throw new Error(optionError)
+      const variantError = validateVariantRows(draftRows, hasVariants, combinations.length)
+      if (variantError) throw new Error(variantError)
+
       const product = await sellerRequest<{ id: number }>('POST', '/seller/products', {
         category_id: value.category_id,
         brand_id: Number.isFinite(value.brand_id) ? value.brand_id : undefined,
@@ -267,22 +322,31 @@ function NewProduct() {
         slug: value.slug.trim().toLowerCase(),
         description: value.description?.trim() || undefined,
         status: 'draft',
+        variants: draftRows.filter((row) => row.is_active).map((row) => ({
+          sku: row.sku.trim(),
+          price_minor: Number(row.price_minor),
+          compare_at_price_minor: row.compare_at_price_minor.trim() ? Number(row.compare_at_price_minor) : undefined,
+          currency: value.currency.toUpperCase(),
+          attributes: row.attributes,
+          quantity: Number(row.quantity),
+          is_active: true,
+        })),
       })
       try {
-        await sellerRequest('POST', '/seller/products/' + product.id + '/variants', {
-          sku: value.sku.trim(),
-          price_minor: value.price_minor,
-          compare_at_price_minor: Number.isFinite(value.compare_at_price_minor) ? value.compare_at_price_minor : undefined,
-          currency: value.currency.toUpperCase(),
-          attributes: value.option_name?.trim() && value.option_value?.trim() ? { [value.option_name.trim()]: value.option_value.trim() } : {},
-          quantity: value.quantity,
-        })
-        if (imageFile || imageUrl.trim()) {
+        if (imageUrl.trim()) {
           const media = new FormData()
-          if (imageFile) media.append('file', imageFile)
-          else media.append('url', imageUrl.trim())
+          media.append('url', imageUrl.trim())
           media.append('alt_text', altText.trim())
-          media.append('is_primary', '1')
+          media.append('sort_order', '0')
+          media.append('is_primary', imageFiles.length ? '0' : '1')
+          await sellerRequest('POST', '/seller/products/' + product.id + '/images', media)
+        }
+        for (const [index, file] of imageFiles.entries()) {
+          const media = new FormData()
+          media.append('file', file)
+          media.append('alt_text', altText.trim())
+          media.append('sort_order', String(index + (imageUrl.trim() ? 1 : 0)))
+          media.append('is_primary', !imageUrl.trim() && index === 0 ? '1' : '0')
           await sellerRequest('POST', '/seller/products/' + product.id + '/images', media)
         }
         if (value.status === 'published') await sellerRequest('PATCH', '/seller/products/' + product.id, { status: 'published' })
@@ -293,10 +357,11 @@ function NewProduct() {
     },
     onSuccess: () => { client.invalidateQueries({ queryKey: ['seller-products'] }); client.invalidateQueries({ queryKey: ['seller-inventory'] }); navigate('/seller/products') },
   })
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<NewProductValues>({ defaultValues: { status: 'draft', currency: 'MMK', quantity: 0 } })
-  const clearImage = () => { setImageFile(null); setImagePreview(''); setImageUrl(''); setAltText('') }
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<NewProductValues>({ defaultValues: { status: 'draft', currency: 'MMK' } })
+  const displayRows = hasVariants ? rows : [rows[0] ?? emptyVariant()]
+  const optionError = hasVariants ? validateProductOptions(options) : null
   if (categories.isLoading || brands.isLoading) return <Loading />
-  if (categories.error) return <ErrorBox message={apiErrorMessage(categories.error)} />
+  if (categories.error || brands.error) return <ErrorBox message={apiErrorMessage(categories.error ?? brands.error ?? new Error('Unable to load product options'))} />
   return <div className="product-create-page">
     <div className="product-create-topbar">
       <Link className="product-back-link" to="/seller/products"><ArrowLeft size={16} /> Back to products</Link>
@@ -318,35 +383,32 @@ function NewProduct() {
         </section>
 
         <section className="product-panel">
-          <div className="product-panel-heading"><span className="section-number">02</span><div><h2>Pricing and inventory</h2><p>Set the selling price and the opening stock for your first variant.</p></div></div>
-          <div className="inventory-overview"><div><span className="inventory-kicker">First sellable variant</span><strong>Price, stock, and options</strong><p>This creates the first variant customers can buy. You can add more variants later from the product controls.</p></div><span className="inventory-badge">1 variant</span></div>
-          <div className="product-form-grid product-form-grid--three">
-            <label>Selling price <span className="label-hint">MMK minor units</span><input type="number" min="0" inputMode="numeric" {...register('price_minor', { required: 'Price is required', valueAsNumber: true, min: { value: 0, message: 'Price cannot be negative' } })} placeholder="25000" />{errors.price_minor && <small>{errors.price_minor.message}</small>}</label>
-            <label>Compare-at price <span className="label-hint">Optional</span><input type="number" min="0" inputMode="numeric" {...register('compare_at_price_minor', { valueAsNumber: true, min: { value: 0, message: 'Price cannot be negative' } })} placeholder="30000" />{errors.compare_at_price_minor && <small>{errors.compare_at_price_minor.message}</small>}</label>
-            <label>Currency<input maxLength={3} {...register('currency', { required: true, minLength: 3, maxLength: 3 })} /></label>
-            <label>SKU <span className="label-hint">Unique product code</span><input {...register('sku', { required: 'SKU is required' })} placeholder="SKU-001" />{errors.sku && <small>{errors.sku.message}</small>}</label>
-            <label className="quantity-field">Opening stock quantity <span className="label-hint">Units available at launch</span><input type="number" min="0" inputMode="numeric" {...register('quantity', { required: 'Quantity is required', valueAsNumber: true, min: { value: 0, message: 'Quantity cannot be negative' } })} placeholder="0" />{errors.quantity && <small>{errors.quantity.message}</small>}</label>
-          </div>
-          <div className="variant-box"><div><span className="variant-kicker">Optional product options</span><strong>Size, color, or style</strong><p>Use one option name and value for this first variant. For example, <b>Size</b> → <b>Medium</b> or <b>Color</b> → <b>Blue</b>.</p></div><div className="product-form-grid product-form-grid--two"><label>Option name <span className="label-hint">Optional</span><input {...register('option_name')} placeholder="Size" /></label><label>Option value <span className="label-hint">Optional</span><input {...register('option_value')} placeholder="Medium" /></label></div></div>
+          <div className="product-panel-heading"><span className="section-number">02</span><div><h2>Pricing, inventory, and variants</h2><p>Use one sellable variant or generate combinations such as Black / M.</p></div></div>
+          <label className="variant-toggle"><input type="checkbox" checked={hasVariants} onChange={(event) => setHasVariants(event.target.checked)} /><span><strong>This product has variants</strong><small>Enable this for size, color, storage, material, or other options.</small></span></label>
+          <div className="product-form-grid product-form-grid--three"><label>Currency <span className="label-hint">3-letter code</span><input maxLength={3} {...register('currency', { required: 'Currency is required', minLength: { value: 3, message: 'Use a 3-letter currency code' }, maxLength: { value: 3, message: 'Use a 3-letter currency code' } })} /></label><div className="inventory-overview variant-count"><div><span className="inventory-kicker">Sellable inventory</span><strong>{displayRows.filter((row) => row.is_active).reduce((total, row) => total + (Number(row.quantity) || 0), 0).toLocaleString()} units</strong></div><span className="inventory-badge">{displayRows.filter((row) => row.is_active).length} active</span></div></div>
+          {hasVariants ? <div className="option-builder"><div className="option-builder-heading"><div><strong>Product options</strong><p>Add option names and values. Values are customizable suggestions, not fixed category rules.</p></div><button type="button" className="button compact-button" onClick={addOption}>+ Add option</button></div>{options.map((option, optionIndex) => <div className="option-editor" key={option.id}><div className="option-editor-top"><label>Option name<input value={option.name} onChange={(event) => updateOption(optionIndex, { name: event.target.value })} placeholder="Size, Color, Storage" /></label><label>Suggestions<select value="" onChange={(event) => applyOptionSuggestion(optionIndex, event.target.value)}><option value="">Choose a suggestion</option><option value="Size">Clothing sizes</option><option value="Shoe size">Shoe sizes</option><option value="Color">Colors</option><option value="Storage">Storage capacities</option><option value="Material">Materials</option></select></label><button type="button" className="text-link danger-link" onClick={() => removeOption(optionIndex)}>Remove option</button></div><div className="option-values"><span className="option-values-label">Values</span>{option.values.map((value, valueIndex) => <div className="option-value" key={`${option.id}-${valueIndex}`}><input value={value} onChange={(event) => updateOptionValue(optionIndex, valueIndex, event.target.value)} placeholder="Enter a value" /><button type="button" className="icon danger" aria-label={`Remove option value ${value || valueIndex + 1}`} onClick={() => removeOptionValue(optionIndex, valueIndex)}><X size={15} /></button></div>)}<button type="button" className="text-link" onClick={() => addOptionValue(optionIndex)}>+ Add value</button></div></div>)}{!options.length ? <div className="option-empty">Add an option to generate variant combinations.</div> : null}{optionError ? <div className="variant-warning" role="alert">{optionError}</div> : null}{combinations.length > MAX_PRODUCT_VARIANTS ? <div className="variant-warning" role="alert">This selection would create {combinations.length} combinations. Reduce it to {MAX_PRODUCT_VARIANTS} or fewer before saving.</div> : null}</div> : null}
+          {hasVariants && !combinations.length ? <div className="variant-empty">Add an option name and at least one value to build the variant table.</div> : null}
+          {displayRows.length && (!hasVariants || combinations.length) ? <div className="variant-table-scroll"><table className="variant-builder-table"><thead><tr><th>Variant</th><th>SKU</th><th>Price</th><th>Compare-at</th><th>Stock</th><th>Sell</th></tr></thead><tbody>{displayRows.map((row, index) => <tr key={row.key}><td><strong>{variantLabel(row)}</strong><small>{Object.entries(row.attributes).map(([name, value]) => `${name}: ${value}`).join(' · ') || 'Base product variant'}</small></td><td><input value={row.sku} onChange={(event) => updateVariant(index, { sku: event.target.value })} placeholder="SKU-001" aria-label={`SKU for ${variantLabel(row)}`} /></td><td><input type="number" min="0" inputMode="numeric" value={row.price_minor} onChange={(event) => updateVariant(index, { price_minor: event.target.value })} placeholder="25000" aria-label={`Price for ${variantLabel(row)}`} /></td><td><input type="number" min="0" inputMode="numeric" value={row.compare_at_price_minor} onChange={(event) => updateVariant(index, { compare_at_price_minor: event.target.value })} placeholder="Optional" aria-label={`Compare-at price for ${variantLabel(row)}`} /></td><td><input type="number" min="0" inputMode="numeric" value={row.quantity} onChange={(event) => updateVariant(index, { quantity: event.target.value })} placeholder="0" aria-label={`Stock quantity for ${variantLabel(row)}`} /></td><td><label className="variant-active-toggle"><input type="checkbox" checked={row.is_active} onChange={(event) => updateVariant(index, { is_active: event.target.checked })} aria-label={`Sell ${variantLabel(row)}`} /><span>{row.is_active ? 'Active' : 'Excluded'}</span></label></td></tr>)}</tbody></table></div> : null}
         </section>
 
         <section className="product-panel">
           <div className="product-panel-heading"><span className="section-number">03</span><div><h2>Product media</h2><p>Upload a clear product image or add an image URL from your media provider.</p></div></div>
           <div className="media-layout">
-            <label className="upload-zone"><input className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => { const file = event.target.files?.[0] ?? null; setImageFile(file); setImageUrl(''); setImagePreview(file ? URL.createObjectURL(file) : '') }} /><span className="upload-icon"><UploadCloud size={24} /></span><strong>{imageFile ? imageFile.name : 'Choose an image to upload'}</strong><small>JPG, PNG, or WebP · Maximum 2 MB</small><span className="upload-button">Browse files</span></label>
-            <div className="media-fields"><label>Image URL <span className="label-hint">Optional</span><input type="url" value={imageUrl} onChange={(event) => { setImageUrl(event.target.value); setImageFile(null); setImagePreview('') }} placeholder="https://cdn.example.com/product.webp" /></label><label>Alt text <span className="label-hint">Recommended</span><input value={altText} onChange={(event) => setAltText(event.target.value)} placeholder="Describe the product image" maxLength={255} /></label><small className="field-note"><ImagePlus size={14} /> Images help customers make confident buying decisions.</small></div>
+            <label className="upload-zone"><input className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={(event) => chooseImages(Array.from(event.target.files ?? []))} /><span className="upload-icon"><UploadCloud size={24} /></span><strong>{imageFiles.length ? `${imageFiles.length} image(s) selected` : 'Choose images to upload'}</strong><small>JPG, PNG, or WebP · Maximum 2 MB each</small><span className="upload-button">Browse files</span></label>
+            <div className="media-fields"><label>Image URL <span className="label-hint">Optional</span><input type="url" value={imageUrl} onChange={(event) => setImageUrl(event.target.value)} placeholder="https://cdn.example.com/product.webp" /></label><label>Alt text <span className="label-hint">Recommended</span><input value={altText} onChange={(event) => setAltText(event.target.value)} placeholder="Describe the product image" maxLength={255} /></label><small className="field-note"><ImagePlus size={14} /> Images help customers make confident buying decisions.</small></div>
           </div>
-          {(imagePreview || imageUrl) && <div className="product-image-preview"><img src={imagePreview || imageUrl} alt={altText || 'Product preview'} /><div><strong>Primary image preview</strong><small>{imageFile?.name || imageUrl}</small></div><button type="button" className="remove-image" onClick={clearImage}>Remove</button></div>}
+          {mediaError ? <div className="product-editor-error"><ErrorBox message={mediaError} /></div> : null}
+          {(imagePreviews.length || imageUrl) ? <div className="product-image-preview-grid">{imagePreviews.map((preview, index) => <div className="product-image-preview" key={preview}><img src={preview} alt={altText || `Product preview ${index + 1}`} /><div><strong>{index === 0 && !imageUrl ? 'Primary image' : 'Gallery image'}</strong><small>{imageFiles[index]?.name}</small></div><button type="button" className="remove-image" onClick={() => removeImage(index)}>Remove</button></div>)}{imageUrl ? <div className="product-image-preview"><img src={imageUrl} alt={altText || 'Product preview'} /><div><strong>{imageFiles.length ? 'Gallery image' : 'Primary image'}</strong><small>{imageUrl}</small></div><button type="button" className="remove-image" onClick={() => setImageUrl('')}>Remove</button></div> : null}</div> : null}
         </section>
       </div>
 
       <aside className="product-editor-side">
-        <section className="product-panel publish-panel"><div className="product-panel-heading"><span className="section-number">04</span><div><h2>Publishing</h2><p>Choose when customers can see this product.</p></div></div><label>Status<select {...register('status')}><option value="draft">Draft</option><option value="published">Publish after setup</option></select></label><div className="publish-note"><strong>Safe publishing</strong><p>Published products must have a valid variant. If setup fails, the product remains a draft.</p></div></section>
+        <section className="product-panel publish-panel"><div className="product-panel-heading"><span className="section-number">04</span><div><h2>Publishing</h2><p>Choose when customers can see this product.</p></div></div><label>Status<select {...register('status')}><option value="draft">Draft</option><option value="published">Publish after setup</option></select></label><div className="publish-note"><strong>Safe publishing</strong><p>Product and active variants are validated by the server before they are saved.</p></div></section>
         <section className="product-panel checklist-panel"><h3>Before you publish</h3><ul><li>Product name and description are clear</li><li>Price and stock quantity are accurate</li><li>SKU is unique for this product</li><li>Primary image is ready</li></ul></section>
       </aside>
 
       {save.error && <div className="product-editor-error"><ErrorBox message={apiErrorMessage(save.error)} /></div>}
-      <div className="product-editor-actions"><Link className="button" to="/seller/products">Cancel</Link><div><span className="action-note">You can edit this product later.</span><button className="button primary" disabled={isSubmitting || save.isPending}>{save.isPending ? 'Creating product…' : 'Create product'}</button></div></div>
+      <div className="product-editor-actions"><Link className="button" to="/seller/products">Cancel</Link><div><span className="action-note">You can edit this product later.</span><button className="button primary" disabled={isSubmitting || save.isPending || (hasVariants && combinations.length > MAX_PRODUCT_VARIANTS)}>{save.isPending ? 'Creating product…' : 'Create product'}</button></div></div>
     </form>
   </div>
 }
