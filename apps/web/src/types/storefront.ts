@@ -8,6 +8,7 @@ export interface Category {
   name: string
   slug: string
   description: string | null
+  color: string | null
   is_active: boolean
 }
 

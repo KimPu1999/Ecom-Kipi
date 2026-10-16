@@ -42,6 +42,7 @@ export interface Category {
   name: string
   slug: string
   description: string | null
+  color: string | null
   is_active: boolean
   sort_order: number
   parent?: Category | null

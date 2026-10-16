@@ -19,6 +19,7 @@ class CategoryRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', Rule::unique('categories', 'slug')->ignore($this->route('category'))],
             'description' => ['nullable', 'string'],
+            'color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'is_active' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0'],
         ];

@@ -43,6 +43,13 @@
 .sidebar-collapsed .sidebar-nav a, .sidebar-collapsed .sidebar-collapse { justify-content: center; }
 .sidebar-collapsed .sidebar-bottom { padding-inline: 0; }
 
+.category-color-field { display: grid; gap: 7px; }
+.category-color-field > label { color: var(--muted); font-size: .76rem; font-weight: 800; }
+.category-color-field > div { display: flex; align-items: center; gap: 10px; }
+.category-color-field input[type='color'] { width: 44px; height: 36px; padding: 3px; cursor: pointer; }
+.category-color-field code { min-width: 118px; color: var(--text); font-size: .78rem; }
+.category-color-preview { display: inline-block; width: 18px; height: 18px; margin-right: 8px; vertical-align: -4px; border: 1px solid var(--border); border-radius: 50%; }
+
 /* Control-center sidebar refinements */
 .sidebar { overflow-y: auto; overscroll-behavior: contain; }
 .admin-brand { color: var(--text); }
@@ -69,3 +76,11 @@
   .sidebar-collapsed .sidebar-nav a, .sidebar-collapsed .sidebar-collapse { justify-content: initial; }
   .sidebar-collapsed .sidebar-bottom { padding-inline: 8px; }
 }
+
+/* Keep the logo and account controls fixed while the navigation list scrolls. */
+.sidebar { overflow: hidden; }
+.sidebar-top, .sidebar-label, .sidebar-bottom, .sidebar-collapse { flex: 0 0 auto; }
+.sidebar-nav { flex: 1 1 auto; min-height: 0; overflow-x: hidden; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.sidebar-nav::-webkit-scrollbar { width: 6px; }
+.sidebar-nav::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--border); }
+.sidebar-bottom { margin-top: 14px; }
