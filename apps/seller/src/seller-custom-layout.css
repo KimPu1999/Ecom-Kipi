@@ -1519,3 +1519,291 @@ header {
     height: 17px;
   }
 }
+
+/* Shared seller workspace cleanup. Product-specific editor rules above remain intact. */
+:root {
+  --seller-primary: #2563eb;
+  --seller-primary-hover: #1d4ed8;
+  --seller-body-bg: #f1f5f9;
+  --seller-sidebar-bg: #f8fafc;
+  --seller-surface: #ffffff;
+  --seller-text: #1e293b;
+  --seller-muted: #64748b;
+  --seller-border: #e2e8f0;
+}
+
+body {
+  color: var(--seller-text);
+  background: var(--seller-body-bg);
+}
+
+.shell,
+.main {
+  background: var(--seller-body-bg);
+}
+
+.sidebar {
+  width: 246px;
+  padding: 18px 14px 16px;
+  color: var(--seller-muted);
+  background: var(--seller-sidebar-bg);
+  border-right: 1px solid var(--seller-border);
+  box-shadow: 1px 0 8px rgba(15, 23, 42, .06);
+}
+
+.brand {
+  padding: 0 9px 20px;
+  color: var(--seller-text);
+}
+
+.brand em,
+.nav-label,
+.kicker {
+  color: #64748b;
+}
+
+.nav-label {
+  margin-bottom: 7px;
+}
+
+.sidebar nav {
+  gap: 2px;
+}
+
+.sidebar nav a {
+  min-height: 40px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--seller-muted);
+  font-size: 13px;
+  transition: color .18s ease, box-shadow .18s ease;
+}
+
+.sidebar nav a:hover,
+.sidebar nav a.active {
+  color: var(--seller-primary);
+  background: transparent;
+  box-shadow: inset 2px 0 0 var(--seller-primary);
+}
+
+.user {
+  padding: 12px 4px 0;
+  border-top-color: var(--seller-border);
+}
+
+.user small,
+.muted,
+.page-title p {
+  color: var(--seller-muted);
+}
+
+.main {
+  margin-left: 246px;
+  width: calc(100% - 246px);
+}
+
+.main > header {
+  height: 68px;
+  padding: 0 24px;
+  border-bottom: 1px solid var(--seller-border);
+  background: var(--seller-surface);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .06);
+}
+
+.content {
+  max-width: none;
+  padding: 20px 24px 44px;
+}
+
+.page-title {
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-title h1 {
+  margin-bottom: 5px;
+  color: var(--seller-text);
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.15;
+}
+
+.page-title p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.card {
+  border-color: var(--seller-border);
+  border-radius: 12px;
+  background: var(--seller-surface);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, .08);
+}
+
+.stat-grid,
+.two-col {
+  gap: 12px;
+}
+
+.stat {
+  padding: 14px;
+}
+
+.two-col .card {
+  padding: 18px;
+}
+
+.table-card {
+  overflow-x: auto;
+}
+
+.table-card th {
+  padding: 9px 10px;
+  font-size: 10px;
+}
+
+.table-card td {
+  padding: 11px 10px;
+  font-size: 12px;
+}
+
+.form-card {
+  gap: 14px;
+  padding: 18px;
+}
+
+.form-card input,
+.form-card textarea,
+.form-card select,
+.header-search {
+  border-color: var(--seller-border);
+  background: var(--seller-surface);
+}
+
+.form-card input,
+.form-card select {
+  min-height: 36px;
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.form-card textarea {
+  padding: 8px 10px;
+  font-size: 13px;
+}
+
+.button,
+.primary {
+  min-height: 36px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.button.primary,
+.primary {
+  background: var(--seller-primary);
+}
+
+.button.primary:hover,
+.primary:hover {
+  background: var(--seller-primary-hover);
+}
+
+.header-search {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.header-search input {
+  font-size: 13px;
+}
+
+@media (max-width: 900px) {
+  .main {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .content {
+    padding: 16px 20px 40px;
+  }
+}
+
+@media (max-width: 640px) {
+  .main > header {
+    min-height: 68px;
+    height: auto;
+    padding: 10px 14px;
+  }
+
+  .content {
+    padding: 12px 16px 32px;
+  }
+
+  .page-title {
+    margin-bottom: 12px;
+  }
+
+  .two-col {
+    grid-template-columns: 1fr;
+  }
+
+  .form-card {
+    padding: 16px;
+  }
+}
+
+/* Product listing inherits its title from the shared seller header. */
+.product-management-page {
+  gap: 12px;
+}
+
+.content:has(.product-management-page) {
+  padding-top: 20px;
+}
+
+.product-listing-toolbar {
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+.product-listing-toolbar h2 {
+  margin-bottom: 2px;
+  font-size: 15px;
+}
+
+.product-listing-toolbar p {
+  font-size: 11px;
+}
+
+.product-listing-controls {
+  gap: 6px;
+}
+
+.product-listing-controls select,
+.product-listing-controls .compact-button {
+  height: 38px;
+  min-height: 38px;
+}
+
+.product-listing-controls select {
+  padding-inline: 9px 26px;
+}
+
+.product-management-table th,
+.product-management-table td {
+  padding: 10px 12px;
+}
+
+@media (max-width: 640px) {
+  .content:has(.product-management-page) {
+    padding: 12px 16px 32px;
+  }
+
+  .product-listing-toolbar {
+    align-items: stretch;
+    padding: 12px 16px;
+  }
+}

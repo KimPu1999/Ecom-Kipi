@@ -112,7 +112,6 @@ function Products() {
   const total = query.data?.meta.total ?? products.length
 
   return <div className="product-management-page">
-    <div className="product-management-heading"><div><span className="kicker">CATALOG / SELLER PRODUCTS</span><h1>Product Management</h1><p>Manage the products, variants, inventory, and storefront visibility owned by your seller account.</p></div></div>
     {query.error ? <ErrorBox message={apiErrorMessage(query.error)} /> : null}
     {remove.error ? <ErrorBox message={apiErrorMessage(remove.error)} /> : null}
     {success ? <div className="product-feedback success"><Check size={16} /> {success}</div> : null}
