@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { LanguageProvider } from '../store/language'
@@ -40,7 +40,7 @@ afterEach(() => {
 })
 
 test('dashboard stat and summary cards navigate to their existing admin pages', async () => {
-  vi.spyOn(adminApi, 'dashboard').mockResolvedValue(dashboardData)
+  const dashboardRequest = vi.spyOn(adminApi, 'dashboard').mockResolvedValue(dashboardData)
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin']}><Routes><Route path="/admin" element={<Dashboard />} /><Route path="*" element={<RouteTarget />} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
@@ -59,5 +59,11 @@ test('dashboard stat and summary cards navigate to their existing admin pages', 
     expect(await screen.findByText(destination)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Back' }))
     expect(await screen.findByRole('link', { name: new RegExp(label) })).toBeInTheDocument()
+  }
+
+  const rangeSelector = screen.getByRole('combobox', { name: 'Dashboard date range' })
+  for (const range of ['7d', '30d', '90d']) {
+    fireEvent.change(rangeSelector, { target: { value: range } })
+    await waitFor(() => expect(dashboardRequest).toHaveBeenCalledWith(range))
   }
 })

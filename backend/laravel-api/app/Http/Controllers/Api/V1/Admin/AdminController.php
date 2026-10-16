@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api\V1\Admin;
 
+use Carbon\CarbonPeriod;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\AdminUserRoleRequest;
 use App\Http\Requests\Api\V1\AdminUserUpdateRequest;
@@ -49,12 +50,25 @@ class AdminController extends Controller
             ->whereNotIn('fulfillment_status', ['cancelled'])
             ->whereBetween('created_at', [$from, $to]);
 
-        $salesTrend = (clone $paidOrders)
+        $salesTrendByDate = (clone $paidOrders)
             ->selectRaw('DATE(created_at) as date, SUM(grand_total_minor) as revenue, COUNT(*) as orders')
             ->groupByRaw('DATE(created_at)')
             ->orderBy('date')
             ->get()
-            ->map(fn ($row) => ['date' => $row->date, 'revenue' => (int) $row->revenue, 'orders' => (int) $row->orders]);
+            ->keyBy('date');
+
+        $salesTrend = collect(CarbonPeriod::create($from->copy()->startOfDay(), $to->copy()->startOfDay()))
+            ->map(function ($date) use ($salesTrendByDate) {
+                $dateKey = $date->toDateString();
+                $row = $salesTrendByDate->get($dateKey);
+
+                return [
+                    'date' => $dateKey,
+                    'revenue' => (int) ($row?->revenue ?? 0),
+                    'orders' => (int) ($row?->orders ?? 0),
+                ];
+            })
+            ->values();
 
         $topProducts = DB::table('order_items')
             ->join('orders', 'orders.id', '=', 'order_items.order_id')
@@ -475,6 +489,7 @@ class AdminController extends Controller
         $from = match ($period) {
             'today' => now()->startOfDay(),
             '7d' => now()->subDays(6)->startOfDay(),
+            '90d' => now()->subDays(89)->startOfDay(),
             'month' => now()->startOfMonth(),
             'custom' => $request->date('from')?->startOfDay() ?? now()->subDays(29)->startOfDay(),
             default => now()->subDays(29)->startOfDay(),

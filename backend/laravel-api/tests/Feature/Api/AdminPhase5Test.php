@@ -46,6 +46,19 @@ class AdminPhase5Test extends TestCase
         ]);
     }
 
+    public function test_dashboard_sales_trend_supports_ninety_days_and_fills_calendar_days(): void
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::query()->create(['name' => 'super_admin', 'label' => 'Super Administrator']));
+        Sanctum::actingAs($admin);
+
+        $this->getJson('/api/v1/admin/dashboard?period=90d')
+            ->assertOk()
+            ->assertJsonCount(90, 'data.sales_trend')
+            ->assertJsonPath('data.sales_trend.0.revenue', 0)
+            ->assertJsonPath('data.sales_trend.89.revenue', 0);
+    }
+
     public function test_super_admin_can_search_users_and_view_audit_logs(): void
     {
         $admin = User::factory()->create(['name' => 'Platform Owner']);

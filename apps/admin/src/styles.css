@@ -992,3 +992,26 @@ textarea[aria-invalid='true'] {
   outline: 3px solid #93c5fd;
   outline-offset: 2px;
 }
+
+.sales-trend-card {
+  min-width: 0;
+}
+
+.sales-trend-card .card-heading {
+  position: relative;
+}
+
+.sales-trend-card .card-heading h2 {
+  font-size: 1.05rem;
+}
+
+.sales-trend-chart {
+  min-height: 280px;
+  margin-top: 14px;
+}
+
+.chart-updating {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: .72rem;
+}
