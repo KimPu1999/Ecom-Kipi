@@ -716,9 +716,22 @@ select,
 }
 
 .sidebar {
-  top: var(--admin-header-height);
+  top: 0;
   bottom: 0;
-  height: auto;
+  height: 100vh;
+  padding-top: 0;
+  overflow: hidden;
+}
+
+.sidebar-top {
+  flex: 0 0 var(--admin-header-height);
+  height: var(--admin-header-height);
+  min-height: var(--admin-header-height);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sidebar-label {
+  margin-top: 24px;
 }
 
 .admin-main {
@@ -754,12 +767,12 @@ select,
   }
 
   .sidebar {
-    top: var(--admin-header-height);
+    top: 0;
+    height: 100dvh;
   }
 
   .mobile-backdrop.visible {
-    top: var(--admin-header-height);
-    bottom: 0;
+    inset: 0;
   }
 
   .admin-main {
