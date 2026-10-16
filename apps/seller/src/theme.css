@@ -538,10 +538,10 @@ html[data-seller-theme='dark'] .status-note {
 /* Seller sidebar follows the Admin Control Site shell pattern. */
 .shell {
   --seller-sidebar-width: 256px;
-  display: grid;
-  grid-template-columns: var(--seller-sidebar-width) minmax(0, 1fr);
+  display: flex;
+  align-items: stretch;
+  width: 100%;
   min-height: 100vh;
-  transition: grid-template-columns .26s ease;
 }
 
 .shell.sidebar-collapsed {
@@ -549,11 +549,19 @@ html[data-seller-theme='dark'] .status-note {
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  flex: 0 0 var(--seller-sidebar-width);
   width: var(--seller-sidebar-width);
+  min-width: var(--seller-sidebar-width);
+  height: 100vh;
   padding-top: 0;
   overflow: hidden;
   z-index: 30;
-  transition: width .26s ease, transform .26s ease, background-color .18s ease;
+  transition: flex-basis .26s ease, width .26s ease, transform .26s ease, background-color .18s ease;
 }
 
 .brand {
@@ -671,7 +679,7 @@ html[data-seller-theme='dark'] .status-note {
 }
 
 .main {
-  grid-column: 2;
+  flex: 1 1 auto;
   min-width: 0;
   width: auto;
   margin-left: 0;
@@ -749,12 +757,16 @@ html[data-seller-theme='dark'] .status-note {
   .shell.sidebar-collapsed {
     display: block;
     min-height: 100vh;
-    grid-template-columns: 1fr;
   }
 
   .sidebar,
   .shell.sidebar-collapsed .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    flex: none;
     width: 256px;
+    min-width: 256px;
+    height: 100vh;
     padding-inline: 16px;
     transform: translateX(-100%);
   }
@@ -812,7 +824,7 @@ html[data-seller-theme='dark'] .status-note {
   }
 
   .main {
-    grid-column: auto;
+    flex: none;
     width: 100%;
     margin-left: 0;
   }
