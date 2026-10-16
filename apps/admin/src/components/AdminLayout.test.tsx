@@ -28,3 +28,17 @@ test('opens the profile menu and logs out through the existing API', async () =>
   await waitFor(() => expect(logout).toHaveBeenCalledTimes(1))
   expect(await screen.findByText('Login page')).toBeInTheDocument()
 })
+
+test('shows a Back button on a direct admin page and safely falls back to the dashboard', async () => {
+  render(<LanguageProvider><MemoryRouter initialEntries={['/admin/orders']}><Routes><Route element={<AdminLayout />}><Route path="/admin" element={<span>Dashboard content</span>} /><Route path="/admin/orders" element={<span>Orders content</span>} /></Route></Routes></MemoryRouter></LanguageProvider>)
+
+  expect(screen.getByText('Orders content')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  expect(await screen.findByText('Dashboard content')).toBeInTheDocument()
+})
+
+test('does not show a redundant Back button on a direct dashboard entry', () => {
+  render(<LanguageProvider><MemoryRouter initialEntries={['/admin']}><Routes><Route element={<AdminLayout />}><Route path="/admin" element={<span>Dashboard content</span>} /></Route></Routes></MemoryRouter></LanguageProvider>)
+
+  expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
+})

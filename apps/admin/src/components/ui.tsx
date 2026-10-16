@@ -1,10 +1,38 @@
 import type { PropsWithChildren, ReactNode } from 'react'
 import { useRef } from 'react'
-import { AlertCircle, ChevronLeft, ChevronRight, LoaderCircle, Search, X } from 'lucide-react'
+import { useLocation, useNavigate } from 'react-router-dom'
+import { AlertCircle, ArrowLeft, ChevronLeft, ChevronRight, LoaderCircle, Search, X } from 'lucide-react'
 import { useLanguage } from '../store/language'
 
 export function PageHeader({ action }: { eyebrow?: string; title?: string; description?: string; action?: ReactNode }) {
   return action ? <div className="page-actions">{action}</div> : null
+}
+
+function browserHistoryIndex() {
+  if (typeof window === 'undefined') return null
+  const index = window.history.state?.idx
+  return typeof index === 'number' ? index : null
+}
+
+export function BackButton({ fallback = '/admin' }: { fallback?: string }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const initialHistoryIndex = useRef(browserHistoryIndex())
+  const currentHistoryIndex = browserHistoryIndex()
+  const canGoBack = currentHistoryIndex !== null && initialHistoryIndex.current !== null && currentHistoryIndex > initialHistoryIndex.current
+  const isDashboardWithoutHistory = location.pathname === '/admin' && !canGoBack
+
+  if (isDashboardWithoutHistory) return null
+
+  function goBack() {
+    if (canGoBack) {
+      navigate(-1)
+      return
+    }
+    navigate(fallback.startsWith('/admin') ? fallback : '/admin', { replace: true })
+  }
+
+  return <button type="button" className="admin-back-button" onClick={goBack} aria-label="Back"><ArrowLeft size={16} aria-hidden="true" /><span>Back</span></button>
 }
 
 export function Card({ children, className = '' }: PropsWithChildren<{ className?: string }>) {

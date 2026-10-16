@@ -4,6 +4,7 @@ import { Boxes, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, Clipbo
 import { useAdminAuth } from '../store/auth'
 import { api } from '../lib/api'
 import { useLanguage } from '../store/language'
+import { BackButton } from './ui'
 
 type NavItem = { label: string; to: string; icon: typeof LayoutDashboard; permission: string | null; superAdminOnly?: boolean }
 type NavSection = { key: string; label: string; icon: typeof LayoutDashboard; items: NavItem[] }
@@ -171,7 +172,7 @@ export function AdminLayout() {
     </aside>
     <main className="admin-main">
       <header className="topbar"><button className="icon-button mobile-menu" onClick={() => { setCollapsed(false); setOpen(true) }} aria-label={t('Open navigation')} aria-expanded={open}><Menu size={21} /></button><div className="breadcrumbs"><span>{t('Control center')}</span><b>/</b><strong>{current ? t(current.label) : t('Page')}</strong></div><div className="topbar-actions"><button className="icon-button" onClick={() => setDark((value) => !value)} aria-label={t('Toggle theme')}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button><div className="language-menu" ref={languageMenuRef}><button className="language-trigger" type="button" onClick={() => setLanguageOpen((value) => !value)} aria-label={t('Language')} aria-expanded={languageOpen} aria-haspopup="menu"><Languages size={18} /><span>{language === 'my' ? 'မြန်မာ' : 'English'}</span><ChevronDown className={languageOpen ? 'language-chevron expanded' : 'language-chevron'} size={16} /></button>{languageOpen ? <div className="language-dropdown" role="menu" aria-label={t('Language')}><button type="button" role="menuitemradio" aria-checked={language === 'en'} className={language === 'en' ? 'selected' : ''} onClick={() => { setLanguage('en'); setLanguageOpen(false) }}><span>English</span><small>English</small></button><button type="button" role="menuitemradio" aria-checked={language === 'my'} className={language === 'my' ? 'selected' : ''} onClick={() => { setLanguage('my'); setLanguageOpen(false) }}><span>မြန်မာ</span><small>{t('Burmese')}</small></button></div> : null}</div><div className="profile-menu" ref={profileMenuRef}><button className="topbar-profile" type="button" onClick={() => setProfileOpen((value) => !value)} aria-label={t('Open profile menu')} aria-expanded={profileOpen} aria-haspopup="menu"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{user?.name}</strong><small>{isSuperAdmin ? t('Super admin') : t('Administrator')}</small></span><ChevronDown className={profileOpen ? 'profile-chevron expanded' : 'profile-chevron'} size={16} /></button>{profileOpen ? <div className="profile-dropdown" role="menu" aria-label={t('Profile menu')}><Link to="/admin/settings" role="menuitem" onClick={() => setProfileOpen(false)}><Settings size={17} /><span>{t('Settings')}</span></Link><div className="profile-divider" /><button type="button" role="menuitem" onClick={logout} disabled={loggingOut}><LogOut size={17} /><span>{loggingOut ? t('Signing out…') : t('Log out')}</span></button></div> : null}</div></div></header>
-      <div className="admin-content"><Outlet /></div>
+      <div className="admin-content"><BackButton /><Outlet /></div>
     </main>
   </div>
 }
