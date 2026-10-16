@@ -1555,3 +1555,45 @@ html[data-seller-theme='dark'] .status-note {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Seller tables: shared density and readable header treatment. */
+.seller-overview table,
+.table-card table,
+.product-management-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.seller-overview table th,
+.table-card table th,
+.product-management-table th {
+  background: var(--seller-surface-muted);
+  border-bottom: 1px solid var(--seller-border);
+  color: var(--seller-muted);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1.3;
+  padding: 13px 16px;
+  text-align: left;
+  text-transform: none;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.seller-overview table td,
+.table-card table td,
+.product-management-table td {
+  border-bottom: 1px solid var(--seller-border);
+  color: var(--seller-text);
+  font-size: 13px;
+  line-height: 1.4;
+  padding: 12px 16px;
+  vertical-align: middle;
+}
+
+.seller-overview table tbody tr:hover td,
+.table-card table tbody tr:hover td,
+.product-management-table tbody tr:hover td {
+  background: var(--seller-surface-muted);
+}
