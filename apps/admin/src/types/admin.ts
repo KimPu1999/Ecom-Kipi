@@ -130,6 +130,10 @@ export interface InventoryRow {
 export interface Order {
   id: number
   order_number: string
+  subtotal_minor: number
+  discount_minor: number
+  shipping_minor: number
+  tax_minor: number
   grand_total_minor: number
   currency: string
   payment_status: string
@@ -139,11 +143,11 @@ export interface Order {
   user?: User
   shipping_method?: { id: number; name: string; code: string; price_minor: number; currency: string } | null
   seller_orders?: { id: number; order_number: string; seller?: { id: number; store_name: string }; status: string; payment_status: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string }[]
-  items?: { product_name: string; sku: string; quantity: number; unit_price_minor: number }[]
+  items?: { id?: number; product_name: string; sku: string; quantity: number; unit_price_minor: number; line_total_minor?: number; product_image?: string | null; attributes?: Record<string, unknown> | null }[]
   status_history?: { id: number; from_status: string | null; to_status: string; note: string | null; created_at: string }[]
   notes?: { id: number; note: string; created_at: string; user?: User }[]
   payments?: { id: number; provider: string; status: string; amount_minor: number; currency: string; provider_payment_id: string | null; metadata?: Record<string, unknown> | null }[]
-  shipments?: { id: number; status: string; carrier: string | null; tracking_number: string | null }[]
+  shipments?: { id: number; status: string; delivery_method?: string | null; carrier: string | null; tracking_number: string | null; internal_tracking_id?: string | null; estimated_delivery_at?: string | null; shipped_at?: string | null; delivered_at?: string | null; metadata?: Record<string, unknown> | null; seller_order?: { seller?: { store_name: string } | null } | null; rider?: { name?: string | null } | null }[]
   refunds?: { id: number; status: string; amount_minor: number; currency: string; reason: string | null }[]
 }
 

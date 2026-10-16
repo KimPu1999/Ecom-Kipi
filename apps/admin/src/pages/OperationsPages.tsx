@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ClipboardCheck, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, ClipboardCheck, Package, SlidersHorizontal } from 'lucide-react'
 import { adminApi } from '../services/adminApi'
 import { useAdminAuth } from '../store/auth'
-import type { InventoryRow, User } from '../types/admin'
+import type { InventoryRow, Order, User } from '../types/admin'
 import { Card, EmptyState, ErrorState, LoadingState, PageHeader, Pagination, SearchBox, StatusBadge } from '../components/ui'
 import './order-detail.css'
 
@@ -70,13 +70,65 @@ function OrderDetails({ orderId, onClose }: { orderId: number; onClose: () => vo
   const query = useQuery({ queryKey: ['admin-order', orderId], queryFn: () => adminApi.order(orderId) })
   const [note, setNote] = useState('')
   const mutation = useMutation({ mutationFn: () => adminApi.addOrderNote(orderId, note), onSuccess: () => { setNote(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
+
   if (query.isLoading) return <Card><LoadingState /></Card>
   if (query.isError || !query.data) return <Card><ErrorState message="Unable to load order details." /></Card>
+
   const order = query.data
-  return <Card className="order-detail"><div className="detail-heading"><div><span className="eyebrow">Order detail</span><h2>{order.order_number}</h2><p>{order.user?.name ?? 'Guest'} · {order.user?.email ?? 'No email'}</p></div><button className="button secondary" onClick={onClose}>Close</button></div><div className="detail-grid"><div><strong>Items</strong>{order.items?.map((item) => <div className="detail-line" key={item.sku}><span>{item.product_name} × {item.quantity}<small>{item.sku}</small></span><span>{item.unit_price_minor.toLocaleString()} {order.currency}</span></div>)}</div><div><strong>Shipping address</strong><p>{formatAddress(order.shipping_address)}</p><strong>Total</strong><p>{order.grand_total_minor.toLocaleString()} {order.currency}</p></div></div><div className="detail-grid"><div><strong>Status history</strong>{order.status_history?.length ? order.status_history.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.to_status} /><span>{item.from_status ?? 'created'} → {item.to_status}<small>{new Date(item.created_at).toLocaleString()}</small></span></div>) : <p>No status changes recorded.</p>}</div><div><strong>Internal notes</strong>{order.notes?.map((item) => <div className="activity-line" key={item.id}><span>{item.note}<small>{item.user?.name ?? 'Admin'} · {new Date(item.created_at).toLocaleString()}</small></span></div>)}<form className="inline-form" onSubmit={(event) => { event.preventDefault(); mutation.mutate() }}><input required value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add internal note" /><button className="button primary" disabled={mutation.isPending}>Add note</button></form></div></div><OrderFinancials order={order} orderId={orderId} /></Card>
+  const primaryShipment = order.shipments?.[0]
+  const primaryPayment = order.payments?.[0]
+  const trackingNumbers = order.shipments?.map((shipment) => shipment.tracking_number ?? shipment.internal_tracking_id).filter(Boolean) ?? []
+
+  return <Card className="order-detail">
+    <div className="detail-heading">
+      <div className="order-detail-heading-content">
+        <div className="order-header-line"><button className="order-back-button" type="button" onClick={onClose}><ArrowLeft size={15} aria-hidden="true" /><span>Back</span></button><span className="eyebrow">Order details</span><h2>{order.order_number}</h2><StatusBadge value={order.fulfillment_status} /></div>
+        <p>{order.user?.name ?? 'Guest'} · {order.user?.email ?? 'No email'}</p>
+      </div>
+      <div className="order-heading-status"><span>Payment</span><StatusBadge value={order.payment_status} /></div>
+    </div>
+
+    <section className="order-detail-section order-meta-section" aria-label="Order, customer, delivery, and payment information">
+      <div className="order-meta-block"><h3>Order overview</h3><div className="order-detail-fields"><DetailField label="Order ID" value={order.order_number} /><DetailField label="Order date" value={formatDateTime(order.placed_at)} /><DetailField label="Order status" value={<StatusBadge value={order.fulfillment_status} />} /></div></div>
+      <div className="order-meta-block"><h3>Customer information</h3><div className="order-detail-fields"><DetailField label="Customer name" value={order.user?.name ?? 'Guest'} /><DetailField label="Phone" value={order.user?.phone ?? '—'} /><DetailField label="Email" value={order.user?.email ?? '—'} /></div></div>
+      <div className="order-meta-block"><h3>Shipping / delivery information</h3><div className="order-detail-fields"><DetailField label="Delivery method" value={order.shipping_method?.name ?? primaryShipment?.delivery_method?.replaceAll('_', ' ') ?? 'Not selected'} /><DetailField label="Delivery status" value={<StatusBadge value={primaryShipment?.status ?? order.fulfillment_status} />} /><DetailField label="Expected delivery" value={formatDate(primaryShipment?.estimated_delivery_at)} /><div className="order-field order-field-wide"><span>Shipping address</span><strong>{formatAddress(order.shipping_address)}</strong></div><div className="order-field order-field-wide"><span>Tracking number</span>{trackingNumbers.length ? <div className="order-tracking-list">{trackingNumbers.map((trackingNumber) => <strong key={trackingNumber}>{trackingNumber}</strong>)}</div> : <strong>Shipment not created</strong>}</div></div></div>
+      <div className="order-meta-block"><h3>Payment information</h3><div className="order-detail-fields"><DetailField label="Payment method" value={primaryPayment?.provider?.replaceAll('_', ' ').toUpperCase() ?? '—'} /><DetailField label="Payment status" value={<StatusBadge value={order.payment_status} />} /><DetailField label="Transaction reference" value={getPaymentReference(primaryPayment)} /></div></div>
+    </section>
+
+    <section className="order-detail-section order-items-section" aria-labelledby="order-items-heading">
+      <div className="section-heading-row"><h3 id="order-items-heading">Order items</h3><span className="muted">{order.items?.length ?? 0} item{order.items?.length === 1 ? '' : 's'}</span></div>
+      {order.items?.length ? <div className="table-wrap order-items-table-wrap"><table className="order-items-table"><thead><tr><th>Product</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{order.items.map((item, index) => { const lineTotal = item.line_total_minor ?? item.unit_price_minor * item.quantity; return <tr key={item.id ?? `${item.sku}-${index}`}><td><div className="order-product-cell">{item.product_image ? <img src={item.product_image} alt="" /> : <span className="order-item-placeholder"><Package size={18} aria-hidden="true" /></span>}<strong>{item.product_name}</strong></div></td><td>{item.sku || '—'}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td><strong>{money(lineTotal, order.currency)}</strong></td></tr> })}</tbody></table></div> : <p className="muted">No order items recorded.</p>}
+    </section>
+
+    <section className="order-detail-section" aria-labelledby="order-summary-heading">
+      <h3 id="order-summary-heading">Order summary</h3>
+      <div className="order-summary-list">
+        <SummaryRow label="Subtotal" value={money(order.subtotal_minor, order.currency)} />
+        <SummaryRow label="Discount" value={money(order.discount_minor, order.currency)} />
+        <SummaryRow label="Shipping fee" value={money(order.shipping_minor, order.currency)} />
+        <SummaryRow label="Tax" value={money(order.tax_minor, order.currency)} />
+        <SummaryRow label="Grand total" value={money(order.grand_total_minor, order.currency)} emphasized />
+      </div>
+    </section>
+
+    <section className="order-detail-section order-history-grid" aria-label="Order history and internal notes">
+      <div><h3>Status history</h3>{order.status_history?.length ? order.status_history.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.to_status} /><span>{item.from_status ?? 'created'} → {item.to_status}<small>{formatDateTime(item.created_at)}{item.note ? ` · ${item.note}` : ''}</small></span></div>) : <p className="muted">No status changes recorded.</p>}</div>
+      <div><h3>Internal notes</h3>{order.notes?.length ? order.notes.map((item) => <div className="activity-line" key={item.id}><span>{item.note}<small>{item.user?.name ?? 'Admin'} · {formatDateTime(item.created_at)}</small></span></div>) : <p className="muted">No internal notes.</p>}<form className="inline-form" onSubmit={(event) => { event.preventDefault(); mutation.mutate() }}><input required value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add internal note" /><button className="button primary" disabled={mutation.isPending}>{mutation.isPending ? 'Adding…' : 'Add note'}</button></form></div>
+    </section>
+
+    <section className="order-actions-section" aria-labelledby="order-actions-heading"><h3 id="order-actions-heading">Order actions</h3><OrderFinancials order={order} orderId={orderId} /></section>
+  </Card>
 }
 
-function OrderFinancials({ order, orderId }: { order: import('../types/admin').Order; orderId: number }) {
+function DetailField({ label, value }: { label: string; value: ReactNode }) {
+  return <div className="order-field"><span>{label}</span><strong>{value}</strong></div>
+}
+
+function SummaryRow({ label, value, emphasized = false }: { label: string; value: string; emphasized?: boolean }) {
+  return <div className={'summary-row' + (emphasized ? ' summary-row-emphasized' : '')}><span>{label}</span><strong>{value}</strong></div>
+}
+
+function OrderFinancials({ order, orderId }: { order: Order; orderId: number }) {
   const client = useQueryClient()
   const [deliveryMethod, setDeliveryMethod] = useState<'self_delivery' | 'external_courier'>('external_courier')
   const [carrier, setCarrier] = useState('')
@@ -88,7 +140,29 @@ function OrderFinancials({ order, orderId }: { order: import('../types/admin').O
   const shipment = useMutation({ mutationFn: () => adminApi.createShipment(orderId, { delivery_method: deliveryMethod, carrier: deliveryMethod === 'self_delivery' ? 'Kipi Self Delivery' : carrier || null, tracking_number: deliveryMethod === 'external_courier' ? tracking || null : null, tracking_url: trackingUrl || null }), onSuccess: () => { setCarrier(''); setTracking(''); setTrackingUrl(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
   const shipmentStatus = useMutation({ mutationFn: (payload: { id: number; status: string }) => adminApi.updateShipment(payload.id, { status: payload.status }), onSuccess: () => client.invalidateQueries({ queryKey: ['admin-order', orderId] }) })
   const refund = useMutation({ mutationFn: () => adminApi.createRefund(orderId, { amount_minor: Number(refundAmount), reason: 'Admin refund', idempotency_key: crypto.randomUUID() }), onSuccess: () => { setRefundAmount(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
-  return <div className="detail-grid"><div><strong>Payment</strong>{order.payments?.map((payment) => <div className="activity-line" key={payment.id}><StatusBadge value={payment.status} /><span>{payment.provider.toUpperCase()} · {payment.amount_minor.toLocaleString()} {payment.currency}{payment.provider === 'cod' && payment.status !== 'paid' ? <button className="button secondary" type="button" onClick={() => collectCod.mutate(payment.id)} disabled={collectCod.isPending}>{collectCod.isPending ? 'Confirming…' : 'Mark Payment as Received'}</button> : null}{['kbzpay', 'wavepay', 'bank_transfer'].includes(payment.provider) && payment.status !== 'paid' ? <button className="button secondary" type="button" onClick={() => verifyManual.mutate(payment.id)} disabled={verifyManual.isPending}>{verifyManual.isPending ? 'Verifying…' : 'Verify online payment'}</button> : null}<small>{typeof payment.metadata?.sender_phone === 'string' ? `Phone: ${payment.metadata.sender_phone}` : null}{typeof payment.metadata?.transaction_code === 'string' ? ` · Ref: ${payment.metadata.transaction_code}` : null}</small></span></div>)}{collectCod.isError ? <p className="error-box">COD payment could not be confirmed. Verify the cash was actually received.</p> : null}{verifyManual.isError ? <p className="error-box">Online payment could not be verified. Check the receipt details and your permission.</p> : null}<strong>Shipments</strong>{order.shipments?.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.status} /><span>{item.carrier ?? 'No carrier'} · {item.tracking_number ?? 'Internal ID or no tracking'}<small><select className="select compact" value={item.status} onChange={(event) => shipmentStatus.mutate({ id: item.id, status: event.target.value })} disabled={shipmentStatus.isPending}><option value={item.status}>{item.status}</option>{shipmentTransitions[item.status]?.map((next) => <option key={next} value={next}>{next}</option>)}</select></small></span></div>)}<div className="inline-form"><select value={deliveryMethod} onChange={(event) => setDeliveryMethod(event.target.value as 'self_delivery' | 'external_courier')}><option value="external_courier">External courier</option><option value="self_delivery">Self delivery</option></select>{deliveryMethod === 'external_courier' ? <><input value={carrier} onChange={(event) => setCarrier(event.target.value)} placeholder="Carrier name" /><input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Real tracking number" /><input type="url" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} placeholder="Official tracking URL" /></> : <span className="muted">Server will generate the internal Kipi delivery ID.</span>}<button className="button secondary" onClick={() => shipment.mutate()} disabled={shipment.isPending || (deliveryMethod === 'external_courier' && !tracking.trim())}>Create shipment</button></div></div><div><strong>Refunds</strong>{order.refunds?.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.status} /><span>{item.amount_minor.toLocaleString()} {item.currency}</span></div>)}<div className="inline-form"><input type="number" min="1" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder="Refund amount" /><button className="button secondary" onClick={() => refund.mutate()} disabled={refund.isPending || order.payment_status !== 'paid' || !refundAmount}>Refund</button></div></div></div>
+  return <div className="order-financials-grid">
+    <div className="order-detail-section"><h4>Payment controls</h4>{order.payments?.length ? order.payments.map((payment) => <div className="activity-line" key={payment.id}><StatusBadge value={payment.status} /><span>{payment.provider.toUpperCase()} · {money(payment.amount_minor, payment.currency)}{payment.provider === 'cod' && payment.status !== 'paid' ? <button className="button secondary compact-action" type="button" onClick={() => collectCod.mutate(payment.id)} disabled={collectCod.isPending}>{collectCod.isPending ? 'Confirming…' : 'Mark Payment as Received'}</button> : null}{['kbzpay', 'wavepay', 'bank_transfer'].includes(payment.provider) && payment.status !== 'paid' ? <button className="button secondary compact-action" type="button" onClick={() => verifyManual.mutate(payment.id)} disabled={verifyManual.isPending}>{verifyManual.isPending ? 'Verifying…' : 'Verify online payment'}</button> : null}<small>{typeof payment.metadata?.sender_phone === 'string' ? `Phone: ${payment.metadata.sender_phone}` : null}{typeof payment.metadata?.transaction_code === 'string' ? ` · Ref: ${payment.metadata.transaction_code}` : null}</small></span></div>) : <p className="muted">No payment records.</p>}{collectCod.isError ? <p className="error-box">COD payment could not be confirmed. Verify the cash was actually received.</p> : null}{verifyManual.isError ? <p className="error-box">Online payment could not be verified. Check the receipt details and your permission.</p> : null}</div>
+    <div className="order-detail-section"><h4>Shipments</h4>{order.shipments?.length ? order.shipments.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.status} /><span>{item.carrier ?? 'No carrier'} · {item.tracking_number ?? item.internal_tracking_id ?? 'No tracking'}<small><select className="select compact" value={item.status} onChange={(event) => shipmentStatus.mutate({ id: item.id, status: event.target.value })} disabled={shipmentStatus.isPending}><option value={item.status}>{item.status}</option>{shipmentTransitions[item.status]?.map((next) => <option key={next} value={next}>{next}</option>)}</select></small></span></div>) : <p className="muted">No shipments created yet.</p>}<div className="inline-form shipment-create-form"><select value={deliveryMethod} onChange={(event) => setDeliveryMethod(event.target.value as 'self_delivery' | 'external_courier')} aria-label="Delivery method"><option value="external_courier">External courier</option><option value="self_delivery">Self delivery</option></select>{deliveryMethod === 'external_courier' ? <><input value={carrier} onChange={(event) => setCarrier(event.target.value)} placeholder="Carrier name" /><input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Real tracking number" /><input type="url" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} placeholder="Official tracking URL" /></> : <span className="muted">Server will generate the internal Kipi delivery ID.</span>}<button className="button secondary" type="button" onClick={() => shipment.mutate()} disabled={shipment.isPending || (deliveryMethod === 'external_courier' && !tracking.trim())}>{shipment.isPending ? 'Creating…' : 'Create shipment'}</button></div></div>
+    <div className="order-detail-section"><h4>Refunds</h4>{order.refunds?.length ? order.refunds.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.status} /><span>{money(item.amount_minor, item.currency)}<small>{item.reason ?? 'No reason provided'}</small></span></div>) : <p className="muted">No refunds recorded.</p>}<div className="inline-form"><input type="number" min="1" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder="Refund amount" aria-label="Refund amount" /><button className="button secondary" type="button" onClick={() => refund.mutate()} disabled={refund.isPending || order.payment_status !== 'paid' || !refundAmount}>{refund.isPending ? 'Processing…' : 'Refund'}</button></div></div>
+  </div>
+}
+
+function money(value: number | null | undefined, currency: string) {
+  return value === null || value === undefined ? '—' : `${value.toLocaleString()} ${currency}`
+}
+
+function formatDate(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleDateString() : '—'
+}
+
+function formatDateTime(value: string | null | undefined) {
+  return value ? new Date(value).toLocaleString() : '—'
+}
+
+function getPaymentReference(payment: NonNullable<Order['payments']>[number] | undefined) {
+  if (!payment) return '—'
+  if (payment.provider_payment_id) return payment.provider_payment_id
+  return typeof payment.metadata?.transaction_code === 'string' ? payment.metadata.transaction_code : '—'
 }
 
 const shipmentTransitions: Record<string, string[]> = {
