@@ -3,13 +3,16 @@
 namespace Tests\Feature\Api;
 
 use App\Models\Category;
+use App\Models\Brand;
 use App\Models\Inventory;
+use App\Models\Order;
 use App\Models\Payment;
 use App\Models\Role;
 use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\ShippingMethod;
 use App\Models\User;
+use App\Services\MarketplaceOrderService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -105,6 +108,86 @@ class MarketplaceTest extends TestCase
             'status' => 'confirmed',
         ]);
         $this->assertDatabaseCount('order_commissions', 1);
+    }
+
+    public function test_seller_earnings_returns_server_snapshot_history_for_only_the_authenticated_seller(): void
+    {
+        [$sellerA, $productA] = $this->sellerProduct('earnings-store-a', 'active');
+        [$sellerB, $productB] = $this->sellerProduct('earnings-store-b', 'active');
+        $brand = Brand::query()->create(['name' => 'Earnings Brand', 'slug' => 'earnings-brand']);
+        $productA->update(['brand_id' => $brand->id]);
+
+        $createPaidOrder = function (Seller $seller, $product, string $number): Order {
+            $variant = $product->variants()->firstOrFail();
+            $order = Order::query()->create([
+                'user_id' => $seller->owner_user_id,
+                'order_number' => $number,
+                'shipping_address' => ['line1' => 'Main Street'],
+                'subtotal_minor' => 1000,
+                'discount_minor' => 0,
+                'shipping_minor' => 100,
+                'tax_minor' => 0,
+                'grand_total_minor' => 1100,
+                'currency' => 'MMK',
+                'payment_status' => 'paid',
+                'fulfillment_status' => 'confirmed',
+            ]);
+            $order->payments()->create([
+                'provider' => 'stripe',
+                'provider_payment_id' => 'pi-'.$number,
+                'status' => 'paid',
+                'amount_minor' => 1100,
+                'currency' => 'MMK',
+                'paid_at' => now(),
+            ]);
+            $item = $order->items()->create([
+                'product_variant_id' => $variant->id,
+                'seller_id' => $seller->id,
+                'product_name' => $product->name,
+                'sku' => $variant->sku,
+                'quantity' => 1,
+                'unit_price_minor' => 1000,
+                'line_total_minor' => 1000,
+            ]);
+            $sellerOrder = $order->sellerOrders()->create([
+                'seller_id' => $seller->id,
+                'order_number' => $number.'-S'.$seller->id,
+                'status' => 'confirmed',
+                'payment_status' => 'paid',
+                'fulfillment_status' => 'confirmed',
+                'subtotal_minor' => 1000,
+                'shipping_minor' => 0,
+                'commission_minor' => 0,
+                'net_minor' => 1000,
+                'currency' => 'MMK',
+            ]);
+            $sellerOrder->items()->create([
+                'order_item_id' => $item->id,
+                'product_variant_id' => $variant->id,
+                'product_name' => $product->name,
+                'sku' => $variant->sku,
+                'quantity' => 1,
+                'unit_price_minor' => 1000,
+                'line_total_minor' => 1000,
+            ]);
+
+            app(MarketplaceOrderService::class)->markPaid($order);
+
+            return $order;
+        };
+
+        $orderA = $createPaidOrder($sellerA, $productA, 'EARNINGS-A');
+        $createPaidOrder($sellerB, $productB, 'EARNINGS-B');
+
+        Sanctum::actingAs($sellerA->owner);
+        $this->getJson('/api/v1/seller/earnings')
+            ->assertOk()
+            ->assertJsonPath('data.total_sales_minor', 1000)
+            ->assertJsonPath('data.commission_deducted_minor', 50)
+            ->assertJsonPath('data.commission_history.0.order_id', $orderA->id)
+            ->assertJsonPath('data.commission_history.0.brand.name', 'Earnings Brand')
+            ->assertJsonPath('data.commission_history.0.percentage_bps', 500)
+            ->assertJsonCount(1, 'data.commission_history');
     }
 
     private function sellerProduct(string $slug, string $status): array

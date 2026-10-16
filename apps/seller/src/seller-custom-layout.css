@@ -913,3 +913,59 @@ header {
     transition-duration: .01ms !important;
   }
 }
+
+.earnings-stat-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.earnings-history-card {
+  padding: 0;
+}
+
+.earnings-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #e9efea;
+}
+
+.earnings-section-heading h2 {
+  margin: 5px 0 6px;
+  font-size: 20px;
+  letter-spacing: -.03em;
+}
+
+.earnings-section-heading p {
+  margin: 0;
+  color: #718278;
+  font-size: 13px;
+}
+
+.earnings-history-card table {
+  min-width: 980px;
+}
+
+.earnings-history-card td small {
+  display: block;
+  margin-top: 4px;
+  color: #839187;
+  font-size: 11px;
+}
+
+@media (max-width: 900px) {
+  .earnings-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .earnings-section-heading {
+    padding: 18px 16px 15px;
+  }
+
+  .earnings-section-heading h2 {
+    font-size: 18px;
+  }
+}
