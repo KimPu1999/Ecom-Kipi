@@ -1,0 +1,536 @@
+/* Seller theme tokens. This file is imported last so every Seller route shares one theme. */
+:root {
+  --seller-body-bg: #f8fafc;
+  --seller-sidebar-bg: #f1f5f9;
+  --seller-header-bg: #ffffff;
+  --seller-surface: #ffffff;
+  --seller-surface-muted: #f8fafc;
+  --seller-input-bg: #ffffff;
+  --seller-text: #1e293b;
+  --seller-muted: #64748b;
+  --seller-border: #e2e8f0;
+  --seller-border-strong: #cbd5e1;
+  --seller-primary: #2563eb;
+  --seller-primary-hover: #1d4ed8;
+  --seller-action: #2563eb;
+  --seller-soft: #eff6ff;
+  --seller-nav-active-bg: transparent;
+  --seller-shadow: 0 4px 12px rgba(15, 23, 42, .08);
+  --seller-overlay: rgba(255, 255, 255, .94);
+  --seller-danger: #b91c1c;
+  --seller-danger-bg: #fef2f2;
+  --seller-success: #166534;
+  --seller-success-bg: #f0fdf4;
+}
+
+html[data-seller-theme='dark'] {
+  color-scheme: dark;
+  --seller-body-bg: #0f172a;
+  --seller-sidebar-bg: #111827;
+  --seller-header-bg: #111827;
+  --seller-surface: #1e293b;
+  --seller-surface-muted: #172033;
+  --seller-input-bg: #0f172a;
+  --seller-text: #f1f5f9;
+  --seller-muted: #cbd5e1;
+  --seller-border: #334155;
+  --seller-border-strong: #475569;
+  --seller-primary: #93c5fd;
+  --seller-primary-hover: #bfdbfe;
+  --seller-action: #2563eb;
+  --seller-soft: #1e3a8a;
+  --seller-nav-active-bg: rgba(96, 165, 250, .14);
+  --seller-shadow: 0 4px 16px rgba(2, 6, 23, .3);
+  --seller-overlay: rgba(30, 41, 59, .94);
+  --seller-danger: #fca5a5;
+  --seller-danger-bg: #450a0a;
+  --seller-success: #bbf7d0;
+  --seller-success-bg: #14532d;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+html,
+body {
+  background: var(--seller-body-bg);
+}
+
+body {
+  color: var(--seller-text);
+  background: var(--seller-body-bg);
+  transition: background-color .18s ease, color .18s ease;
+}
+
+.shell,
+.main,
+.content {
+  background: var(--seller-body-bg);
+}
+
+.sidebar {
+  color: var(--seller-muted);
+  background: var(--seller-sidebar-bg);
+  border-right-color: var(--seller-border);
+  box-shadow: var(--seller-shadow);
+}
+
+.brand,
+.brand > span:last-of-type,
+.header-title-group > div strong,
+.page-title h1,
+.product-management-heading h1,
+.product-create-heading h1,
+.product-panel-heading h2,
+.card h1,
+.card h2,
+.card h3,
+.card h4,
+.shipment-order-heading h2,
+.shipment-summary-card h2,
+.shipment-status-card h2,
+.shipment-timeline-card h2,
+.shipment-items-card h2,
+.product-name-cell strong,
+.product-price,
+.shipment-meta strong,
+.two-col h2 {
+  color: var(--seller-text);
+}
+
+.brand em,
+.nav-label,
+.kicker,
+.page-title p,
+.product-management-heading p,
+.muted,
+.field-note,
+.label-hint,
+.product-listing-toolbar p,
+.product-no-reviews,
+.product-name-cell small,
+.product-category,
+.header-account small,
+.shipment-form-heading small,
+.shipment-list-row small,
+.shipment-timeline-event small,
+.shipment-meta span,
+.shipment-items-card small,
+.shipment-timeline-event p,
+.two-col p,
+.empty,
+.loading {
+  color: var(--seller-muted);
+}
+
+.sidebar nav a {
+  color: var(--seller-muted);
+}
+
+.sidebar nav a:hover,
+.sidebar nav a.active {
+  color: var(--seller-primary);
+  background: var(--seller-nav-active-bg);
+  box-shadow: inset 2px 0 0 var(--seller-primary);
+}
+
+.user {
+  border-top-color: var(--seller-border);
+}
+
+.avatar {
+  color: #1e3a8a;
+  background: #dbeafe;
+}
+
+.main > header {
+  color: var(--seller-text);
+  background: var(--seller-header-bg);
+  border-bottom-color: var(--seller-border);
+  box-shadow: var(--seller-shadow);
+}
+
+.header-search,
+.header-search input,
+.product-listing-controls select,
+.form-card input,
+.form-card textarea,
+.form-card select,
+.shipment-create-form input,
+.shipment-create-form select,
+.shipment-status-card select,
+.login-card input {
+  color: var(--seller-text);
+  border-color: var(--seller-border);
+  background: var(--seller-input-bg);
+}
+
+.header-search input::placeholder,
+.form-card input::placeholder,
+.form-card textarea::placeholder,
+.shipment-create-form input::placeholder,
+.login-card input::placeholder {
+  color: var(--seller-muted);
+  opacity: .75;
+}
+
+.header-search:focus-within,
+.form-card input:focus,
+.form-card textarea:focus,
+.form-card select:focus,
+.shipment-create-form input:focus,
+.shipment-create-form select:focus,
+.shipment-status-card select:focus,
+.login-card input:focus {
+  border-color: var(--seller-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--seller-primary) 18%, transparent);
+}
+
+.header-icon {
+  color: var(--seller-muted);
+}
+
+.header-icon:hover,
+.header-icon:focus-visible {
+  color: var(--seller-primary);
+  background: var(--seller-soft);
+  outline-color: var(--seller-border-strong);
+}
+
+.header-account strong,
+.store-link,
+.text-link,
+.row-actions .icon,
+.product-back-link {
+  color: var(--seller-primary);
+}
+
+.card,
+.table-card,
+.form-card,
+.form-section,
+.product-panel,
+.product-listing-card,
+.edit-image-card,
+.edit-variant-card,
+.checklist-panel,
+.publish-panel,
+.earnings-history-card,
+.inventory-overview,
+.shipment-order-card,
+.shipment-summary-card,
+.shipment-status-card,
+.shipment-timeline-card,
+.shipment-items-card,
+.shipment-meta {
+  color: var(--seller-text);
+  border-color: var(--seller-border);
+  background: var(--seller-surface);
+  box-shadow: var(--seller-shadow);
+}
+
+.form-section,
+.shipment-meta,
+.table-card th,
+.product-listing-toolbar,
+.product-panel-heading,
+.publish-note,
+.product-image-preview {
+  background: var(--seller-surface-muted);
+}
+
+.product-panel label input,
+.product-panel label textarea,
+.product-panel label select,
+.variant-box,
+.inventory-overview,
+.edit-variant-card,
+.edit-image-card,
+.upload-zone,
+.inventory-badge {
+  color: var(--seller-text);
+  border-color: var(--seller-border);
+  background: var(--seller-surface-muted);
+}
+
+.variant-box strong,
+.inventory-overview strong,
+.edit-variant-heading,
+.product-image-preview strong {
+  color: var(--seller-text);
+}
+
+.variant-box p,
+.inventory-overview p,
+.publish-note p,
+.checklist-panel li,
+.product-image-preview small,
+.edit-image-card span,
+.upload-zone small {
+  color: var(--seller-muted);
+}
+
+.upload-zone {
+  color: var(--seller-primary) !important;
+}
+
+.upload-zone:hover {
+  border-color: var(--seller-primary);
+  background: var(--seller-soft);
+}
+
+.product-editor-actions {
+  background: var(--seller-overlay);
+}
+
+.table-card table,
+.product-management-table {
+  color: var(--seller-text);
+  background: var(--seller-surface);
+}
+
+.table-card th,
+.table-card td,
+.product-management-table th,
+.product-management-table td,
+.shipment-list-row {
+  border-bottom-color: var(--seller-border);
+}
+
+.table-card th,
+.product-management-table th {
+  color: var(--seller-muted);
+  background: var(--seller-surface-muted);
+}
+
+.button,
+.secondary,
+.pagination-button,
+.pagination-page {
+  color: var(--seller-text);
+  border-color: var(--seller-border);
+  background: var(--seller-surface-muted);
+}
+
+.button.primary,
+.primary {
+  color: #fff;
+  border-color: transparent;
+  background: var(--seller-action);
+}
+
+.button.primary:hover,
+.primary:hover {
+  color: #fff;
+  background: var(--seller-primary-hover);
+}
+
+.button:hover,
+.secondary:hover,
+.pagination-button:hover:not(:disabled),
+.pagination-page:hover,
+.pagination-page.active {
+  color: var(--seller-primary);
+  border-color: var(--seller-border-strong);
+  background: var(--seller-soft);
+}
+
+.pill {
+  color: var(--seller-primary);
+  background: var(--seller-soft);
+}
+
+.success,
+.status-note {
+  color: var(--seller-success);
+}
+
+.error {
+  color: var(--seller-danger);
+  border-color: color-mix(in srgb, var(--seller-danger) 35%, var(--seller-border));
+  background: var(--seller-danger-bg);
+}
+
+.product-feedback.success,
+.shipment-notice {
+  color: var(--seller-success);
+  background: var(--seller-success-bg);
+}
+
+.notice {
+  color: var(--seller-muted);
+  background: var(--seller-surface);
+  border-left-color: var(--seller-primary);
+}
+
+.notice strong,
+.shipment-timeline-event strong {
+  color: var(--seller-primary);
+}
+
+.readonly-field {
+  color: var(--seller-muted);
+  border-color: var(--seller-border-strong);
+  background: var(--seller-surface-muted);
+}
+
+.form-card label,
+.shipment-create-form label,
+.shipment-status-card label {
+  color: var(--seller-text);
+}
+
+.form-card .form-actions,
+.product-editor-actions {
+  border-top-color: var(--seller-border);
+  background: var(--seller-overlay);
+}
+
+.row-actions .icon:hover,
+.pagination-page.active {
+  background: var(--seller-soft);
+}
+
+.row-actions .icon.danger {
+  color: var(--seller-danger);
+}
+
+.row-actions .icon.danger:hover {
+  background: var(--seller-danger-bg);
+}
+
+html[data-seller-theme='dark'] .stock-in,
+html[data-seller-theme='dark'] .status-published {
+  color: #bbf7d0 !important;
+  background: #14532d;
+}
+
+html[data-seller-theme='dark'] .stock-limited {
+  color: #fde68a !important;
+  background: #78350f;
+}
+
+html[data-seller-theme='dark'] .stock-out,
+html[data-seller-theme='dark'] .status-draft {
+  color: #fecaca !important;
+  background: #7f1d1d;
+}
+
+.language-switcher-trigger,
+.language-switcher-menu,
+.language-switcher-menu button {
+  color: var(--seller-text);
+  border-color: var(--seller-border);
+  background: var(--seller-surface);
+}
+
+.language-switcher-menu button:hover,
+.language-switcher-menu button.selected {
+  color: var(--seller-primary);
+  background: var(--seller-soft);
+}
+
+.theme-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 36px;
+  padding: 3px;
+  border: 1px solid var(--seller-border);
+  border-radius: 8px;
+  background: var(--seller-surface-muted);
+}
+
+.theme-switcher button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 28px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--seller-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.theme-switcher button.selected {
+  color: #fff;
+  background: var(--seller-action);
+}
+
+.theme-switcher button:focus-visible {
+  outline: 2px solid var(--seller-primary);
+  outline-offset: 2px;
+}
+
+.shipment-create-form,
+.shipment-timeline-event:not(:last-child)::before {
+  border-color: var(--seller-border);
+}
+
+.shipment-create-form {
+  border-top-color: var(--seller-border);
+}
+
+.shipment-timeline-event:not(:last-child)::before {
+  background: var(--seller-border);
+}
+
+.timeline-dot {
+  border-color: var(--seller-soft);
+  background: var(--seller-primary);
+}
+
+.login-page {
+  background: var(--seller-body-bg);
+}
+
+.login-card {
+  color: var(--seller-text);
+  background: var(--seller-surface);
+  box-shadow: var(--seller-shadow);
+}
+
+.login-card label {
+  color: var(--seller-text);
+}
+
+.login-panel {
+  background: #17372b;
+}
+
+html[data-seller-theme='dark'] .login-panel {
+  background: #111827;
+}
+
+html[data-seller-theme='dark'] .status-note {
+  background: var(--seller-success-bg);
+}
+
+@media (max-width: 640px) {
+  .theme-switcher {
+    min-height: 34px;
+  }
+
+  .theme-switcher button {
+    width: 30px;
+    padding: 0;
+  }
+
+  .theme-switcher .theme-label {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    transition: none;
+  }
+}

@@ -1,1 +1,8 @@
-<div id="root"></div><script type="module" src="/src/main.tsx"></script>
+<div id="root"></div><script>
+  (() => {
+    try {
+      const theme = localStorage.getItem('kipi.seller.theme')
+      if (theme === 'light' || theme === 'dark') document.documentElement.dataset.sellerTheme = theme
+    } catch (_) {}
+  })()
+</script><script type="module" src="/src/main.tsx"></script>
