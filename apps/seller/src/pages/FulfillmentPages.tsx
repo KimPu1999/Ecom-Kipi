@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Check, Clipboard, ExternalLink, Truck } from 'lucide-react'
+import { ArrowLeft, Check, Clipboard, ExternalLink } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiClientError } from '@kipi/api-client'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -139,7 +139,6 @@ export function ShipmentDetailsPage() {
   return <div className="shipment-details-page">
     {notice ? <div className="success shipment-notice"><Check size={17} />{notice}</div> : null}
     <div className="shipment-details-topbar"><Link className="product-back-link" to="/seller/fulfillment"><ArrowLeft size={16} /> Back to fulfillment</Link><span className="pill">{shipment.status}</span></div>
-    <div className="page-title"><div><span className="kicker">SHIPMENT DETAILS</span><h1>{shipment.internal_tracking_id ?? `Shipment #${shipment.id}`}</h1><p>{shipment.seller_order?.order_number ?? shipment.order?.order_number ?? 'Seller order'} · Created {formatDate(shipment.created_at)}</p></div><Truck size={30} /></div>
     <div className="shipment-details-grid">
       <section className="card shipment-summary-card"><h2>Shipment summary</h2><div className="shipment-meta-grid"><Meta label="Shipment ID" value={`#${shipment.id}`} /><Meta label="Delivery method" value={shipment.delivery_method === 'self_delivery' ? 'Self delivery' : 'External courier'} /><Meta label="Carrier" value={shipment.carrier ?? '—'} /><Meta label="Tracking number" value={trackingNumber || 'Not provided'} /><Meta label="Assigned rider" value={shipment.rider?.name ?? 'Not assigned'} /><Meta label="Created" value={formatDate(shipment.created_at)} /><Meta label="Shipped" value={formatDate(shipment.shipped_at)} /><Meta label="Delivered" value={formatDate(shipment.delivered_at)} /></div>{trackingNumber ? <div className="shipment-tracking-actions"><button className="button secondary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(trackingNumber); setCopyState('Copied') } catch { setCopyState('Copy unavailable') } }}><Clipboard size={16} />{copyState}</button>{trackingUrl ? <a className="button" href={trackingUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />Track package</a> : null}</div> : null}</section>
       <section className="card shipment-status-card"><h2>Update status</h2><p className="muted">Each update is validated by Laravel and added to the shipment history.</p><select className="select" value="" onChange={(event) => { if (event.target.value) update.mutate(event.target.value) }} disabled={update.isPending || !nextStatuses.length}><option value="">{nextStatuses.length ? 'Choose next status' : 'No further status available'}</option>{nextStatuses.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</select>{update.isPending ? <p className="muted">Saving status…</p> : null}{update.isError ? <ErrorBox message={apiErrorMessage(update.error)} /> : null}</section>
@@ -162,7 +161,9 @@ function apiErrorMessage(error: unknown) {
 }
 
 function PageTitle({ title, subtitle }: { title: string; subtitle: string }) {
-  return <div className="page-title"><div><h1>{title}</h1><p>{subtitle}</p></div></div>
+  void title
+  void subtitle
+  return null
 }
 
 function ErrorBox({ message }: { message: string }) {

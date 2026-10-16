@@ -175,11 +175,7 @@ function NewProduct() {
   return <div className="product-create-page">
     <div className="product-create-topbar">
       <Link className="product-back-link" to="/seller/products"><ArrowLeft size={16} /> Back to products</Link>
-      <span className="product-save-status"><span /> Autosave is off</span>
-    </div>
-    <div className="product-create-heading">
-      <div><span className="kicker">CATALOG / NEW PRODUCT</span><h1>Create a new product</h1><p>Build your listing, set the first variant, add stock, and publish when everything is ready.</p></div>
-      <span className="draft-badge">Draft</span>
+      <div className="product-create-meta"><span className="draft-badge">Draft</span><span className="product-save-status"><span /> Autosave is off</span></div>
     </div>
     <form className="product-editor" onSubmit={handleSubmit((value) => save.mutate(value))}>
       <div className="product-editor-main">
@@ -310,7 +306,7 @@ function Earnings() {
 }
 function Payouts() { const { data, isLoading } = useQuery({ queryKey: ['seller-payouts'], queryFn: () => sellerRequest<Array<{ id: number; status: string; amount_minor: number; currency: string }>>('GET', '/seller/payouts') }); if (isLoading) return <Loading />; return <><PageTitle title="Payouts" subtitle="Provider-backed payout requests with no locally fabricated success state." /><div className="card table-card"><table><thead><tr><th>ID</th><th>Status</th><th>Amount</th></tr></thead><tbody>{(data ?? []).map((payout) => <tr key={payout.id}><td>#{payout.id}</td><td><span className="pill">{payout.status}</span></td><td>{money(payout.amount_minor, payout.currency)}</td></tr>)}</tbody></table>{!data?.length && <Empty text="No payout requests yet." />}</div></> }
 function SettingsPage() { const query = useQuery({ queryKey: ['seller-settings'], queryFn: () => sellerRequest<{ store_policies: Record<string, unknown> | null }>('GET', '/seller/settings') }); const save = useMutation({ mutationFn: (value: { store_policies: Record<string, unknown> }) => sellerRequest('PUT', '/seller/settings', value) }); const { register, handleSubmit } = useForm<{ policyText: string }>({ defaultValues: { policyText: query.data?.store_policies?.summary ? String(query.data.store_policies.summary) : '' } }); return <><PageTitle title="Store settings" subtitle="Manage operational configuration for your seller account." />{query.error ? <ErrorBox message="Unable to load settings" /> : <form className="card form-card" onSubmit={handleSubmit((value) => save.mutate({ store_policies: { summary: value.policyText } }))}><label>Store policy summary<textarea rows={5} placeholder="Returns, support hours, and customer-facing policies" {...register('policyText')} /></label><button className="button primary" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save settings'}</button>{save.isSuccess && <span className="success">Settings saved.</span>}</form>}</> }
-function PageTitle({ title, subtitle, action }: { title: string; subtitle: string; action?: React.ReactNode }) { return <div className="page-title"><div><h1>{title}</h1><p>{subtitle}</p></div>{action}</div> }
+function PageTitle({ action }: { title: string; subtitle: string; action?: React.ReactNode }) { return action ? <div className="seller-page-actions">{action}</div> : null }
 function Stat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) { return <div className="stat card"><span className="stat-icon">{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div> }
 function Loading() { return <div className="card loading">Loading seller data…</div> }
 function ErrorBox({ message }: { message: string }) { return <div className="error block">{message}</div> }

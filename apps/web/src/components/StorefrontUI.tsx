@@ -29,8 +29,8 @@ export function EmptyState({ title, message, action }: { title: string; message:
   return <div className="empty-state"><div className="empty-icon">✦</div><h2>{title}</h2><p>{message}</p>{action}</div>
 }
 
-export function PageIntro({ eyebrow, title, description }: { eyebrow: string; title: string; description?: string }) {
-  return <div className="page-intro"><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{description ? <p>{description}</p> : null}</div>
+export function PageIntro({ title }: { eyebrow: string; title: string; description?: string }) {
+  return <h1 className="visually-hidden">{title}</h1>
 }
 
 export function Breadcrumbs({ items }: { items: { label: string; to?: string }[] }) {

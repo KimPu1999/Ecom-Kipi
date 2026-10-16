@@ -203,7 +203,7 @@ header {
 /* Full-screen product editor */
 .content:has(.product-create-page) {
   max-width: 1600px;
-  padding-top: 28px;
+  padding-top: 16px;
 }
 
 .product-create-page {
@@ -220,7 +220,13 @@ header {
 }
 
 .product-create-topbar {
-  margin-bottom: 28px;
+  margin-bottom: 12px;
+}
+
+.product-create-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .product-back-link {
@@ -257,6 +263,13 @@ header {
 .product-create-heading {
   align-items: flex-start;
   margin-bottom: 30px;
+}
+
+.seller-page-actions {
+  display: flex;
+  justify-content: flex-end;
+  min-height: 0;
+  margin-bottom: 12px;
 }
 
 .product-create-heading h1 {
@@ -870,6 +883,10 @@ header {
   .product-create-heading {
     display: grid;
     gap: 14px;
+  }
+
+  .product-create-meta {
+    gap: 8px;
   }
 
   .product-create-heading h1 {
@@ -1604,7 +1621,7 @@ body {
 
 .main > header {
   height: 68px;
-  padding: 0 24px;
+  padding: 0 20px;
   border-bottom: 1px solid var(--seller-border);
   background: var(--seller-surface);
   box-shadow: 0 2px 8px rgba(15, 23, 42, .06);
@@ -1612,7 +1629,7 @@ body {
 
 .content {
   max-width: none;
-  padding: 20px 24px 44px;
+  padding: 16px 20px 40px;
 }
 
 .page-title {
@@ -1760,7 +1777,7 @@ body {
 }
 
 .content:has(.product-management-page) {
-  padding-top: 20px;
+  padding-top: 16px;
 }
 
 .product-listing-toolbar {

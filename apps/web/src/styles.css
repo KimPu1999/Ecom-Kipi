@@ -409,6 +409,20 @@ body {
   background: var(--surface-muted);
 }
 
+/* Route titles remain available to assistive technology without adding a large
+   introductory block above the storefront content. */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .page-shell {
   width: min(1240px, calc(100% - 32px));
   padding: 24px 0 56px;
