@@ -465,7 +465,66 @@ function SellerOrderDetails() {
   if (query.isLoading) return <Loading />
   if (query.error || !query.data) return <ErrorBox message={apiErrorMessage(query.error ?? new Error('Unable to load seller order'))} />
   const order = query.data
-  return <div className="seller-order-details"><div className="seller-page-actions"><Link className="product-back-link" to="/seller/orders"><ArrowLeft size={16} /> Back to orders</Link></div><section className="card order-detail-summary"><div><span className="kicker">SELLER ORDER</span><h1>{order.order_number}</h1><p className="muted">{order.order?.user?.name ?? 'Customer'}{order.order?.user?.email ? ` · ${order.order.user.email}` : ''}</p></div><div className="order-detail-badges"><span className="pill">{productStatusLabel(order.payment_status ?? 'pending')}</span><span className="pill">{productStatusLabel(order.fulfillment_status)}</span></div></section><section className="card table-card"><table><thead><tr><th>Product</th><th>SKU</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead><tbody>{(order.items ?? []).map((item) => <tr key={item.id}><td>{item.product_name}</td><td>{item.sku}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td>{money(item.line_total_minor, order.currency)}</td></tr>)}</tbody></table>{!order.items?.length ? <Empty text="No items were returned for this order." /> : null}</section><section className="card order-detail-meta"><div><small>Seller subtotal</small><strong>{money(order.subtotal_minor, order.currency)}</strong></div><div><small>Commission</small><strong>{money(order.commission_minor, order.currency)}</strong></div><div><small>Net</small><strong>{money(order.net_minor, order.currency)}</strong></div><div><small>Shipment</small><strong>{order.shipments?.[0]?.status ? productStatusLabel(order.shipments[0].status) : 'Not created'}</strong></div></section></div>
+  const shipment = order.shipments?.[0]
+  const createdAt = order.created_at ?? order.order?.placed_at
+  return <div className="seller-order-details">
+    <header className="card order-details-header seller-order-details-header">
+      <div className="order-details-header-top">
+        <Link className="product-back-link" to="/seller/orders"><ArrowLeft size={16} /> Back to orders</Link>
+        <span className="order-details-shipment-id">{shipment ? `Shipment #${shipment.id}` : 'Shipment not created'}</span>
+      </div>
+      <div className="order-details-title-row">
+        <div className="order-details-title-copy">
+          <span className="kicker">ORDER DETAILS</span>
+          <h1>{order.order_number}</h1>
+        </div>
+        <p className="order-details-created">Created {formatSellerOrderDate(createdAt)}</p>
+      </div>
+    </header>
+
+    <div className="order-details-layout seller-order-summary-layout">
+      <section className="card order-detail-card">
+        <div className="order-detail-heading"><h2>Order summary</h2></div>
+        <div className="order-detail-grid order-detail-grid--two">
+          <SellerOrderDetailField label="Order number" value={order.order_number} />
+          <SellerOrderDetailField label="Created" value={formatSellerOrderDate(createdAt)} />
+          <SellerOrderDetailField label="Seller order status" value={productStatusLabel(order.status)} />
+          <SellerOrderDetailField label="Fulfillment status" value={productStatusLabel(order.fulfillment_status)} />
+          <SellerOrderDetailField label="Items" value={String(order.items?.length ?? 0)} />
+          <SellerOrderDetailField label="Seller subtotal" value={money(order.subtotal_minor, order.currency)} />
+        </div>
+      </section>
+
+      <section className="card order-detail-card">
+        <div className="order-detail-heading"><h2>Payment summary</h2></div>
+        <div className="order-detail-grid order-detail-grid--two">
+          <SellerOrderStatusField label="Payment status" value={productStatusLabel(order.payment_status ?? 'pending')} />
+          <SellerOrderDetailField label="Commission" value={money(order.commission_minor, order.currency)} />
+          <SellerOrderDetailField label="Net amount" value={money(order.net_minor, order.currency)} />
+          <SellerOrderDetailField label="Shipment status" value={shipment?.status ? productStatusLabel(shipment.status) : 'Not created'} />
+        </div>
+      </section>
+    </div>
+
+    <section className="card table-card seller-order-items-card">
+      <table><thead><tr><th>Product</th><th>SKU</th><th>Quantity</th><th>Unit price</th><th>Total</th></tr></thead><tbody>{(order.items ?? []).map((item) => <tr key={item.id}><td>{item.product_name}</td><td>{item.sku}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td>{money(item.line_total_minor, order.currency)}</td></tr>)}</tbody></table>
+      {!order.items?.length ? <Empty text="No items were returned for this order." /> : null}
+    </section>
+  </div>
+}
+
+function formatSellerOrderDate(value?: string | null) {
+  if (!value) return 'Not recorded'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Not recorded' : new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
+
+function SellerOrderDetailField({ label, value }: { label: string; value: string }) {
+  return <div className="order-detail-field"><span>{label}</span><strong>{value}</strong></div>
+}
+
+function SellerOrderStatusField({ label, value }: { label: string; value: string }) {
+  return <div className="order-detail-field"><span>{label}</span><strong><span className="pill order-status-badge">{value}</span></strong></div>
 }
 
 function Orders() { const { data, isLoading, error } = useQuery({ queryKey: ['seller-orders'], queryFn: () => sellerRequest<SellerOrder[]>('GET', '/seller/orders') }); if (isLoading) return <Loading />; return <><PageTitle title="Orders" subtitle="Fulfill only the seller orders belonging to your store." />{error ? <ErrorBox message={error instanceof Error ? error.message : 'Unable to load orders'} /> : <div className="card table-card"><table><thead><tr><th>Seller order</th><th>Status</th><th>Subtotal</th><th>Commission</th><th>Net</th></tr></thead><tbody>{(data ?? []).map((order) => <tr key={order.id}><td><strong>{order.order_number}</strong></td><td><span className="pill">{order.fulfillment_status}</span></td><td>{money(order.subtotal_minor, order.currency)}</td><td>{money(order.commission_minor, order.currency)}</td><td><strong>{money(order.net_minor, order.currency)}</strong></td></tr>)}</tbody></table>{!data?.length && <Empty text="Seller orders appear here after customer checkout." />}</div>}</> }

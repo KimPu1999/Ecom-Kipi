@@ -120,6 +120,10 @@ class ShippingManagementTest extends TestCase
         $this->withHeader('Idempotency-Key', 'seller-shipment-test-key')->postJson('/api/v1/seller/orders/'.$sellerOrder->id.'/shipments', $payload)->assertCreated()->assertJsonPath('data.id', $shipmentId);
         $this->assertDatabaseCount('shipments', 1);
         $this->getJson('/api/v1/seller/shipments/'.$shipmentId)->assertOk()->assertJsonPath('data.id', $shipmentId)->assertJsonPath('data.delivery_method', 'self_delivery');
+        $this->getJson('/api/v1/seller/orders/'.$sellerOrder->id)
+            ->assertOk()
+            ->assertJsonPath('data.order.shipping_address.line1', 'Main')
+            ->assertJsonPath('data.items.0.product_name', 'Shipment product');
 
         Sanctum::actingAs($customer);
         $this->getJson('/api/v1/orders/'.$order->id.'/shipments')->assertOk()->assertJsonPath('data.0.id', $shipmentId);

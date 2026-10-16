@@ -1459,7 +1459,7 @@ html[data-seller-theme='dark'] .status-note {
 
 .seller-order-details {
   display: grid;
-  gap: 14px;
+  gap: 16px;
 }
 
 .order-detail-summary,

@@ -388,7 +388,19 @@ class SellerController extends Controller
     {
         abort_unless((int) $sellerOrder->seller_id === (int) $this->seller($request)->id, 404);
 
-        return ApiResponse::success($sellerOrder->load(['order.user', 'items', 'shipments.tracking', 'shipments.method', 'shipments.carrierRecord', 'shipments.rider']), 'Seller order retrieved');
+        return ApiResponse::success($sellerOrder->load([
+            'order.user:id,name,email,phone',
+            'order.payments:id,order_id,provider,provider_payment_id,status,amount_minor,currency,paid_at,created_at',
+            'order.statusHistory:id,order_id,status_type,from_status,to_status,changed_by,note,created_at',
+            'order.shippingMethod',
+            'items.orderItem.variant.product.images',
+            'statusHistory',
+            'shipments.tracking.actor',
+            'shipments.items.orderItem',
+            'shipments.method',
+            'shipments.carrierRecord',
+            'shipments.rider',
+        ]), 'Seller order retrieved');
     }
 
     public function riders(Request $request)

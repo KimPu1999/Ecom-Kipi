@@ -30,7 +30,57 @@ type Shipment = {
   items?: { quantity: number; order_item?: { product_name?: string; sku?: string } | null }[]
   tracking?: TrackingEvent[]
 }
-type SellerOrder = { id: number; order_number: string; status: string; payment_status?: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string; created_at?: string | null; order?: { payments?: { provider: string; status: string }[] }; shipments?: Shipment[] }
+type SellerOrderItem = {
+  id: number
+  product_name: string
+  sku: string
+  quantity: number
+  unit_price_minor: number
+  line_total_minor: number
+  order_item?: {
+    attributes?: Record<string, unknown> | null
+    variant?: {
+      attributes?: Record<string, string> | null
+      product?: { images?: { url: string; alt_text?: string | null }[] } | null
+    } | null
+  } | null
+}
+type OrderPayment = { provider: string; status: string; provider_payment_id?: string | null; amount_minor?: number | null; currency?: string | null; paid_at?: string | null; created_at?: string | null }
+type OrderHistory = { id: number; status_type?: string | null; from_status?: string | null; to_status: string; note?: string | null; created_at?: string | null }
+type SellerOrder = {
+  id: number
+  order_number: string
+  status: string
+  payment_status?: string
+  fulfillment_status: string
+  subtotal_minor: number
+  shipping_minor?: number
+  commission_minor: number
+  net_minor: number
+  currency: string
+  created_at?: string | null
+  items?: SellerOrderItem[]
+  status_history?: OrderHistory[]
+  order?: {
+    order_number?: string
+    user?: { name?: string | null; email?: string | null; phone?: string | null } | null
+    shipping_address?: Record<string, unknown> | null
+    placed_at?: string | null
+    created_at?: string | null
+    subtotal_minor?: number
+    discount_minor?: number
+    shipping_minor?: number
+    tax_minor?: number
+    grand_total_minor?: number
+    currency?: string
+    payment_status?: string
+    fulfillment_status?: string
+    payments?: OrderPayment[]
+    status_history?: OrderHistory[]
+    shipping_method?: { name?: string | null; description?: string | null } | null
+  }
+  shipments?: Shipment[]
+}
 type ShipmentInput = { delivery_method: 'self_delivery' | 'external_courier'; carrier: string; tracking_number: string; tracking_url: string; rider_id?: number; estimated_delivery_at: string; idempotency_key: string }
 
 const transitions: Record<string, string[]> = {
@@ -55,6 +105,52 @@ function safeTrackingUrl(value?: string | null) {
   } catch {
     return null
   }
+}
+
+function money(value?: number | null, currency = 'MMK') {
+  if (value === null || value === undefined) return '—'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency, maximumFractionDigits: 0 }).format(value)
+}
+
+function humanize(value?: string | null) {
+  if (!value) return '—'
+  return value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function addressText(address?: Record<string, unknown> | null) {
+  if (!address) return ''
+  return Object.values(address)
+    .filter((value): value is string | number => typeof value === 'string' || typeof value === 'number')
+    .map(String)
+    .filter(Boolean)
+    .join(', ')
+}
+
+function variantText(item: SellerOrderItem) {
+  const attributes = item.order_item?.attributes ?? item.order_item?.variant?.attributes
+  if (!attributes) return ''
+  return Object.entries(attributes).map(([name, value]) => `${name}: ${String(value)}`).join(' · ')
+}
+
+type TimelineItem = { key: string; label: string; timestamp: string; source: string; note?: string | null }
+
+function buildTimeline(order: SellerOrder, shipment: Shipment): TimelineItem[] {
+  const timeline: TimelineItem[] = []
+  for (const event of order.order?.status_history ?? []) {
+    if (event.created_at) timeline.push({ key: `order-${event.id}`, label: humanize(event.to_status), timestamp: event.created_at, source: event.status_type ? `Order · ${humanize(event.status_type)}` : 'Order', note: event.note })
+  }
+  for (const event of order.status_history ?? []) {
+    if (event.created_at) timeline.push({ key: `seller-order-${event.id}`, label: humanize(event.to_status), timestamp: event.created_at, source: 'Seller order', note: event.note })
+  }
+  for (const payment of order.order?.payments ?? []) {
+    const timestamp = payment.paid_at ?? payment.created_at
+    if (timestamp) timeline.push({ key: `payment-${payment.provider}-${timestamp}`, label: `Payment ${humanize(payment.status)}`, timestamp, source: humanize(payment.provider) })
+  }
+  timeline.push({ key: `shipment-created-${shipment.id}`, label: 'Shipment created', timestamp: shipment.created_at, source: 'Fulfillment' })
+  for (const event of shipment.tracking ?? []) {
+    timeline.push({ key: `shipment-${event.id}`, label: humanize(event.status), timestamp: event.occurred_at, source: event.source ? humanize(event.source) : 'Shipment', note: event.message })
+  }
+  return timeline.sort((first, second) => new Date(first.timestamp).getTime() - new Date(second.timestamp).getTime())
 }
 
 export function FulfillmentPage() {
@@ -145,29 +241,101 @@ export function ShipmentDetailsPage() {
   const location = useLocation()
   const client = useQueryClient()
   const [copyState, setCopyState] = useState('Copy tracking')
+  const [timelineOpen, setTimelineOpen] = useState(false)
   const query = useQuery({ queryKey: ['seller-shipment', id], queryFn: () => sellerRequest<Shipment>('GET', `/seller/shipments/${id}`), enabled: Boolean(id) })
-  const update = useMutation({ mutationFn: (status: string) => sellerRequest<Shipment>('PATCH', `/seller/shipments/${id}/status`, { status }), onSuccess: () => { client.invalidateQueries({ queryKey: ['seller-shipment', id] }); client.invalidateQueries({ queryKey: ['seller-fulfillment'] }) }, retry: 0 })
-  if (query.isLoading) return <div className="card loading">Loading shipment details…</div>
+  const sellerOrderId = query.data?.seller_order_id ?? query.data?.seller_order?.id
+  const orderQuery = useQuery({ queryKey: ['seller-order-details', sellerOrderId], queryFn: () => sellerRequest<SellerOrder>('GET', `/seller/orders/${sellerOrderId}`), enabled: Boolean(sellerOrderId) })
+  const update = useMutation({ mutationFn: (status: string) => sellerRequest<Shipment>('PATCH', `/seller/shipments/${id}/status`, { status }), onSuccess: () => { client.invalidateQueries({ queryKey: ['seller-shipment', id] }); client.invalidateQueries({ queryKey: ['seller-order-details', sellerOrderId] }); client.invalidateQueries({ queryKey: ['seller-fulfillment'] }) }, retry: 0 })
+  if (query.isLoading || orderQuery.isLoading) return <div className="card loading">Loading order details…</div>
   if (query.isError || !query.data) return <ErrorBox message={apiErrorMessage(query.error ?? new Error('Shipment not found.'))} />
+  if (orderQuery.isError || !orderQuery.data) return <ErrorBox message={apiErrorMessage(orderQuery.error ?? new Error('Order details are unavailable.'))} />
+
   const shipment = query.data
+  const order = orderQuery.data
+  const parentOrder = order.order
   const trackingNumber = shipment.internal_tracking_id ?? shipment.tracking_number ?? ''
+  const trackingLabel = shipment.delivery_method === 'self_delivery' ? 'Internal tracking ID' : 'Tracking number'
   const trackingUrl = safeTrackingUrl(shipment.metadata?.tracking_url)
   const nextStatuses = transitions[shipment.status] ?? []
   const notice = (location.state as { notice?: string } | null)?.notice
-  return <div className="shipment-details-page">
+  const orderNumber = order.order_number || parentOrder?.order_number || `Shipment #${shipment.id}`
+  const orderCurrency = order.currency || parentOrder?.currency || 'MMK'
+  const createdAt = order.created_at ?? parentOrder?.placed_at ?? parentOrder?.created_at ?? shipment.created_at
+  const paymentStatus = order.payment_status ?? parentOrder?.payment_status ?? 'pending'
+  const fulfillmentStatus = order.fulfillment_status ?? parentOrder?.fulfillment_status ?? shipment.status
+  const payment = (parentOrder?.payments ?? []).find((item) => item.status === 'paid') ?? parentOrder?.payments?.[0]
+  const address = addressText(parentOrder?.shipping_address)
+  const timeline = buildTimeline(order, shipment)
+  const deliveryMethod = shipment.delivery_method === 'self_delivery' ? 'Self delivery' : shipment.carrier ?? parentOrder?.shipping_method?.name ?? 'External courier'
+  const items = order.items ?? []
+
+  return <div className="shipment-details-page shipment-order-details-page">
     {notice ? <div className="success shipment-notice"><Check size={17} />{notice}</div> : null}
-    <div className="shipment-details-topbar"><Link className="product-back-link" to="/seller/fulfillment"><ArrowLeft size={16} /> Back to fulfillment</Link><span className="pill">{shipment.status}</span></div>
-    <div className="shipment-details-grid">
-      <section className="card shipment-summary-card"><h2>Shipment summary</h2><div className="shipment-meta-grid"><Meta label="Shipment ID" value={`#${shipment.id}`} /><Meta label="Delivery method" value={shipment.delivery_method === 'self_delivery' ? 'Self delivery' : 'External courier'} /><Meta label="Carrier" value={shipment.carrier ?? '—'} /><Meta label="Tracking number" value={trackingNumber || 'Not provided'} /><Meta label="Assigned rider" value={shipment.rider?.name ?? 'Not assigned'} /><Meta label="Created" value={formatDate(shipment.created_at)} /><Meta label="Shipped" value={formatDate(shipment.shipped_at)} /><Meta label="Delivered" value={formatDate(shipment.delivered_at)} /></div>{trackingNumber ? <div className="shipment-tracking-actions"><button className="button secondary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(trackingNumber); setCopyState('Copied') } catch { setCopyState('Copy unavailable') } }}><Clipboard size={16} />{copyState}</button>{trackingUrl ? <a className="button" href={trackingUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />Track package</a> : null}</div> : null}</section>
-      <section className="card shipment-status-card"><h2>Update status</h2><p className="muted">Each update is validated by Laravel and added to the shipment history.</p><select className="select" value="" onChange={(event) => { if (event.target.value) update.mutate(event.target.value) }} disabled={update.isPending || !nextStatuses.length}><option value="">{nextStatuses.length ? 'Choose next status' : 'No further status available'}</option>{nextStatuses.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</select>{update.isPending ? <p className="muted">Saving status…</p> : null}{update.isError ? <ErrorBox message={apiErrorMessage(update.error)} /> : null}</section>
+    <header className="card order-details-header">
+      <div className="order-details-header-top"><Link className="product-back-link" to="/seller/fulfillment"><ArrowLeft size={16} /> Back to orders</Link><span className="order-details-shipment-id">Shipment #{shipment.id}</span></div>
+      <div className="order-details-title-row"><div className="order-details-title-copy"><span className="kicker">ORDER DETAILS</span><h1>{orderNumber}</h1></div><p className="order-details-created">Created {formatDate(createdAt)}</p></div>
+    </header>
+
+    <div className="order-details-layout">
+      <main className="order-details-main">
+        <section className="card order-detail-card">
+          <SectionHeading title="Order summary" />
+          <div className="order-detail-grid"><DetailField label="Order number" value={orderNumber} /><DetailField label="Created" value={formatDate(createdAt)} /><DetailField label="Delivery method" value={deliveryMethod} /><DetailField label="Seller order status" value={humanize(order.status)} /><DetailField label="Seller subtotal" value={money(order.subtotal_minor, orderCurrency)} /><DetailField label="Seller net" value={money(order.net_minor, orderCurrency)} /></div>
+        </section>
+
+        <section className="card order-detail-card">
+          <SectionHeading title="Customer information" />
+          {parentOrder?.user || address ? <div className="order-detail-grid"><DetailField label="Customer name" value={parentOrder?.user?.name || '—'} /><DetailField label="Email" value={parentOrder?.user?.email || '—'} /><DetailField label="Phone" value={parentOrder?.user?.phone || '—'} />{address ? <div className="order-detail-field order-detail-field--wide"><span>Shipping address</span><strong className="order-address">{address}</strong></div> : null}</div> : <p className="order-empty-note">Customer information is not available for this order.</p>}
+        </section>
+
+        <section className="card order-detail-card order-items-card">
+          <SectionHeading title="Order items" meta={`${items.length} item${items.length === 1 ? '' : 's'}`} />
+          {items.length ? <div className="order-items-table-wrap"><table className="order-items-table"><thead><tr><th>Product</th><th>SKU</th><th>Quantity</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{items.map((item) => { const image = item.order_item?.variant?.product?.images?.[0]; const variant = variantText(item); return <tr key={item.id}><td data-label="Product"><div className="order-item-product">{image?.url ? <img src={image.url} alt={image.alt_text ?? item.product_name} loading="lazy" /> : <span className="order-item-image-placeholder" aria-hidden="true">—</span>}<span><strong>{item.product_name}</strong>{variant ? <small>{variant}</small> : null}</span></div></td><td data-label="SKU">{item.sku || '—'}</td><td data-label="Quantity">{item.quantity}</td><td data-label="Unit price">{money(item.unit_price_minor, orderCurrency)}</td><td data-label="Line total"><strong>{money(item.line_total_minor, orderCurrency)}</strong></td></tr> })}</tbody></table></div> : <p className="order-empty-note">No order items were returned for this seller order.</p>}
+        </section>
+      </main>
+
+      <aside className="order-details-sidebar">
+        <section className="card order-detail-card payment-summary-card">
+          <SectionHeading title="Payment summary" />
+          <div className="order-detail-grid order-detail-grid--two"><StatusField label="Payment status" value={humanize(paymentStatus)} /><DetailField label="Payment method" value={payment?.provider ? humanize(payment.provider) : 'Not recorded'} /><DetailField label="Reference ID" value={payment?.provider_payment_id || 'Not recorded'} /><DetailField label="Paid at" value={formatDate(payment?.paid_at)} /></div>
+          <div className="order-money-list"><MoneyRow label="Subtotal" value={parentOrder?.subtotal_minor ?? order.subtotal_minor} currency={orderCurrency} />{parentOrder?.discount_minor !== undefined ? <MoneyRow label="Discount" value={parentOrder.discount_minor} currency={orderCurrency} /> : null}{parentOrder?.shipping_minor !== undefined ? <MoneyRow label="Shipping" value={parentOrder.shipping_minor} currency={orderCurrency} /> : null}{parentOrder?.tax_minor !== undefined ? <MoneyRow label="Tax" value={parentOrder.tax_minor} currency={orderCurrency} /> : null}{parentOrder?.grand_total_minor !== undefined ? <MoneyRow label="Grand total" value={parentOrder.grand_total_minor} currency={orderCurrency} emphasis /> : null}</div>
+        </section>
+
+        <section className="card order-detail-card fulfillment-summary-card">
+          <SectionHeading title="Fulfillment & tracking" />
+          <div className="order-detail-grid order-detail-grid--two"><StatusField label="Fulfillment status" value={humanize(fulfillmentStatus)} /><DetailField label="Shipment status" value={humanize(shipment.status)} /><DetailField label="Carrier" value={shipment.carrier || (shipment.delivery_method === 'self_delivery' ? 'Kipi Self Delivery' : '—')} /><DetailField label={trackingLabel} value={trackingNumber || 'Not provided'} /><DetailField label="Estimated delivery" value={formatDate(shipment.estimated_delivery_at)} /><DetailField label="Shipped" value={formatDate(shipment.shipped_at)} /><DetailField label="Delivered" value={formatDate(shipment.delivered_at)} /><DetailField label="Assigned rider" value={shipment.rider?.name || 'Not assigned'} /></div>
+          {trackingNumber || trackingUrl ? <div className="order-details-actions">{trackingNumber ? <button className="button secondary" type="button" onClick={async () => { try { await navigator.clipboard.writeText(trackingNumber); setCopyState('Copied') } catch { setCopyState('Copy unavailable') } }}><Clipboard size={16} />{copyState}</button> : null}{trackingUrl ? <a className="button" href={trackingUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />Open tracking link</a> : null}</div> : <p className="order-empty-note">No tracking information is available for this shipment.</p>}
+          <div className="order-status-control"><label htmlFor="shipment-status">Update shipment status</label><select id="shipment-status" className="select" value="" onChange={(event) => { if (event.target.value) update.mutate(event.target.value) }} disabled={update.isPending || !nextStatuses.length}><option value="">{nextStatuses.length ? 'Choose next status' : 'No further status available'}</option>{nextStatuses.map((status) => <option key={status} value={status}>{humanize(status)}</option>)}</select>{update.isPending ? <p className="muted">Saving status…</p> : null}{update.isError ? <ErrorBox message={apiErrorMessage(update.error)} /> : null}</div>
+        </section>
+      </aside>
     </div>
-    <section className="card shipment-timeline-card"><h2>Tracking history</h2>{shipment.tracking?.length ? <div className="shipment-timeline">{shipment.tracking.map((event) => <div className="shipment-timeline-event" key={event.id}><span className="timeline-dot" /><div><strong>{event.status.replaceAll('_', ' ')}</strong><small>{formatDate(event.occurred_at)} · {event.source ?? 'manual'}{event.actor?.name ? ` · ${event.actor.name}` : ''}</small>{event.message ? <p>{event.message}</p> : null}{event.location ? <small>{event.location}</small> : null}</div></div>)}</div> : <p className="muted">No tracking events recorded.</p>}</section>
-    {shipment.items?.length ? <section className="card shipment-items-card"><h2>Products in this shipment</h2>{shipment.items.map((item, index) => <div className="shipment-list-row" key={`${item.order_item?.sku ?? 'item'}-${index}`}><span>{item.order_item?.product_name ?? 'Product'}<small>{item.order_item?.sku ?? 'SKU unavailable'}</small></span><strong>× {item.quantity}</strong></div>)}</section> : null}
+
+    <section className="card order-detail-card order-timeline-card">
+      <button className="order-timeline-toggle" id={`order-timeline-heading-${shipment.id}`} type="button" aria-expanded={timelineOpen} aria-controls={`order-timeline-${shipment.id}`} onClick={() => setTimelineOpen((open) => !open)}>
+        <span>Order timeline</span>
+        {timelineOpen ? <ChevronUp size={17} aria-hidden="true" /> : <ChevronDown size={17} aria-hidden="true" />}
+      </button>
+      <div className={`order-timeline-panel${timelineOpen ? ' is-open' : ''}`} id={`order-timeline-${shipment.id}`} role="region" aria-labelledby={`order-timeline-heading-${shipment.id}`} aria-hidden={!timelineOpen}>
+        <div className="order-timeline-panel-inner">{timeline.length ? <div className="order-timeline">{timeline.map((event) => <div className="order-timeline-event" key={event.key}><span className="order-timeline-dot" /><div><strong>{event.label}</strong><small>{formatDate(event.timestamp)} · {event.source}</small>{event.note ? <p>{event.note}</p> : null}</div></div>)}</div> : <p className="order-empty-note">Timeline events are not available for this order.</p>}</div>
+      </div>
+    </section>
   </div>
 }
 
-function Meta({ label, value }: { label: string; value: string }) {
-  return <div className="shipment-meta"><span>{label}</span><strong>{value}</strong></div>
+function SectionHeading({ title, meta }: { title: string; meta?: string }) {
+  return <div className="order-detail-heading"><h2>{title}</h2>{meta ? <span>{meta}</span> : null}</div>
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return <div className="order-detail-field"><span>{label}</span><strong>{value}</strong></div>
+}
+
+function StatusField({ label, value }: { label: string; value: string }) {
+  return <div className="order-detail-field"><span>{label}</span><strong><span className="pill order-status-badge">{value}</span></strong></div>
+}
+
+function MoneyRow({ label, value, currency, emphasis = false }: { label: string; value: number; currency: string; emphasis?: boolean }) {
+  return <div className={`order-money-row${emphasis ? ' is-total' : ''}`}><span>{label}</span><strong>{money(value, currency)}</strong></div>
 }
 
 function apiErrorMessage(error: unknown) {
