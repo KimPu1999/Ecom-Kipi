@@ -76,6 +76,13 @@ test('navigates from All Orders to a dedicated structured order detail page', as
   expect(screen.getByText('KIPI-DEL-2026-000041')).toBeInTheDocument()
   expect(screen.getByText('Order summary')).toBeInTheDocument()
   expect(screen.getByText('Order actions')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Order overview' })).toHaveAttribute('aria-expanded', 'true')
+  const customerSection = screen.getByRole('button', { name: 'Customer information' })
+  expect(customerSection).toHaveAttribute('aria-expanded', 'false')
+  fireEvent.click(customerSection)
+  expect(customerSection).toHaveAttribute('aria-expanded', 'true')
+  fireEvent.click(customerSection)
+  expect(customerSection).toHaveAttribute('aria-expanded', 'false')
 
   fireEvent.click(screen.getByRole('button', { name: 'Next order' }))
   expect(await screen.findByRole('heading', { name: 'KIPI-ORD-0042' })).toBeInTheDocument()
