@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BarChart3, Boxes, ClipboardList, ImagePlus, LayoutDashboard, LogOut, Menu, Pencil, Settings, Store, Trash2, UploadCloud, Wallet, X } from 'lucide-react'
+import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
+import { ArrowLeft, BarChart3, Bell, Boxes, Check, ChevronLeft, ChevronRight, ClipboardList, ImagePlus, LayoutDashboard, LogOut, Menu, Pencil, Search, Settings, Star, Store, Trash2, UploadCloud, Wallet, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ApiClientError } from '@kipi/api-client'
 import { loginSchema, type LoginInput } from '@kipi/validation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { api, sellerRequest } from './lib/api'
+import { api, sellerRequest, sellerRequestWithMeta } from './lib/api'
 import { useSellerAuth } from './lib/auth'
 import './product-form.css'
 import './seller-custom-layout.css'
@@ -15,13 +15,14 @@ import { FulfillmentPage, ShipmentDetailsPage } from './pages/FulfillmentPages'
 
 type Seller = { id: number; store_name: string; slug: string; status: string }
 type Dashboard = { seller: Seller; products: number; orders: number; earnings: { gross_minor: number; available_minor: number; currency: string } }
-type Product = { id: number; name: string; slug?: string; description?: string | null; status: string; category?: { id: number; name: string }; brand?: { id: number; name: string }; images?: { id: number; url: string; alt_text: string | null; is_primary: boolean }[]; variants?: { id?: number; sku: string; price_minor: number; compare_at_price_minor?: number | null; attributes?: Record<string, string> | null; is_active?: boolean; quantity?: number; reserved_quantity?: number; low_stock_threshold?: number; available_quantity: number; currency?: string }[] }
+type Product = { id: number; name: string; slug?: string; description?: string | null; status: string; average_rating?: number | null; review_count?: number | null; category?: { id: number; name: string }; brand?: { id: number; name: string }; images?: { id: number; url: string; alt_text: string | null; is_primary: boolean }[]; variants?: { id?: number; sku: string; price_minor: number; compare_at_price_minor?: number | null; attributes?: Record<string, string> | null; is_active?: boolean; quantity?: number; reserved_quantity?: number; low_stock_threshold?: number; available_quantity: number; currency?: string }[] }
 type Category = { id: number; name: string; slug: string; description: string | null; is_active: boolean }
 type Brand = { id: number; name: string; slug: string }
 type NewProductValues = { category_id: number; brand_id?: number; name: string; slug: string; description?: string; status: 'draft' | 'published'; sku: string; price_minor: number; compare_at_price_minor?: number; currency: string; quantity: number; option_name?: string; option_value?: string }
 type SellerOrder = { id: number; order_number: string; status: string; payment_status?: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string }
 type CommissionHistoryRow = { id: number; order_id: number; seller_order_id: number; order_number: string; brand: { id: number; name: string } | null; eligible_subtotal_minor: number; percentage_bps: number; fixed_minor: number; commission_minor: number; net_minor: number; currency: string; payment_status: string | null; payout_status: string | null; status: string; rule_source: string; confirmed_at: string | null; refund_adjustments_minor: number; commission_reversed_minor: number }
 type SellerEarnings = { total_sales_minor: number; commission_deducted_minor: number; commission_refunds_minor: number; net_earnings_minor: number; pending_earnings_minor: number; paid_earnings_minor: number; refund_adjustments_minor: number; gross_minor: number; available_minor: number; currency: string; payout_processing_configured: boolean; commission_history: CommissionHistoryRow[] }
+type NotificationPage = { read_at?: string | null }
 
 function Login() {
   const navigate = useNavigate(); const setSession = useSellerAuth((s) => s.setSession); const clear = useSellerAuth((s) => s.clear); const [error, setError] = useState('')
@@ -31,10 +32,13 @@ function Login() {
 }
 
 function Layout() {
-  const [open, setOpen] = useState(false); const navigate = useNavigate(); const clear = useSellerAuth((s) => s.clear); const user = useSellerAuth((s) => s.user)
+  const [open, setOpen] = useState(false); const navigate = useNavigate(); const location = useLocation(); const clear = useSellerAuth((s) => s.clear); const user = useSellerAuth((s) => s.user)
+  const notifications = useQuery({ queryKey: ['seller-notifications'], queryFn: () => sellerRequestWithMeta<NotificationPage[]>('GET', '/notifications', undefined, { params: { per_page: 20 } }) })
   const logout = async () => { try { await api.auth.logout() } finally { clear(); navigate('/seller/login') } }
   const items = [["Overview", "/seller", LayoutDashboard], ["Products", "/seller/products", Store], ["Inventory", "/seller/inventory", Boxes], ["Orders", "/seller/orders", ClipboardList], ["Fulfillment", "/seller/fulfillment", ClipboardList], ["Earnings", "/seller/earnings", BarChart3], ["Payouts", "/seller/payouts", Wallet], ["Settings", "/seller/settings", Settings]] as const
-  return <div className="shell"><aside className={open ? 'sidebar open' : 'sidebar'}><div className="brand"><span className="logo small">K</span><span>Kipi <em>Seller</em></span><button className="icon mobile" onClick={() => setOpen(false)}><X size={19} /></button></div><p className="nav-label">Workspace</p><nav>{items.map(([label, to, Icon]) => <NavLink key={to} to={to} end={to === '/seller'} onClick={() => setOpen(false)}><Icon size={18} />{label}</NavLink>)}</nav><div className="user"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name}</strong><small>Seller account</small></div><button className="icon" onClick={logout} aria-label="Log out"><LogOut size={17} /></button></div></aside><main className="main"><header><button className="icon mobile-menu" onClick={() => setOpen(true)}><Menu size={21} /></button><div><span className="kicker">SELLER WORKSPACE</span><strong>Operate with confidence.</strong></div><Link className="store-link" to="/" target="_blank"><Store size={17} />Open storefront</Link></header><section className="content"><Outlet /></section></main></div>
+  const pageTitle = location.pathname.startsWith('/seller/products') ? 'Product Management' : 'Seller workspace'
+  const unreadCount = notifications.data?.meta.unread_count ?? 0
+  return <div className="shell"><aside className={open ? 'sidebar open' : 'sidebar'}><div className="brand"><span className="logo small">K</span><span>Kipi <em>Seller</em></span><button className="icon mobile" onClick={() => setOpen(false)}><X size={19} /></button></div><p className="nav-label">Workspace</p><nav>{items.map(([label, to, Icon]) => <NavLink key={to} to={to} end={to === '/seller'} onClick={() => setOpen(false)}><Icon size={18} />{label}</NavLink>)}</nav><div className="user"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name}</strong><small>Seller account</small></div><button className="icon" onClick={logout} aria-label="Log out"><LogOut size={17} /></button></div></aside><main className="main"><header className="seller-header"><div className="header-title-group"><button className="icon mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><div><span className="kicker">SELLER WORKSPACE</span><strong>{pageTitle}</strong></div></div><div className="header-actions"><label className="header-search"><Search size={16} /><span className="visually-hidden">Search seller products</span><input placeholder="Search products" aria-label="Search seller products" onKeyDown={(event) => { if (event.key === 'Enter') navigate(`/seller/products?q=${encodeURIComponent(event.currentTarget.value.trim())}`) }} /></label><button className="header-icon" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}><Bell size={18} />{unreadCount > 0 ? <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}</button><div className="header-account"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name ?? 'Seller'}</strong><small>Seller account</small></div></div><Link className="store-link" to="/" target="_blank"><Store size={17} />Open storefront</Link></div></header><section className="content"><Outlet /></section></main></div>
 }
 
 function Protected() { return useSellerAuth((s) => s.user) ? <Outlet /> : <Navigate to="/seller/login" replace /> }
@@ -42,16 +46,84 @@ const money = (value: number, currency = 'MMK') => new Intl.NumberFormat('en-US'
 function apiErrorMessage(error: unknown) { if (error instanceof ApiClientError) { const details = Object.values(error.errors ?? {}).flat().join(' '); return details ? error.message + ': ' + details : error.message } return error instanceof Error ? error.message : 'Something went wrong. Please try again.' }
 
 function Overview() { const { data, isLoading, error } = useQuery({ queryKey: ['seller-dashboard'], queryFn: () => sellerRequest<Dashboard>('GET', '/seller/dashboard') }); if (isLoading) return <Loading />; if (error || !data) return <ErrorBox message={error instanceof Error ? error.message : 'Unable to load dashboard'} />; return <><PageTitle title={`Good morning, ${data.seller.store_name}.`} subtitle="A clear view of what needs your attention today." /><div className="stat-grid"><Stat label="Gross sales" value={money(data.earnings.gross_minor, data.earnings.currency)} icon={<BarChart3 />} /><Stat label="Available balance" value={money(data.earnings.available_minor, data.earnings.currency)} icon={<Wallet />} /><Stat label="Active products" value={String(data.products)} icon={<Store />} /><Stat label="Seller orders" value={String(data.orders)} icon={<ClipboardList />} /></div><div className="two-col"><div className="card welcome"><span className="kicker">NEXT BEST ACTION</span><h2>Keep your catalog moving.</h2><p>Add products with accurate variants and stock so customers can discover and buy your store confidently.</p><Link className="button" to="/seller/products">Manage products</Link></div><div className="card"><span className="kicker">PAYOUT STATUS</span><h2>Provider onboarding</h2><p className="muted">Payouts remain pending until a payment provider account is connected. This portal never marks funds as paid locally.</p><Link className="text-link" to="/seller/payouts">Review payouts →</Link></div></div></> }
+
+function productStock(product: Product) {
+  const variants = (product.variants ?? []).filter((variant) => variant.is_active !== false)
+  const available = variants.reduce((total, variant) => total + Math.max(0, Number(variant.available_quantity ?? 0)), 0)
+  const lowStockThreshold = variants.reduce((threshold, variant) => Math.max(threshold, Number(variant.low_stock_threshold ?? 5)), 0)
+  if (available === 0) return { available, label: 'Out of stock', tone: 'out' }
+  if (available <= lowStockThreshold) return { available, label: 'Limited', tone: 'limited' }
+  return { available, label: 'In stock', tone: 'in' }
+}
+
+function productPrice(product: Product) {
+  const variants = (product.variants ?? []).filter((variant) => variant.is_active !== false)
+  if (!variants.length) return '—'
+  const prices = variants.map((variant) => Number(variant.price_minor)).sort((a, b) => a - b)
+  const currency = variants[0]?.currency ?? 'MMK'
+  return prices[0] === prices[prices.length - 1] ? money(prices[0], currency) : `${money(prices[0], currency)} – ${money(prices[prices.length - 1], currency)}`
+}
+
+function productStatusLabel(status: string) {
+  return status.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+}
+
+function productPages(current: number, last: number): Array<number | 'ellipsis'> {
+  if (last <= 1) return [1]
+  const pages = new Set<number>([1, last, current, current - 1, current + 1])
+  const visible = [...pages].filter((page) => page > 0 && page <= last).sort((a, b) => a - b)
+  return visible.reduce<Array<number | 'ellipsis'>>((items, page, index) => {
+    if (index > 0 && page - visible[index - 1] > 1) items.push('ellipsis')
+    items.push(page)
+    return items
+  }, [])
+}
+
 function Products() {
   const client = useQueryClient()
-  const { data, isLoading, error } = useQuery({ queryKey: ['seller-products'], queryFn: () => sellerRequest<Product[]>('GET', '/seller/products') })
+  const location = useLocation()
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [status, setStatus] = useState('')
+  const [categoryId, setCategoryId] = useState('')
+  const [stockStatus, setStockStatus] = useState('')
+  const [sort, setSort] = useState('latest')
+  const [page, setPage] = useState(1)
+  const [success, setSuccess] = useState('')
+  const categories = useQuery({ queryKey: ['seller-product-categories'], queryFn: () => sellerRequest<Category[]>('GET', '/categories') })
+  const query = useQuery({
+    queryKey: ['seller-products', { q: debouncedSearch, status, categoryId, stockStatus, sort, page }],
+    queryFn: () => sellerRequestWithMeta<Product[]>('GET', '/seller/products', undefined, { params: { q: debouncedSearch || undefined, status: status || undefined, category_id: categoryId || undefined, stock_status: stockStatus || undefined, sort, page, per_page: 10 } }),
+    placeholderData: (previous) => previous,
+  })
   const remove = useMutation({
     mutationFn: (id: number) => sellerRequest('DELETE', `/seller/products/${id}`),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['seller-products'] }),
+    onSuccess: () => { setSuccess('Product deleted successfully.'); client.invalidateQueries({ queryKey: ['seller-products'] }) },
   })
+  const urlSearch = new URLSearchParams(location.search).get('q') ?? ''
+  useEffect(() => { setSearch(urlSearch) }, [urlSearch])
+  useEffect(() => { const timer = window.setTimeout(() => setDebouncedSearch(search.trim()), 300); return () => window.clearTimeout(timer) }, [search])
+  useEffect(() => { setPage(1) }, [debouncedSearch, status, categoryId, stockStatus, sort])
 
-  if (isLoading) return <Loading />
-  return <><PageTitle title="Products" subtitle="Your catalog is isolated to this approved seller account." action={<Link className="button primary" to="/seller/products/new">Add product</Link>} />{error ? <ErrorBox message={apiErrorMessage(error)} /> : <div className="card table-card"><table><thead><tr><th>Product</th><th>Status</th><th>Variants</th><th>Starting price</th><th>Actions</th></tr></thead><tbody>{(data ?? []).map((product) => <tr key={product.id}><td><strong>{product.name}</strong><small>{product.category?.name ?? 'No category'}</small></td><td><span className="pill">{product.status}</span></td><td>{product.variants?.length ?? 0}</td><td>{product.variants?.[0] ? money(product.variants[0].price_minor, product.variants[0].currency) : '—'}</td><td><span className="row-actions"><Link className="icon" title="Edit product" aria-label={`Edit ${product.name}`} to={`/seller/products/${product.id}/edit`}><Pencil size={16} /></Link><button className="icon danger" title="Delete product" aria-label={`Delete ${product.name}`} disabled={remove.isPending} onClick={() => { if (window.confirm(`Delete ${product.name}?`)) remove.mutate(product.id) }}><Trash2 size={16} /></button></span></td></tr>)}</tbody></table>{remove.error ? <ErrorBox message={apiErrorMessage(remove.error)} /> : null}{!data?.length && <Empty text="No products yet. Add your first product to start selling." />}</div>}</>
+  if (query.isLoading && !query.data) return <Loading />
+  const products = query.data?.data ?? []
+  const currentPage = query.data?.meta.current_page ?? page
+  const lastPage = query.data?.meta.last_page ?? 1
+  const total = query.data?.meta.total ?? products.length
+
+  return <div className="product-management-page">
+    <div className="product-management-heading"><div><span className="kicker">CATALOG / SELLER PRODUCTS</span><h1>Product Management</h1><p>Manage the products, variants, inventory, and storefront visibility owned by your seller account.</p></div></div>
+    {query.error ? <ErrorBox message={apiErrorMessage(query.error)} /> : null}
+    {remove.error ? <ErrorBox message={apiErrorMessage(remove.error)} /> : null}
+    {success ? <div className="product-feedback success"><Check size={16} /> {success}</div> : null}
+    <section className="card product-listing-card">
+      <div className="product-listing-toolbar"><div><h2>Product Listing</h2><p>{total} product{total === 1 ? '' : 's'} in your catalog</p></div><div className="product-listing-controls"><label><span className="visually-hidden">Filter product status</span><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="">All status</option><option value="published">Published</option><option value="draft">Draft</option></select></label><label><span className="visually-hidden">Filter product category</span><select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}><option value="">All categories</option>{(categories.data ?? []).filter((category) => category.is_active).map((category) => <option value={category.id} key={category.id}>{category.name}</option>)}</select></label><label><span className="visually-hidden">Filter stock status</span><select value={stockStatus} onChange={(event) => setStockStatus(event.target.value)}><option value="">All stock</option><option value="in_stock">In stock</option><option value="limited">Limited</option><option value="out_of_stock">Out of stock</option></select></label><label><span className="visually-hidden">Sort products</span><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="latest">Newest first</option><option value="name">Name A–Z</option><option value="name_desc">Name Z–A</option><option value="price_asc">Price low–high</option><option value="price_desc">Price high–low</option></select></label><Link className="button primary compact-button" to="/seller/products/new"><Store size={15} /> Add Product</Link></div></div>
+      {query.isFetching ? <div className="product-loading-line" role="status">Updating product listing…</div> : null}
+      <div className="product-table-scroll"><table className="product-management-table"><thead><tr><th>Product Image</th><th>Product Name</th><th>Category</th><th>Stock</th><th>Price</th><th>Status</th><th>Reviews</th><th>Action</th></tr></thead><tbody>{products.map((product) => { const stock = productStock(product); const image = product.images?.find((item) => item.is_primary) ?? product.images?.[0]; const sku = product.variants?.find((variant) => variant.is_active !== false)?.sku; return <tr key={product.id}><td><div className="product-thumbnail">{image ? <img src={image.url} alt={image.alt_text || product.name} loading="lazy" /> : <Store size={19} />}</div></td><td><div className="product-name-cell"><strong>{product.name}</strong><small>{sku ? `SKU ${sku}` : 'SKU unavailable'}</small></div></td><td><span className="product-category">{product.category?.name ?? 'Uncategorized'}</span></td><td><div className="product-stock-cell"><strong>{stock.available}</strong><span className={`stock-badge stock-${stock.tone}`}>{stock.label}</span></div></td><td><strong className="product-price">{productPrice(product)}</strong></td><td><span className={`product-status status-${product.status}`}>{productStatusLabel(product.status)}</span></td><td>{product.review_count && product.average_rating ? <span className="product-rating"><Star size={14} fill="currentColor" /> {product.average_rating.toFixed(1)} <small>({product.review_count})</small></span> : <span className="product-no-reviews">No reviews</span>}</td><td><span className="row-actions"><Link className="icon" title="Edit product" aria-label={`Edit ${product.name}`} to={`/seller/products/${product.id}/edit`}><Pencil size={16} /></Link><button className="icon danger" title="Delete product" aria-label={`Delete ${product.name}`} disabled={remove.isPending} onClick={() => { if (window.confirm(`Delete ${product.name}?`)) { setSuccess(''); remove.mutate(product.id) } }}><Trash2 size={16} /></button></span></td></tr> })}</tbody></table></div>
+      {!products.length && !query.isFetching ? <Empty text={debouncedSearch || status || categoryId || stockStatus ? 'No products match the selected filters.' : 'No products yet. Add your first product to start selling.'} /> : null}
+      {lastPage > 1 ? <nav className="product-pagination" aria-label="Product pages"><button className="pagination-button" disabled={currentPage <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}><ChevronLeft size={16} /> Previous</button><span className="pagination-pages">{productPages(currentPage, lastPage).map((item, index) => item === 'ellipsis' ? <span key={`ellipsis-${index}`} className="pagination-ellipsis">…</span> : <button key={item} className={item === currentPage ? 'pagination-page active' : 'pagination-page'} aria-current={item === currentPage ? 'page' : undefined} onClick={() => setPage(item)}>{item}</button>)}</span><button className="pagination-button" disabled={currentPage >= lastPage} onClick={() => setPage((value) => Math.min(lastPage, value + 1))}>Next <ChevronRight size={16} /></button></nav> : null}
+    </section>
+  </div>
 }
 function NewProduct() {
   const navigate = useNavigate()

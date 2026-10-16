@@ -42,7 +42,52 @@ class SellerController extends Controller
 
     public function products(Request $request)
     {
-        $products = $this->seller($request)->products()->with(['category', 'brand', 'images', 'variants.inventory'])->latest()->paginate(min((int) $request->input('per_page', 20), 100));
+        $query = $this->seller($request)->products()
+            ->with(['category', 'brand', 'images', 'variants.inventory'])
+            ->withCount(['reviews as reviews_count' => fn ($reviews) => $reviews->where('status', 'approved')])
+            ->withAvg(['reviews as average_rating' => fn ($reviews) => $reviews->where('status', 'approved')], 'rating');
+
+        $query->when($request->filled('q'), function ($products) use ($request): void {
+            $search = trim((string) $request->input('q'));
+            $products->where(function ($match) use ($search): void {
+                $match->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('slug', 'like', '%'.$search.'%')
+                    ->orWhereHas('variants', fn ($variants) => $variants->where('sku', 'like', '%'.$search.'%'));
+            });
+        });
+        $query->when($request->filled('status') && in_array($request->input('status'), ['draft', 'published'], true), fn ($products) => $products->where('status', $request->input('status')));
+        $query->when($request->filled('category_id') && ctype_digit((string) $request->input('category_id')), fn ($products) => $products->where('category_id', (int) $request->input('category_id')));
+
+        $stockStatus = $request->input('stock_status');
+        if (in_array($stockStatus, ['in_stock', 'limited', 'out_of_stock'], true)) {
+            $query->where(function ($products) use ($stockStatus): void {
+                if ($stockStatus === 'in_stock') {
+                    $products->whereHas('variants.inventory', fn ($inventory) => $inventory->whereColumn('quantity', '>', 'reserved_quantity')->whereColumn('quantity', '>', 'low_stock_threshold'));
+                } elseif ($stockStatus === 'limited') {
+                    $products->whereHas('variants.inventory', fn ($inventory) => $inventory->whereColumn('quantity', '>', 'reserved_quantity')->whereRaw('(quantity - reserved_quantity) <= low_stock_threshold'));
+                } else {
+                    $products->whereDoesntHave('variants.inventory', fn ($inventory) => $inventory->whereColumn('quantity', '>', 'reserved_quantity'));
+                }
+            });
+        }
+
+        $sort = $request->input('sort', 'latest');
+        if ($sort === 'name') {
+            $query->orderBy('name');
+        } elseif ($sort === 'name_desc') {
+            $query->orderByDesc('name');
+        } elseif (in_array($sort, ['price_asc', 'price_desc'], true)) {
+            $priceQuery = Product::query()->select('price_minor')
+                ->from('product_variants')
+                ->whereColumn('product_variants.product_id', 'products.id')
+                ->orderBy('price_minor', $sort === 'price_asc' ? 'asc' : 'desc')
+                ->limit(1);
+            $query->orderBy($priceQuery, $sort === 'price_asc' ? 'asc' : 'desc');
+        } else {
+            $query->latest();
+        }
+
+        $products = $query->paginate(min((int) $request->input('per_page', 20), 100))->withQueryString();
 
         return ApiResponse::paginated($products, ProductResource::collection($products->items()), 'Seller products retrieved');
     }

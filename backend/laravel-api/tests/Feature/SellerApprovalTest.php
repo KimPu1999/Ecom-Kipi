@@ -150,6 +150,31 @@ class SellerApprovalTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $productB->id, 'name' => $productB->name]);
     }
 
+    public function test_seller_product_listing_supports_owned_filters_sorting_and_pagination(): void
+    {
+        [$owner, $seller, $productA] = $this->approvedSeller('catalog-filter-store');
+        $categoryB = Category::query()->create(['name' => 'Second category', 'slug' => 'second-category']);
+        $productB = Product::query()->create([
+            'seller_id' => $seller->id,
+            'category_id' => $categoryB->id,
+            'name' => 'Another catalog product',
+            'slug' => 'another-catalog-product',
+            'status' => 'draft',
+        ]);
+        Sanctum::actingAs($owner);
+
+        $this->getJson('/api/v1/seller/products?sort=name&per_page=1&page=1')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 2)
+            ->assertJsonPath('meta.last_page', 2)
+            ->assertJsonPath('data.0.id', $productB->id);
+
+        $this->getJson('/api/v1/seller/products?status=published&category_id='.$productA->category_id)
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $productA->id);
+    }
+
     private function customer(): User
     {
         $user = User::factory()->create();

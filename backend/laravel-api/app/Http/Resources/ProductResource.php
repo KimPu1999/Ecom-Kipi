@@ -17,6 +17,8 @@ class ProductResource extends JsonResource
             'description' => $this->description,
             'status' => $this->status,
             'is_featured' => $this->is_featured,
+            'average_rating' => isset($this->average_rating) ? round((float) $this->average_rating, 1) : null,
+            'review_count' => isset($this->reviews_count) ? (int) $this->reviews_count : null,
             'category' => new CategoryResource($this->whenLoaded('category')),
             'brand' => new BrandResource($this->whenLoaded('brand')),
             'seller' => $this->whenLoaded('seller', fn () => $this->seller ? [

@@ -27,7 +27,13 @@ class NotificationController extends Controller
     {
         $notifications = $request->user()->notifications()->latest()->paginate(20);
 
-        return ApiResponse::paginated($notifications, $notifications->items(), 'Notifications retrieved');
+        return ApiResponse::success($notifications->items(), 'Notifications retrieved', 200, [
+            'current_page' => $notifications->currentPage(),
+            'per_page' => $notifications->perPage(),
+            'last_page' => $notifications->lastPage(),
+            'total' => $notifications->total(),
+            'unread_count' => $request->user()->unreadNotifications()->count(),
+        ]);
     }
 
     public function read(Request $request, string $id)
