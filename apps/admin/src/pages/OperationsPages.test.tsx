@@ -1,12 +1,12 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
-import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { afterEach, expect, test, vi } from 'vitest'
 import { LanguageProvider } from '../store/language'
 import { adminApi } from '../services/adminApi'
 import type { Order } from '../types/admin'
-import { OrdersPage } from './OperationsPages'
+import { OrderDetailsPage, OrdersPage } from './OperationsPages'
 
 const order: Order = {
   id: 41,
@@ -34,24 +34,36 @@ const order: Order = {
   refunds: [],
 }
 
+const secondOrder: Order = {
+  ...order,
+  id: 42,
+  order_number: 'KIPI-ORD-0042',
+  fulfillment_status: 'shipped',
+  items: [{ id: 3, product_name: 'Green bag', sku: 'BAG-GREEN', quantity: 1, unit_price_minor: 90000, line_total_minor: 90000, product_image: null }],
+  shipments: [],
+}
+
 afterEach(() => {
   vi.restoreAllMocks()
 })
 
-beforeEach(() => {
-  Element.prototype.scrollIntoView = vi.fn()
-})
+function LocationProbe() {
+  return <span>{useLocation().pathname}</span>
+}
 
-test('opens a structured order detail view from All Orders and returns to the table', async () => {
-  vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [order], meta: { current_page: 1, per_page: 10, last_page: 1, total: 1 } })
-  vi.spyOn(adminApi, 'order').mockResolvedValue(order)
+test('navigates from All Orders to a dedicated structured order detail page', async () => {
+  vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [order, secondOrder], meta: { current_page: 1, per_page: 10, last_page: 1, total: 2 } })
+  vi.spyOn(adminApi, 'order').mockImplementation(async (id) => id === secondOrder.id ? secondOrder : order)
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
-  render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders']}><OrdersPage /></MemoryRouter></LanguageProvider></QueryClientProvider>)
+  render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders']}><Routes><Route path="/admin/orders" element={<OrdersPage />} /><Route path="/admin/orders/:id" element={<><LocationProbe /><OrderDetailsPage /></>} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
 
-  fireEvent.click(await screen.findByRole('button', { name: 'KIPI-ORD-0041' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'View details for KIPI-ORD-0041' }))
 
+  expect(await screen.findByText('/admin/orders/41')).toBeInTheDocument()
   expect(await screen.findByText('Order overview')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Previous order' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Next order' })).toBeEnabled()
   expect(screen.getByText('Customer information')).toBeInTheDocument()
   expect(screen.getByText('Shipping / delivery information')).toBeInTheDocument()
   expect(screen.getByText('Payment information')).toBeInTheDocument()
@@ -62,7 +74,26 @@ test('opens a structured order detail view from All Orders and returns to the ta
   expect(screen.getByText('Order summary')).toBeInTheDocument()
   expect(screen.getByText('Order actions')).toBeInTheDocument()
 
+  fireEvent.click(screen.getByRole('button', { name: 'Next order' }))
+  expect(await screen.findByRole('heading', { name: 'KIPI-ORD-0042' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Previous order' })).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Next order' })).toBeDisabled()
+
   fireEvent.click(screen.getByRole('button', { name: 'Back' }))
+  expect(await screen.findByRole('button', { name: 'View details for KIPI-ORD-0041' })).toBeInTheDocument()
   expect(screen.queryByText('Customer information')).not.toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'KIPI-ORD-0041' })).toBeInTheDocument()
+})
+
+test('loads the correct order details from a direct URL', async () => {
+  vi.spyOn(adminApi, 'order').mockResolvedValue(order)
+  vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [order, secondOrder], meta: { current_page: 1, per_page: 100, last_page: 1, total: 2 } })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+  render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders/41']}><Routes><Route path="/admin/orders/:id" element={<OrderDetailsPage />} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
+
+  expect(await screen.findByText('KIPI-DEL-2026-000041')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Previous order' })).toBeDisabled()
+  expect(screen.getByRole('button', { name: 'Next order' })).toBeEnabled()
+  expect(adminApi.order).toHaveBeenCalledWith(41)
+  expect(adminApi.orders).toHaveBeenCalledWith({ per_page: '100' })
 })

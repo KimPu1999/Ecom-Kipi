@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ClipboardCheck, Package, SlidersHorizontal } from 'lucide-react'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { adminApi } from '../services/adminApi'
 import { useAdminAuth } from '../store/auth'
 import type { InventoryRow, Order, User } from '../types/admin'
@@ -54,19 +55,45 @@ function AdjustForm({ item, onSubmit, onCancel }: { item: InventoryRow; onSubmit
 export function OrdersPage() {
   const { search, setSearch, page, setPage } = useListSearch()
   const [status, setStatus] = useState('')
-  const [selectedOrder, setSelectedOrder] = useState<number | null>(null)
-  const orderDetailRef = useRef<HTMLDivElement>(null)
+  const navigate = useNavigate()
   const client = useQueryClient()
   const query = useQuery({ queryKey: ['admin-orders', search, status, page], queryFn: () => adminApi.orders({ q: search, fulfillment_status: status, page: String(page), per_page: '10' }), placeholderData: keepPreviousData })
   const mutation = useMutation({ mutationFn: (payload: { id: number; status: string }) => adminApi.updateOrderStatus(payload.id, payload.status), onSuccess: () => { client.invalidateQueries({ queryKey: ['admin-orders'] }); client.invalidateQueries({ queryKey: ['admin-dashboard'] }) } })
-  useEffect(() => { if (selectedOrder) orderDetailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }, [selectedOrder])
   if (query.isLoading) return <LoadingState />
   if (query.isError || !query.data) return <ErrorState />
-  return <div className="page-stack"><PageHeader eyebrow="Operations" title="Orders" description="Process fulfillment with controlled status transitions." /><Card><div className="toolbar"><SearchBox value={search} onChange={setSearch} placeholder="Search order number" /><select className="select" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}><option value="">All fulfillment states</option>{['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map((item) => <option key={item} value={item}>{item}</option>)}</select></div>{query.data.data.length ? <div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Fulfillment</th><th>Update</th></tr></thead><tbody>{query.data.data.map((order) => <tr key={order.id}><td><button className="text-button" onClick={() => setSelectedOrder(order.id)}><strong>{order.order_number}</strong></button><small>{order.placed_at ? new Date(order.placed_at).toLocaleString() : 'Not placed'}</small></td><td>{order.user?.name ?? '—'}</td><td>{order.grand_total_minor.toLocaleString()} {order.currency}</td><td><StatusBadge value={order.payment_status} /></td><td><StatusBadge value={order.fulfillment_status} /></td><td><select className="select compact" value={order.fulfillment_status} onChange={(event) => mutation.mutate({ id: order.id, status: event.target.value })} disabled={order.fulfillment_status === 'delivered' || order.fulfillment_status === 'cancelled'}><option value={order.fulfillment_status}>{order.fulfillment_status}</option>{['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].filter((item) => item !== order.fulfillment_status).map((item) => <option key={item} value={item}>{item}</option>)}</select></td></tr>)}</tbody></table></div> : <EmptyState title="No orders found" message="Orders will appear here when customers check out." />}<Pagination page={query.data.meta?.current_page ?? 1} pages={query.data.meta?.last_page ?? 1} onChange={setPage} /></Card>{selectedOrder ? <div ref={orderDetailRef} className="order-detail-anchor"><OrderDetails orderId={selectedOrder} onClose={() => setSelectedOrder(null)} /></div> : null}</div>
+  return <div className="page-stack"><PageHeader eyebrow="Operations" title="Orders" description="Process fulfillment with controlled status transitions." /><Card><div className="toolbar"><SearchBox value={search} onChange={setSearch} placeholder="Search order number" /><select className="select" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}><option value="">All fulfillment states</option>{['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map((item) => <option key={item} value={item}>{item}</option>)}</select></div>{query.data.data.length ? <div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Fulfillment</th><th>Update</th></tr></thead><tbody>{query.data.data.map((order, index) => <tr key={order.id}><td><button className="text-button" onClick={() => navigate(`/admin/orders/${order.id}`, { state: { orderIds: query.data.data.map((item) => item.id), currentIndex: index, listContext: { search, status, page } } })} aria-label={`View details for ${order.order_number}`}><strong>{order.order_number}</strong></button><small>{order.placed_at ? new Date(order.placed_at).toLocaleString() : 'Not placed'}</small></td><td>{order.user?.name ?? '—'}</td><td>{order.grand_total_minor.toLocaleString()} {order.currency}</td><td><StatusBadge value={order.payment_status} /></td><td><StatusBadge value={order.fulfillment_status} /></td><td><select className="select compact" value={order.fulfillment_status} onChange={(event) => mutation.mutate({ id: order.id, status: event.target.value })} disabled={order.fulfillment_status === 'delivered' || order.fulfillment_status === 'cancelled'}><option value={order.fulfillment_status}>{order.fulfillment_status}</option>{['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].filter((item) => item !== order.fulfillment_status).map((item) => <option key={item} value={item}>{item}</option>)}</select></td></tr>)}</tbody></table></div> : <EmptyState title="No orders found" message="Orders will appear here when customers check out." />}<Pagination page={query.data.meta?.current_page ?? 1} pages={query.data.meta?.last_page ?? 1} onChange={setPage} /></Card></div>
 }
 
-function OrderDetails({ orderId, onClose }: { orderId: number; onClose: () => void }) {
+type OrderNavigationState = {
+  orderIds?: number[]
+  currentIndex?: number
+  listContext?: { search: string; status: string; page: number }
+}
+
+export function OrderDetailsPage() {
+  const { id } = useParams<{ id: string }>()
+  const location = useLocation()
+  const navigate = useNavigate()
+  const orderId = Number(id)
+  const navigationState = (location.state as OrderNavigationState | null) ?? null
+  const hasListContext = Array.isArray(navigationState?.orderIds) && navigationState.orderIds.length > 0 && navigationState.currentIndex !== undefined && navigationState.orderIds[navigationState.currentIndex] === orderId
+  const fallbackOrders = useQuery({ queryKey: ['admin-order-navigation'], queryFn: () => adminApi.orders({ per_page: '100' }), enabled: !hasListContext })
+
+  if (!id || !Number.isSafeInteger(orderId) || orderId < 1) return <div className="page-stack"><ErrorState message="Order details could not be found." /></div>
+  const orderIds = hasListContext ? navigationState.orderIds! : fallbackOrders.data?.data.map((order) => order.id) ?? []
+  const currentIndex = hasListContext ? navigationState.currentIndex! : orderIds.indexOf(orderId)
+  const previousOrderId = currentIndex > 0 ? orderIds[currentIndex - 1] : null
+  const nextOrderId = currentIndex >= 0 && currentIndex < orderIds.length - 1 ? orderIds[currentIndex + 1] : null
+  const navigateToOrder = (targetId: number) => {
+    const targetIndex = orderIds.indexOf(targetId)
+    navigate(`/admin/orders/${targetId}`, { state: { orderIds, currentIndex: targetIndex, listContext: navigationState?.listContext } })
+  }
+  return <div className="page-stack"><OrderDetails orderId={orderId} previousOrderId={previousOrderId} nextOrderId={nextOrderId} onNavigate={navigateToOrder} /></div>
+}
+
+function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { orderId: number; previousOrderId: number | null; nextOrderId: number | null; onNavigate: (orderId: number) => void }) {
   const client = useQueryClient()
+  const navigate = useNavigate()
   const query = useQuery({ queryKey: ['admin-order', orderId], queryFn: () => adminApi.order(orderId) })
   const [note, setNote] = useState('')
   const mutation = useMutation({ mutationFn: () => adminApi.addOrderNote(orderId, note), onSuccess: () => { setNote(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
@@ -82,10 +109,10 @@ function OrderDetails({ orderId, onClose }: { orderId: number; onClose: () => vo
   return <Card className="order-detail">
     <div className="detail-heading">
       <div className="order-detail-heading-content">
-        <div className="order-header-line"><button className="order-back-button" type="button" onClick={onClose}><ArrowLeft size={15} aria-hidden="true" /><span>Back</span></button><span className="eyebrow">Order details</span><h2>{order.order_number}</h2><StatusBadge value={order.fulfillment_status} /></div>
+        <div className="order-header-line"><button className="order-back-button" type="button" onClick={() => navigate('/admin/orders')}><ArrowLeft size={15} aria-hidden="true" /><span>Back</span></button><span className="eyebrow">Order details</span><h2>{order.order_number}</h2><StatusBadge value={order.fulfillment_status} /></div>
         <p>{order.user?.name ?? 'Guest'} · {order.user?.email ?? 'No email'}</p>
       </div>
-      <div className="order-heading-status"><span>Payment</span><StatusBadge value={order.payment_status} /></div>
+      <div className="order-heading-actions"><div className="order-detail-navigation"><button className="order-navigation-button" type="button" onClick={() => previousOrderId && onNavigate(previousOrderId)} disabled={!previousOrderId} aria-label="Previous order">← Previous Order</button><button className="order-navigation-button" type="button" onClick={() => nextOrderId && onNavigate(nextOrderId)} disabled={!nextOrderId} aria-label="Next order">Next Order →</button></div><div className="order-heading-status"><span>Payment</span><StatusBadge value={order.payment_status} /></div></div>
     </div>
 
     <section className="order-detail-section order-meta-section" aria-label="Order, customer, delivery, and payment information">

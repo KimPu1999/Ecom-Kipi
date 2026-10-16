@@ -1,7 +1,3 @@
-.order-detail-anchor {
-  scroll-margin-top: 24px;
-}
-
 .order-detail {
   display: grid;
   gap: 12px;
@@ -19,6 +15,7 @@
 
 .order-detail-heading-content {
   min-width: 0;
+  flex: 1;
 }
 
 .order-back-button {
@@ -77,6 +74,48 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: .08em;
+}
+
+.order-heading-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.order-detail-navigation {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.order-navigation-button {
+  min-height: 30px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.order-navigation-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--border) 48%, transparent);
+}
+
+.order-navigation-button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.order-navigation-button:disabled {
+  cursor: not-allowed;
+  opacity: .45;
 }
 
 .order-detail-section,
@@ -340,6 +379,11 @@
 
   .order-heading-status {
     align-items: flex-start;
+  }
+
+  .order-heading-actions {
+    justify-content: flex-start;
+    width: 100%;
   }
 
   .order-detail-fields,
