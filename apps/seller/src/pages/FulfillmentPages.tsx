@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Check, Clipboard, ExternalLink } from 'lucide-react'
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Clipboard, ExternalLink } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiClientError } from '@kipi/api-client'
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -30,7 +30,7 @@ type Shipment = {
   items?: { quantity: number; order_item?: { product_name?: string; sku?: string } | null }[]
   tracking?: TrackingEvent[]
 }
-type SellerOrder = { id: number; order_number: string; status: string; payment_status?: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string; order?: { payments?: { provider: string; status: string }[] }; shipments?: Shipment[] }
+type SellerOrder = { id: number; order_number: string; status: string; payment_status?: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string; created_at?: string | null; order?: { payments?: { provider: string; status: string }[] }; shipments?: Shipment[] }
 type ShipmentInput = { delivery_method: 'self_delivery' | 'external_courier'; carrier: string; tracking_number: string; tracking_url: string; rider_id?: number; estimated_delivery_at: string; idempotency_key: string }
 
 const transitions: Record<string, string[]> = {
@@ -61,6 +61,7 @@ export function FulfillmentPage() {
   const client = useQueryClient()
   const navigate = useNavigate()
   const [error, setError] = useState('')
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null)
   const orders = useQuery({ queryKey: ['seller-fulfillment'], queryFn: () => sellerRequest<SellerOrder[]>('GET', '/seller/orders') })
   const riders = useQuery({ queryKey: ['seller-riders'], queryFn: () => sellerRequest<Rider[]>('GET', '/seller/riders') })
   const create = useMutation({
@@ -91,10 +92,27 @@ export function FulfillmentPage() {
       {(orders.data ?? []).map((order) => {
         const shipments = order.shipments ?? []
         const cod = order.order?.payments?.some((payment) => payment.provider === 'cod')
-        return <div className="card shipment-order-card" key={order.id}>
-          <div className="shipment-order-heading"><div><span className="kicker">SELLER ORDER</span><h2>{order.order_number}</h2></div><div className="shipment-order-badges"><span className="pill">Payment: {order.payment_status ?? 'pending'}</span><span className="pill">{order.fulfillment_status}</span></div></div>
-          {!shipments.length ? <ShipmentCreateForm disabled={create.isPending} riders={riderOptions} allowPendingCod={Boolean(cod)} onSubmit={(input) => create.mutate({ sellerOrderId: order.id, input })} /> : <div className="shipment-order-items">{shipments.map((shipment) => <div className="shipment-list-row" key={shipment.id}><div><strong>{shipment.delivery_method === 'self_delivery' ? 'Self delivery' : shipment.carrier ?? 'External courier'}</strong><small>{shipment.internal_tracking_id ?? shipment.tracking_number ?? `Shipment #${shipment.id}`} · Created {formatDate(shipment.created_at)}</small></div><span className="pill">{shipment.status}</span><Link className="button secondary" to={`/seller/shipments/${shipment.id}`}>View details</Link></div>)}</div>}
-        </div>
+        const expanded = expandedOrderId === order.id
+        const trackingNumbers = shipments.map((shipment) => shipment.internal_tracking_id ?? shipment.tracking_number).filter(Boolean)
+        const deliveryMethods = shipments.map((shipment) => shipment.delivery_method === 'self_delivery' ? 'Self delivery' : shipment.carrier ?? 'External courier').filter(Boolean)
+        return <article className={`card shipment-order-card${expanded ? ' is-expanded' : ''}`} key={order.id}>
+          <div className="shipment-order-summary">
+            <div className="shipment-order-heading"><div><span className="kicker">SELLER ORDER</span><h2>{order.order_number}</h2></div><div className="shipment-order-badges"><span className="pill">Payment: {order.payment_status ?? 'pending'}</span><span className="pill">{order.fulfillment_status}</span></div></div>
+            <div className="shipment-order-facts" aria-label={`Order ${order.order_number} summary`}>
+              <span><small>Delivery</small><strong>{deliveryMethods.length ? deliveryMethods.join(', ') : 'Not created'}</strong></span>
+              <span><small>Tracking</small><strong>{trackingNumbers.length ? trackingNumbers.join(', ') : '—'}</strong></span>
+              <span><small>Created</small><strong>{formatDate(order.created_at)}</strong></span>
+            </div>
+            <button className="shipment-order-toggle" type="button" aria-expanded={expanded} aria-controls={`shipment-details-${order.id}`} onClick={() => { setError(''); setExpandedOrderId((current) => current === order.id ? null : order.id) }}>
+              {expanded ? <ChevronUp size={16} aria-hidden="true" /> : <ChevronDown size={16} aria-hidden="true" />}
+              <span>{expanded ? 'Hide details' : 'Manage fulfillment'}</span>
+            </button>
+          </div>
+          {expanded ? <div className="shipment-order-details" id={`shipment-details-${order.id}`}>
+            <div className="shipment-order-details-heading"><div><strong>Shipment details</strong><small>{shipments.length ? `${shipments.length} shipment${shipments.length === 1 ? '' : 's'} recorded` : 'No shipment has been created yet.'}</small></div><span className="shipment-detail-note">{cod ? 'COD may ship before collection' : 'Payment eligibility is checked by the server'}</span></div>
+            {!shipments.length ? <ShipmentCreateForm disabled={create.isPending} riders={riderOptions} allowPendingCod={Boolean(cod)} onSubmit={(input) => create.mutate({ sellerOrderId: order.id, input })} /> : <div className="shipment-order-items">{shipments.map((shipment) => <div className="shipment-list-row" key={shipment.id}><div><strong>{shipment.delivery_method === 'self_delivery' ? 'Self delivery' : shipment.carrier ?? 'External courier'}</strong><small>{shipment.internal_tracking_id ?? shipment.tracking_number ?? `Shipment #${shipment.id}`} · Created {formatDate(shipment.created_at)}</small></div><span className="pill">{shipment.status}</span><Link className="button secondary" to={`/seller/shipments/${shipment.id}`}>View details</Link></div>)}</div>}
+          </div> : null}
+        </article>
       })}
     </div>
     {!orders.data?.length ? <div className="card empty">No seller orders are available for fulfillment.</div> : null}
