@@ -33,6 +33,38 @@ export interface ShippingMethod {
   updated_at?: string
 }
 
+export interface SellerBrand {
+  id: number
+  name: string
+  slug: string
+  logo_url: string | null
+}
+
+export interface CommissionRule {
+  id: number
+  seller_id: number | null
+  brand_id: number | null
+  category_id: number | null
+  seller?: { id: number; store_name: string } | null
+  brand?: SellerBrand | null
+  percentage_bps: number
+  fixed_minor: number
+  currency: string
+  is_active: boolean
+  starts_at?: string | null
+  ends_at?: string | null
+  updated_at?: string
+}
+
+export interface CommissionSettings {
+  enabled: boolean
+  default_percentage_bps: number
+  updated_at: string | null
+  updated_by: number | null
+  persisted?: boolean
+  requires_migration?: boolean
+}
+
 export interface DashboardData {
   range: { from: string; to: string }
   metrics: {
@@ -142,7 +174,7 @@ export interface Order {
   shipping_address?: Record<string, unknown> | null
   user?: User
   shipping_method?: { id: number; name: string; code: string; price_minor: number; currency: string } | null
-  seller_orders?: { id: number; order_number: string; seller?: { id: number; store_name: string }; status: string; payment_status: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string }[]
+  seller_orders?: { id: number; order_number: string; seller?: { id: number; store_name: string }; status: string; payment_status: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string; commission_snapshots?: { id: number; seller_id: number | null; brand_id: number | null; rule_source: string; status: string; percentage_bps: number; fixed_minor: number; eligible_subtotal_minor: number; commission_minor: number; currency: string; confirmed_at: string | null }[] }[]
   items?: { id?: number; product_name: string; sku: string; quantity: number; unit_price_minor: number; line_total_minor?: number; product_image?: string | null; attributes?: Record<string, unknown> | null; seller?: { id: number; store_name: string } | null }[]
   status_history?: { id: number; from_status: string | null; to_status: string; note: string | null; created_at: string }[]
   notes?: { id: number; note: string; created_at: string; user?: User }[]

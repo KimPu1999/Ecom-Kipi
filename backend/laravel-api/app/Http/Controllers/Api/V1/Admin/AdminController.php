@@ -31,6 +31,7 @@ use App\Models\Role;
 use App\Models\User;
 use App\Services\InventoryReservationService;
 use App\Services\InventoryService;
+use App\Services\CommissionService;
 use App\Support\ApiResponse;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
@@ -416,10 +417,10 @@ class AdminController extends Controller
 
     public function showOrder(Order $order)
     {
-        return ApiResponse::success(new OrderResource($order->load(['user', 'items.seller', 'sellerOrders.seller', 'sellerOrders.items', 'statusHistory', 'notes.user', 'shippingMethod', 'payments', 'shipments.tracking', 'shipments.carrierRecord', 'shipments.rider', 'refunds'])), 'Order retrieved');
+        return ApiResponse::success(new OrderResource($order->load(['user', 'items.seller', 'sellerOrders.seller', 'sellerOrders.items', 'sellerOrders.commissions', 'statusHistory', 'notes.user', 'shippingMethod', 'payments', 'shipments.tracking', 'shipments.carrierRecord', 'shipments.rider', 'refunds'])), 'Order retrieved');
     }
 
-    public function updateOrderStatus(OrderStatusRequest $request, Order $order, InventoryReservationService $reservations)
+    public function updateOrderStatus(OrderStatusRequest $request, Order $order, InventoryReservationService $reservations, CommissionService $commissions)
     {
         $next = $request->string('status')->toString();
         $allowed = [
@@ -442,6 +443,9 @@ class AdminController extends Controller
                 'fulfillment_status' => $next,
                 'cancelled_at' => $next === 'cancelled' ? now() : $order->cancelled_at,
             ]);
+            if ($next === 'cancelled') {
+                $commissions->reverseForCancellation($order, $request->user()->id);
+            }
             $order->statusHistory()->create([
                 'status_type' => 'fulfillment',
                 'from_status' => $from,

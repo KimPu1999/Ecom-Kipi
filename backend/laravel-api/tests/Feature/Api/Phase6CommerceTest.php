@@ -83,6 +83,7 @@ class Phase6CommerceTest extends TestCase
 
         $this->assertDatabaseHas('payments', ['order_id' => $order['id'], 'provider' => 'cod', 'status' => 'pending']);
         $this->assertDatabaseHas('orders', ['id' => $order['id'], 'payment_status' => 'pending']);
+        $this->assertDatabaseCount('order_commissions', 0);
     }
 
     public function test_manual_online_payment_is_pending_until_authorized_admin_verification(): void

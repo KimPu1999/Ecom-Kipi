@@ -4,6 +4,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Category;
 use App\Models\Inventory;
+use App\Models\Payment;
 use App\Models\Role;
 use App\Models\Seller;
 use App\Models\SellerOrder;
@@ -66,7 +67,7 @@ class MarketplaceTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors(['seller_id']);
     }
 
-    public function test_checkout_creates_seller_order_and_commission_snapshot(): void
+    public function test_checkout_defers_commission_until_verified_payment(): void
     {
         [$seller, $product] = $this->sellerProduct('split-store', 'active');
         $customer = User::factory()->create();
@@ -79,13 +80,31 @@ class MarketplaceTest extends TestCase
             'shipping_method_id' => $shipping->id,
             'shipping_address' => ['recipient_name' => 'Customer', 'phone' => '0900000000', 'line1' => 'Main', 'city' => 'Yangon', 'country' => 'MM'],
             'idempotency_key' => 'marketplace-checkout',
+            'payment_method' => 'kbzpay',
+            'payment_metadata' => ['sender_phone' => '0900000000', 'transaction_code' => 'KBZ-MARKETPLACE-1'],
         ])->assertCreated()->json('data');
 
         $sellerOrder = SellerOrder::query()->where('order_id', $order['id'])->firstOrFail();
         $this->assertSame($seller->id, $sellerOrder->seller_id);
         $this->assertSame(2000, $sellerOrder->subtotal_minor);
-        $this->assertSame(100, $sellerOrder->commission_minor);
+        $this->assertSame(0, $sellerOrder->commission_minor);
+        $this->assertDatabaseCount('order_commissions', 0);
         $this->assertDatabaseHas('order_items', ['order_id' => $order['id'], 'seller_id' => $seller->id]);
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::query()->create(['name' => 'super_admin', 'label' => 'Super Administrator']));
+        Sanctum::actingAs($admin);
+        $payment = Payment::query()->where('order_id', $order['id'])->firstOrFail();
+        $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertOk();
+        $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertOk();
+
+        $this->assertDatabaseHas('order_commissions', [
+            'seller_order_item_id' => $sellerOrder->items()->firstOrFail()->id,
+            'commission_minor' => 100,
+            'rule_source' => 'global_default',
+            'status' => 'confirmed',
+        ]);
+        $this->assertDatabaseCount('order_commissions', 1);
     }
 
     private function sellerProduct(string $slug, string $status): array

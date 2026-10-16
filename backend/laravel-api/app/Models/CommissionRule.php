@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CommissionRule extends Model
 {
-    protected $fillable = ['seller_id', 'category_id', 'percentage_bps', 'fixed_minor', 'currency', 'starts_at', 'ends_at', 'is_active'];
+    protected $fillable = ['seller_id', 'brand_id', 'category_id', 'percentage_bps', 'fixed_minor', 'currency', 'starts_at', 'ends_at', 'is_active'];
 
     protected function casts(): array
     {
@@ -16,6 +16,11 @@ class CommissionRule extends Model
     public function seller(): BelongsTo
     {
         return $this->belongsTo(Seller::class);
+    }
+
+    public function brand(): BelongsTo
+    {
+        return $this->belongsTo(Brand::class);
     }
 
     public function category(): BelongsTo

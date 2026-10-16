@@ -1,4 +1,4 @@
-import { Fragment, useId, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useId, useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ChevronDown, ChevronUp, Package, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -165,6 +165,7 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
   const primaryShipment = order.shipments?.[0]
   const primaryPayment = order.payments?.[0]
   const trackingNumbers = order.shipments?.map((shipment) => shipment.tracking_number ?? shipment.internal_tracking_id).filter(Boolean) ?? []
+  const commissionSnapshots = order.seller_orders?.flatMap((sellerOrder) => (sellerOrder.commission_snapshots ?? []).map((snapshot) => ({ ...snapshot, sellerName: sellerOrder.seller?.store_name ?? `Seller #${sellerOrder.seller?.id ?? sellerOrder.id}` }))) ?? []
 
   return <Card className="order-detail">
     <div className="detail-heading">
@@ -205,6 +206,10 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
         <SummaryRow label="Tax" value={money(order.tax_minor, order.currency)} />
         <SummaryRow label="Grand total" value={money(order.grand_total_minor, order.currency)} emphasized />
       </div>
+    </AccordionSection>
+
+    <AccordionSection title="Commission snapshots" summary={commissionSnapshots.length ? `${commissionSnapshots.length} confirmed record${commissionSnapshots.length === 1 ? '' : 's'}` : 'Not confirmed'}>
+      {commissionSnapshots.length ? <div className="table-wrap"><table><thead><tr><th>Seller</th><th>Rule source</th><th>Rate</th><th>Eligible subtotal</th><th>Commission</th><th>Status</th></tr></thead><tbody>{commissionSnapshots.map((snapshot) => <tr key={snapshot.id}><td>{snapshot.sellerName}</td><td>{snapshot.rule_source.replaceAll('_', ' ')}</td><td>{snapshot.percentage_bps / 100}%</td><td>{money(snapshot.eligible_subtotal_minor, snapshot.currency)}</td><td>{money(snapshot.commission_minor, snapshot.currency)}</td><td><StatusBadge value={snapshot.status} /></td></tr>)}</tbody></table></div> : <p className="muted">Commission is created only after a verified payment. Pending or failed payments have no confirmed commission snapshot.</p>}
     </AccordionSection>
 
     <AccordionSection title="Activity & internal notes" className="order-history-accordion">
@@ -285,38 +290,122 @@ export function AuditLogsPage() {
 }
 
 export function SettingsPage() {
-  const isSuperAdmin = useAdminAuth((state) => state.user?.roles?.includes('super_admin') ?? false)
-  const client = useQueryClient()
-  const rules = useQuery({ queryKey: ['commission-rules'], queryFn: adminApi.commissionRules, enabled: isSuperAdmin })
-  const sellers = useQuery({ queryKey: ['commission-sellers'], queryFn: () => adminApi.sellers({ per_page: '100' }), enabled: isSuperAdmin })
-  const [globalRate, setGlobalRate] = useState('')
-  const [sellerId, setSellerId] = useState('')
-  const [sellerRate, setSellerRate] = useState('')
-  const [error, setError] = useState('')
-  const save = useMutation({
-    mutationFn: async () => {
-      const percentage = Number(sellerId ? sellerRate : globalRate)
-      if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) throw new Error('Commission must be between 0% and 100%.')
-      const existing = (rules.data?.data ?? []).find((rule) => (sellerId ? rule.seller_id === Number(sellerId) : rule.seller_id === null))
-      const payload = { seller_id: sellerId ? Number(sellerId) : null, percentage_bps: Math.round(percentage * 100), fixed_minor: 0, currency: 'MMK', is_active: true }
-      return existing ? adminApi.updateCommissionRule(existing.id, payload) : adminApi.createCommissionRule(payload)
-    },
-    onSuccess: async () => {
-      setError('')
-      setGlobalRate('')
-      setSellerRate('')
-      await client.invalidateQueries({ queryKey: ['commission-rules'] })
-    },
-    onError: (reason) => setError(reason instanceof Error ? reason.message : 'Commission setting could not be saved.'),
-  })
-  const globalRule = rules.data?.data.find((rule) => rule.seller_id === null)
-  const overrides = rules.data?.data.filter((rule) => rule.seller_id !== null) ?? []
-
   return <div className="page-stack">
     <PageHeader eyebrow="Workspace" title="Settings" description="Customize the Admin interface and manage platform controls." />
     <AppearanceSettingsPanel />
-    {isSuperAdmin ? rules.isLoading || sellers.isLoading ? <LoadingState /> : rules.isError || sellers.isError || !rules.data || !sellers.data ? <ErrorState message="Commission settings could not be loaded." /> : <Card><div className="card-heading"><div><span className="eyebrow">Marketplace finance</span><h2>Commission control</h2><p className="muted">Commission is calculated from eligible product subtotal only. Historical order snapshots are not changed.</p></div><StatusBadge value={String(globalRule?.percentage_bps ? globalRule.percentage_bps / 100 : 5) + '% default'} /></div><form className="toolbar" onSubmit={(event) => { event.preventDefault(); setSellerId(''); save.mutate() }}><label className="field"><span>Global default (%)</span><input type="number" min="0" max="100" step="0.01" value={globalRate} placeholder={String(globalRule?.percentage_bps ? globalRule.percentage_bps / 100 : 5)} onChange={(event) => setGlobalRate(event.target.value)} /></label><button className="button primary" disabled={save.isPending || !globalRate}>Save default</button></form><div className="toolbar"><label className="field"><span>Seller override</span><select className="select" value={sellerId} onChange={(event) => setSellerId(event.target.value)}><option value="">Choose seller</option>{sellers.data.data.map((seller) => <option value={seller.id} key={seller.id}>{seller.store_name}</option>)}</select></label><label className="field"><span>Rate (%)</span><input type="number" min="0" max="100" step="0.01" value={sellerRate} onChange={(event) => setSellerRate(event.target.value)} /></label><button className="button primary" disabled={save.isPending || !sellerId || !sellerRate} onClick={() => save.mutate()}>Save override</button></div>{error ? <p className="error-box">{error}</p> : null}<div className="table-wrap"><table><thead><tr><th>Seller</th><th>Rate</th><th>Currency</th><th>Status</th></tr></thead><tbody>{overrides.map((rule) => <tr key={rule.id}><td>{rule.seller?.store_name ?? 'Seller #' + rule.seller_id}</td><td>{rule.percentage_bps / 100}%</td><td>{rule.currency}</td><td><StatusBadge value={rule.is_active ? 'active' : 'inactive'} /></td></tr>)}{!overrides.length ? <tr><td colSpan={4}>No seller overrides. The global default applies.</td></tr> : null}</tbody></table></div></Card> : <Card><div className="settings-row"><div><h2>Authorization</h2><p>Commission controls are restricted to Super Admins. Appearance settings are saved for your current browser.</p></div><StatusBadge value="protected" /></div></Card>}
+    <CommissionSettingsPanel />
   </div>
+}
+
+function commissionErrorMessage(error: unknown, fallback: string): string {
+  const candidate = error as {
+    message?: unknown
+    status?: unknown
+    errors?: Record<string, unknown>
+    response?: { status?: unknown; data?: { message?: unknown; errors?: Record<string, unknown> } }
+  }
+  const status = typeof candidate.status === 'number'
+    ? candidate.status
+    : typeof candidate.response?.status === 'number'
+      ? candidate.response.status
+      : undefined
+  if (status === 401) return 'Your admin session has expired. Sign in again to load commission settings.'
+  if (status === 403) return 'You are not authorized to manage commission settings.'
+  const errors = candidate.errors ?? candidate.response?.data?.errors
+  const validationMessage = Object.values(errors ?? {})
+    .flatMap((value) => Array.isArray(value) ? value : [value])
+    .find((value): value is string => typeof value === 'string')
+  if (validationMessage) return validationMessage
+  if (typeof candidate.response?.data?.message === 'string') return candidate.response.data.message
+  if (typeof candidate.message === 'string') return candidate.message
+  return status && status >= 500 ? 'The commission service is temporarily unavailable. Check the Laravel API logs.' : fallback
+}
+
+function CommissionSettingsPanel() {
+  const isSuperAdmin = useAdminAuth((state) => state.user?.roles?.includes('super_admin') ?? false)
+  const client = useQueryClient()
+  const settings = useQuery({ queryKey: ['commission-settings'], queryFn: adminApi.commissionSettings, enabled: isSuperAdmin })
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const rules = useQuery({
+    queryKey: ['commission-rules', search, statusFilter],
+    queryFn: () => adminApi.commissionRules({ per_page: '100', ...(search ? { q: search } : {}), ...(statusFilter === 'all' ? {} : { is_active: statusFilter === 'active' ? '1' : '0' }) }),
+    enabled: isSuperAdmin,
+  })
+  const sellers = useQuery({ queryKey: ['commission-sellers'], queryFn: () => adminApi.sellers({ per_page: '100' }), enabled: isSuperAdmin })
+  const [enabled, setEnabled] = useState(true)
+  const [defaultRate, setDefaultRate] = useState('5')
+  const [sellerId, setSellerId] = useState('')
+  const [brandId, setBrandId] = useState('')
+  const [ruleRate, setRuleRate] = useState('5')
+  const [fixedMinor, setFixedMinor] = useState('0')
+  const [ruleActive, setRuleActive] = useState(true)
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const brands = useQuery({ queryKey: ['commission-seller-brands', sellerId], queryFn: () => adminApi.sellerBrands(Number(sellerId)), enabled: isSuperAdmin && Boolean(sellerId) })
+
+  useEffect(() => {
+    if (!settings.data) return
+    setEnabled(settings.data.enabled)
+    setDefaultRate(String(settings.data.default_percentage_bps / 100))
+  }, [settings.data])
+
+  const saveSettings = useMutation({
+    mutationFn: () => adminApi.updateCommissionSettings({ commission_enabled: enabled, default_percentage_bps: Math.round(Number(defaultRate) * 100) }),
+    onMutate: () => { setError(''); setSuccess('') },
+    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['commission-settings'] }); setSuccess('Global commission settings saved.'); },
+    onError: (reason) => { setSuccess(''); setError(commissionErrorMessage(reason, 'Commission settings could not be saved.')) },
+  })
+  const saveRule = useMutation({
+    mutationFn: () => {
+      const rate = Number(ruleRate)
+      if (!sellerId || !Number.isFinite(rate) || rate < 0 || rate > 100) throw new Error('Choose a seller and enter a rate from 0% to 100%.')
+      const payload = { seller_id: Number(sellerId), brand_id: brandId ? Number(brandId) : null, category_id: null, percentage_bps: Math.round(rate * 100), fixed_minor: Math.max(0, Number(fixedMinor) || 0), currency: 'MMK', is_active: ruleActive }
+      return editingId ? adminApi.updateCommissionRule(editingId, payload) : adminApi.createCommissionRule(payload)
+    },
+    onMutate: () => { setError(''); setSuccess('') },
+    onSuccess: async () => {
+      setError('')
+      setEditingId(null)
+      setSellerId('')
+      setBrandId('')
+      setRuleRate('5')
+      setFixedMinor('0')
+      setRuleActive(true)
+      await client.invalidateQueries({ queryKey: ['commission-rules'] })
+      setSuccess(editingId ? 'Commission rule updated.' : 'Commission rule added.')
+    },
+    onError: (reason) => { setSuccess(''); setError(commissionErrorMessage(reason, 'Commission rule could not be saved.')) },
+  })
+  const editRule = (rule: import('../types/admin').CommissionRule) => {
+    setEditingId(rule.id)
+    setSellerId(String(rule.seller_id ?? ''))
+    setBrandId(String(rule.brand_id ?? ''))
+    setRuleRate(String(rule.percentage_bps / 100))
+    setFixedMinor(String(rule.fixed_minor))
+    setRuleActive(rule.is_active)
+  }
+  const toggleRule = useMutation({
+    mutationFn: (rule: import('../types/admin').CommissionRule) => adminApi.updateCommissionRule(rule.id, { seller_id: rule.seller_id, brand_id: rule.brand_id, category_id: rule.category_id, percentage_bps: rule.percentage_bps, fixed_minor: rule.fixed_minor, currency: rule.currency, is_active: !rule.is_active }),
+    onMutate: () => { setError(''); setSuccess('') },
+    onSuccess: async () => { await client.invalidateQueries({ queryKey: ['commission-rules'] }); setSuccess('Commission rule status updated.') },
+    onError: (reason) => { setSuccess(''); setError(commissionErrorMessage(reason, 'Commission rule could not be updated.')) },
+  })
+  if (!isSuperAdmin) return <Card><div className="settings-row"><div><h2>Authorization</h2><p>Commission controls are restricted to Super Admins. Appearance settings are saved for your current browser.</p></div><StatusBadge value="protected" /></div></Card>
+  if (settings.isLoading || sellers.isLoading || rules.isLoading) return <LoadingState />
+  if (settings.isError || sellers.isError || rules.isError || !settings.data || !sellers.data || !rules.data) {
+    const reason = settings.error ?? sellers.error ?? rules.error
+    return <ErrorState message={commissionErrorMessage(reason, 'Commission settings could not be loaded. Check the API connection and try again.')} />
+  }
+  const requiresMigration = Boolean(settings.data.requires_migration)
+  const isUnpersistedDefault = settings.data.persisted === false && !requiresMigration
+  const sellerRules = rules.data.data.filter((rule) => rule.seller_id !== null && rule.brand_id === null)
+  const brandRules = rules.data.data.filter((rule) => rule.brand_id !== null)
+  const previewRate = Number(ruleRate)
+  const preview = Number.isFinite(previewRate) ? Math.min(100000, Math.round(100000 * previewRate / 100 + (Number(fixedMinor) || 0))) : 0
+
+  return <Card><div className="card-heading"><div><span className="eyebrow">Marketplace finance</span><h2>Commission control</h2><p className="muted">New commissions use eligible product subtotal only. Shipping is excluded and confirmed snapshots never change when rules change.</p></div><StatusBadge value={enabled ? 'enabled' : 'disabled'} /></div>{requiresMigration ? <div className="marketplace-connection-note" role="status"><div className="connection-dot" /><div><strong>Commission storage is not initialized</strong><p>The API is showing the configured default of {defaultRate}%. Review and run the additive commission migration before saving settings or seller/brand rules.</p></div></div> : isUnpersistedDefault ? <div className="marketplace-connection-note" role="status"><div className="connection-dot" /><div><strong>Using the configured default</strong><p>No saved commission setting exists yet. The API is showing {defaultRate}% until you save the first authoritative setting.</p></div></div> : null}{success ? <p className="success-box" role="status">{success}</p> : null}<div className="commission-settings-grid"><label className="field"><span>Commission switch</span><select className="select" value={enabled ? 'enabled' : 'disabled'} disabled={requiresMigration} onChange={(event) => { const next = event.target.value === 'enabled'; if (!next && !window.confirm('Disable commission for new eligible orders? Existing confirmed history will remain unchanged.')) return; setEnabled(next) }}><option value="enabled">Enabled</option><option value="disabled">Disabled</option></select></label><label className="field"><span>Global default (%)</span><input type="number" min="0" max="100" step="0.01" value={defaultRate} disabled={requiresMigration} onChange={(event) => setDefaultRate(event.target.value)} /></label><button className="button primary commission-save" disabled={saveSettings.isPending || requiresMigration} onClick={() => saveSettings.mutate()}>{saveSettings.isPending ? 'Saving…' : 'Save global settings'}</button></div><div className="commission-rule-editor"><div className="card-heading"><div><h3>{editingId ? 'Edit commission rule' : 'Add commission rule'}</h3><p className="muted">Seller-brand rules take priority over seller rules. A disabled specific rule charges 0% and does not fall back.</p></div><span className="muted">Preview: {preview.toLocaleString()} MMK on 100,000 MMK</span></div><div className="commission-settings-grid"><label className="field"><span>Seller</span><select className="select" value={sellerId} disabled={requiresMigration} onChange={(event) => { setSellerId(event.target.value); setBrandId('') }}><option value="">Choose seller</option>{sellers.data.data.map((seller) => <option value={seller.id} key={seller.id}>{seller.store_name}</option>)}</select></label><label className="field"><span>Brand (optional)</span><select className="select" value={brandId} disabled={requiresMigration || !sellerId || brands.isLoading} onChange={(event) => setBrandId(event.target.value)}><option value="">All seller products</option>{(brands.data ?? []).map((brand) => <option value={brand.id} key={brand.id}>{brand.name}</option>)}</select></label><label className="field"><span>Rate (%)</span><input type="number" min="0" max="100" step="0.01" value={ruleRate} disabled={requiresMigration} onChange={(event) => setRuleRate(event.target.value)} /></label><label className="field"><span>Fixed amount (MMK minor)</span><input type="number" min="0" step="1" value={fixedMinor} disabled={requiresMigration} onChange={(event) => setFixedMinor(event.target.value)} /></label><label className="field checkbox-field"><input type="checkbox" checked={ruleActive} disabled={requiresMigration} onChange={(event) => setRuleActive(event.target.checked)} /><span>Rule active</span></label><div className="button-row"><button className="button primary" disabled={saveRule.isPending || requiresMigration} onClick={() => saveRule.mutate()}>{saveRule.isPending ? 'Saving…' : editingId ? 'Update rule' : 'Add rule'}</button>{editingId ? <button className="button secondary" onClick={() => { setEditingId(null); setSellerId(''); setBrandId(''); setRuleRate('5'); setFixedMinor('0'); setRuleActive(true) }}>Cancel</button> : null}</div></div></div>{error ? <p className="error-box">{error}</p> : null}<div className="commission-rule-toolbar"><SearchBox value={search} onChange={setSearch} placeholder="Search sellers or brands" /><select className="select" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="active">Active</option><option value="inactive">Disabled</option></select></div><div className="table-wrap"><table><thead><tr><th>Seller</th><th>Brand</th><th>Rate</th><th>Source</th><th>Status</th><th>Updated</th><th /></tr></thead><tbody>{[...sellerRules, ...brandRules].map((rule) => <tr key={rule.id}><td>{rule.seller?.store_name ?? 'Seller #'+rule.seller_id}</td><td>{rule.brand?.name ?? 'All seller products'}</td><td>{rule.percentage_bps / 100}%{rule.fixed_minor ? ` + ${rule.fixed_minor} minor` : ''}</td><td>{rule.brand_id !== null ? 'Seller + brand' : 'Seller'}</td><td><StatusBadge value={rule.is_active ? 'active' : 'disabled'} /></td><td>{rule.updated_at ? new Date(rule.updated_at).toLocaleDateString() : '—'}</td><td><div className="button-row"><button className="button small secondary" disabled={requiresMigration} onClick={() => editRule(rule)}>Edit</button><button className="button small ghost" disabled={requiresMigration || toggleRule.isPending} onClick={() => toggleRule.mutate(rule)}>{toggleRule.isPending ? 'Saving…' : rule.is_active ? 'Disable' : 'Enable'}</button></div></td></tr>)}{!sellerRules.length && !brandRules.length ? <tr><td colSpan={7}>No seller or brand overrides. The global default applies.</td></tr> : null}</tbody></table></div></Card>
 }
 
 const appearanceColorFields: { key: keyof AppearanceColors; label: string; description: string }[] = [

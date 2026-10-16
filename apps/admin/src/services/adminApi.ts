@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios'
 import { api } from '../lib/api'
-import type { AuditLog, Brand, Category, Coupon, DashboardData, InventoryRow, Order, Pagination, Product, ShippingCarrier, ShippingMethod, User, Variant } from '../types/admin'
+import type { AuditLog, Brand, Category, CommissionRule, CommissionSettings, Coupon, DashboardData, InventoryRow, Order, Pagination, Product, SellerBrand, ShippingCarrier, ShippingMethod, User, Variant } from '../types/admin'
 
 async function request<T>(config: AxiosRequestConfig): Promise<T> {
   const response = await api.request<{ data: T; meta?: Pagination<unknown>['meta'] }>(config)
@@ -51,7 +51,10 @@ export const adminApi = {
   auditLogs: (params: Record<string, string> = {}) => request<Pagination<AuditLog>>({ url: '/admin/audit-logs', params }),
   sellers: (params: Record<string, string> = {}) => request<Pagination<{ id: number; store_name: string; slug: string; status: string; products_count?: number; orders_count?: number }>>({ url: '/admin/marketplace/sellers', params }),
   updateSellerStatus: (id: number, status: string) => request<unknown>({ url: '/admin/marketplace/sellers/' + id + '/status', method: 'PATCH', data: { status } }),
-  commissionRules: () => request<Pagination<{ id: number; seller_id: number | null; seller?: { id: number; store_name: string }; percentage_bps: number; fixed_minor: number; currency: string; is_active: boolean }>>({ url: '/admin/marketplace/commission-rules' }),
+  commissionSettings: () => request<CommissionSettings>({ url: '/admin/marketplace/commission-settings' }),
+  updateCommissionSettings: (data: { commission_enabled: boolean; default_percentage_bps: number }) => request<CommissionSettings>({ url: '/admin/marketplace/commission-settings', method: 'PUT', data }),
+  sellerBrands: (sellerId: number) => request<SellerBrand[]>({ url: '/admin/marketplace/sellers/' + sellerId + '/brands' }),
+  commissionRules: (params: Record<string, string> = {}) => request<Pagination<CommissionRule>>({ url: '/admin/marketplace/commission-rules', params }),
   createCommissionRule: (data: unknown) => request<unknown>({ url: '/admin/marketplace/commission-rules', method: 'POST', data }),
   updateCommissionRule: (id: number, data: unknown) => request<unknown>({ url: '/admin/marketplace/commission-rules/' + id, method: 'PUT', data }),
   coupons: (params: Record<string, string> = {}) => request<Pagination<Coupon>>({ url: '/admin/coupons', params }),

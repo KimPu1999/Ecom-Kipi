@@ -10,7 +10,10 @@ use Illuminate\Validation\ValidationException;
 
 class RefundService
 {
-    public function __construct(private readonly PaymentGateway $gateway) {}
+    public function __construct(
+        private readonly PaymentGateway $gateway,
+        private readonly CommissionService $commissions,
+    ) {}
 
     public function create(Order $order, int $amount, string $reason, string $key, int $adminId): Refund
     {
@@ -24,6 +27,9 @@ class RefundService
         }
         $existing = $order->refunds()->where('metadata->idempotency_key', $key)->first();
         if ($existing) {
+            if ($existing->status === 'succeeded') {
+                $this->commissions->reverseForRefund($existing);
+            }
             return $existing;
         }
         $refund = DB::transaction(fn () => $order->refunds()->create([
@@ -37,8 +43,11 @@ class RefundService
         ]));
         try {
             $result = $this->gateway->refund($payment->provider_payment_id, $amount, $order->currency, $key);
-            $refund->update(['provider_ref' => $result['id'] ?? null, 'status' => 'succeeded', 'processed_at' => now()]);
-            $payment->update(['status' => ($refunded + $amount) >= $order->grand_total_minor ? 'refunded' : 'partially_refunded']);
+            DB::transaction(function () use ($result, $refund, $payment, $refunded, $amount): void {
+                $refund->update(['provider_ref' => $result['id'] ?? null, 'status' => 'succeeded', 'processed_at' => now()]);
+                $payment->update(['status' => ($refunded + $amount) >= $refund->order->grand_total_minor ? 'refunded' : 'partially_refunded']);
+                $this->commissions->reverseForRefund($refund->fresh());
+            });
 
             return $refund->fresh();
         } catch (\Throwable $exception) {

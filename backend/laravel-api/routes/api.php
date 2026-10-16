@@ -200,11 +200,14 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             Route::get('applications', [MarketplaceController::class, 'applications']);
             Route::get('applications/{application}', [MarketplaceController::class, 'showApplication']);
             Route::get('sellers', [MarketplaceController::class, 'sellers']);
+            Route::get('sellers/{seller}/brands', [MarketplaceController::class, 'sellerBrands']);
+            Route::get('commission-settings', [MarketplaceController::class, 'commissionSettings']);
             Route::get('commission-rules', [MarketplaceController::class, 'commissionRules']);
-            Route::post('commission-rules', [MarketplaceController::class, 'storeCommissionRule']);
             Route::get('payouts', [MarketplaceController::class, 'payouts']);
         });
         Route::prefix('marketplace')->middleware('super_admin')->group(function () {
+            Route::put('commission-settings', [MarketplaceController::class, 'updateCommissionSettings']);
+            Route::post('commission-rules', [MarketplaceController::class, 'storeCommissionRule']);
             Route::put('commission-rules/{commissionRule}', [MarketplaceController::class, 'updateCommissionRule']);
             Route::get('applications/{application}/documents/{document}', [MarketplaceController::class, 'downloadDocument']);
             Route::post('applications/{application}/approve', [MarketplaceController::class, 'approve']);

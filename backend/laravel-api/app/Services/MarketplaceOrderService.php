@@ -2,12 +2,13 @@
 
 namespace App\Services;
 
-use App\Models\CommissionRule;
 use App\Models\Order;
 use App\Models\SellerLedgerEntry;
 
 class MarketplaceOrderService
 {
+    public function __construct(private readonly CommissionService $commissionService) {}
+
     public function createSellerOrders(Order $order): void
     {
         $items = $order->items()->with('variant.product')->get();
@@ -28,7 +29,6 @@ class MarketplaceOrderService
                 'currency' => $order->currency,
             ]);
 
-            $commissionTotal = 0;
             foreach ($sellerItems as $item) {
                 $sellerItem = $sellerOrder->items()->create([
                     'order_item_id' => $item->id,
@@ -39,32 +39,7 @@ class MarketplaceOrderService
                     'unit_price_minor' => $item->unit_price_minor,
                     'line_total_minor' => $item->line_total_minor,
                 ]);
-                $rule = CommissionRule::query()
-                    ->where(fn ($query) => $query->whereNull('seller_id')->orWhere('seller_id', $sellerId))
-                    ->where('is_active', true)
-                    ->where('currency', $order->currency)
-                    ->where(fn ($query) => $query->whereNull('starts_at')->orWhere('starts_at', '<=', now()))
-                    ->where(fn ($query) => $query->whereNull('ends_at')->orWhere('ends_at', '>=', now()))
-                    ->orderByRaw('seller_id IS NULL')
-                    ->latest('id')
-                    ->first();
-                $bps = $rule?->percentage_bps ?? config('marketplace.default_commission_bps', 1000);
-                $fixed = $rule?->fixed_minor ?? 0;
-                $commission = min($item->line_total_minor, (int) floor($item->line_total_minor * $bps / 10000) + $fixed);
-                $commissionTotal += $commission;
-                $sellerOrder->commissions()->create([
-                    'seller_order_item_id' => $sellerItem->id,
-                    'commission_rule_id' => $rule?->id,
-                    'percentage_bps' => $bps,
-                    'fixed_minor' => $fixed,
-                    'gross_minor' => $item->line_total_minor,
-                    'commission_minor' => $commission,
-                    'net_minor' => $item->line_total_minor - $commission,
-                    'currency' => $order->currency,
-                    'snapshot' => ['percentage_bps' => $bps, 'fixed_minor' => $fixed],
-                ]);
             }
-            $sellerOrder->update(['commission_minor' => $commissionTotal, 'net_minor' => $subtotal - $commissionTotal]);
             $sellerOrder->statusHistory()->create(['to_status' => 'pending', 'note' => 'Seller order created from parent checkout.']);
         }
     }
@@ -72,6 +47,7 @@ class MarketplaceOrderService
     public function markPaid(Order $order): void
     {
         foreach ($order->sellerOrders()->with('seller')->get() as $sellerOrder) {
+            $this->commissionService->confirmSellerOrder($sellerOrder);
             $sellerOrder->update(['payment_status' => 'paid', 'status' => 'confirmed']);
             $sellerOrder->statusHistory()->create(['from_status' => 'pending', 'to_status' => 'confirmed', 'note' => 'Parent order payment verified.']);
             SellerLedgerEntry::query()->firstOrCreate([
