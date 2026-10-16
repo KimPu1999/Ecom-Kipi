@@ -529,6 +529,93 @@ select,
   font-size: .7rem;
 }
 
+.profile-menu {
+  position: relative;
+}
+
+.topbar-profile {
+  min-height: 44px;
+  padding: 5px 7px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  color: var(--text-primary);
+  background: transparent;
+  text-align: left;
+}
+
+.topbar-profile:hover,
+.topbar-profile[aria-expanded='true'] {
+  border-color: var(--border-color);
+  background: #f8fafc;
+}
+
+.topbar-profile:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.profile-chevron {
+  color: var(--text-secondary);
+  transition: transform .18s ease;
+}
+
+.profile-chevron.expanded {
+  transform: rotate(180deg);
+}
+
+.profile-dropdown {
+  position: absolute;
+  z-index: 50;
+  top: calc(100% + 8px);
+  right: 0;
+  display: grid;
+  min-width: 190px;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--surface-bg);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, .12);
+}
+
+.profile-dropdown a,
+.profile-dropdown button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--text-primary);
+  background: transparent;
+  font-size: .8rem;
+  text-align: left;
+  text-decoration: none;
+}
+
+.profile-dropdown a:hover,
+.profile-dropdown button:hover:not(:disabled) {
+  color: var(--primary);
+  background: #f8fafc;
+}
+
+.profile-dropdown a:focus-visible,
+.profile-dropdown button:focus-visible {
+  outline: 3px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.profile-dropdown button:disabled {
+  opacity: .6;
+}
+
+.profile-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border-color);
+}
+
 /* Bring legacy page surfaces into the same global layout language. */
 .page-heading {
   display: flex;

@@ -51,6 +51,9 @@ export function AdminLayout() {
   const [flyout, setFlyout] = useState<{ key: string; top: number } | null>(null)
   const [languageOpen, setLanguageOpen] = useState(false)
   const languageMenuRef = useRef<HTMLDivElement>(null)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
   const [dark, setDark] = useState(() => localStorage.getItem('kipi.admin.theme') === 'dark')
   const { language, setLanguage, t } = useLanguage()
   const user = useAdminAuth((state) => state.user)
@@ -75,10 +78,19 @@ export function AdminLayout() {
         setOpen(false)
         setFlyout(null)
         setLanguageOpen(false)
+        setProfileOpen(false)
       }
     }
     window.addEventListener('keydown', closeOnEscape)
     return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [])
+
+  useEffect(() => {
+    const closeProfileOnOutsideClick = (event: globalThis.MouseEvent) => {
+      if (profileMenuRef.current && event.target instanceof Node && !profileMenuRef.current.contains(event.target)) setProfileOpen(false)
+    }
+    document.addEventListener('mousedown', closeProfileOnOutsideClick)
+    return () => document.removeEventListener('mousedown', closeProfileOnOutsideClick)
   }, [])
 
   useEffect(() => {
@@ -92,6 +104,7 @@ export function AdminLayout() {
   useEffect(() => {
     setOpenSection(activeSectionKey && activeSectionKey !== 'dashboard' ? activeSectionKey : null)
     setFlyout(null)
+    setProfileOpen(false)
   }, [activeSectionKey])
 
   useEffect(() => {
@@ -122,11 +135,15 @@ export function AdminLayout() {
   }
 
   async function logout() {
+    if (loggingOut) return
+    setLoggingOut(true)
     try {
       await api.auth.logout()
     } finally {
       clear()
+      setProfileOpen(false)
       navigate('/admin/login')
+      setLoggingOut(false)
     }
   }
 
@@ -150,11 +167,10 @@ export function AdminLayout() {
         })}
       </nav>
       {collapsed && flyout ? (() => { const section = visibleSections.find((item) => item.key === flyout.key); if (!section) return null; return <div className="sidebar-flyout" style={{ top: flyout.top }} role="menu" aria-label={t(section.label)}><strong>{t(section.label)}</strong>{section.items.map((item) => { const ItemIcon = item.icon; return <NavLink className="sidebar-flyout-link" role="menuitem" key={item.to} to={item.to} end={item.to === '/admin'} onClick={closeNavigation}><ItemIcon size={18} /><span>{t(item.label)}</span></NavLink> })}</div> })() : null}
-      <div className="sidebar-bottom"><div className="admin-mini"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span><strong>{user?.name}</strong><small>{isSuperAdmin ? t('Super admin') : t('Administrator')}</small></span></div><button className="logout-link" onClick={logout}><LogOut size={17} />{t('Log out')}</button></div>
       <button className="sidebar-collapse" onClick={() => { setCollapsed((value) => !value); setOpenSection(null); setFlyout(null) }} aria-label={collapsed ? t('Expand sidebar') : t('Collapse sidebar')} title={collapsed ? t('Expand sidebar') : t('Collapse sidebar')}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}<span>{collapsed ? t('Expand sidebar') : t('Collapse sidebar')}</span></button>
     </aside>
     <main className="admin-main">
-      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => { setCollapsed(false); setOpen(true) }} aria-label={t('Open navigation')} aria-expanded={open}><Menu size={21} /></button><div className="breadcrumbs"><span>{t('Control center')}</span><b>/</b><strong>{current ? t(current.label) : t('Page')}</strong></div><div className="topbar-actions"><button className="icon-button" onClick={() => setDark((value) => !value)} aria-label={t('Toggle theme')}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button><div className="language-menu" ref={languageMenuRef}><button className="language-trigger" type="button" onClick={() => setLanguageOpen((value) => !value)} aria-label={t('Language')} aria-expanded={languageOpen} aria-haspopup="menu"><Languages size={18} /><span>{language === 'my' ? 'မြန်မာ' : 'English'}</span><ChevronDown className={languageOpen ? 'language-chevron expanded' : 'language-chevron'} size={16} /></button>{languageOpen ? <div className="language-dropdown" role="menu" aria-label={t('Language')}><button type="button" role="menuitemradio" aria-checked={language === 'en'} className={language === 'en' ? 'selected' : ''} onClick={() => { setLanguage('en'); setLanguageOpen(false) }}><span>English</span><small>English</small></button><button type="button" role="menuitemradio" aria-checked={language === 'my'} className={language === 'my' ? 'selected' : ''} onClick={() => { setLanguage('my'); setLanguageOpen(false) }}><span>မြန်မာ</span><small>{t('Burmese')}</small></button></div> : null}</div><div className="topbar-profile"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{user?.name}</strong><small>{user?.email}</small></span></div></div></header>
+      <header className="topbar"><button className="icon-button mobile-menu" onClick={() => { setCollapsed(false); setOpen(true) }} aria-label={t('Open navigation')} aria-expanded={open}><Menu size={21} /></button><div className="breadcrumbs"><span>{t('Control center')}</span><b>/</b><strong>{current ? t(current.label) : t('Page')}</strong></div><div className="topbar-actions"><button className="icon-button" onClick={() => setDark((value) => !value)} aria-label={t('Toggle theme')}>{dark ? <Sun size={18} /> : <Moon size={18} />}</button><div className="language-menu" ref={languageMenuRef}><button className="language-trigger" type="button" onClick={() => setLanguageOpen((value) => !value)} aria-label={t('Language')} aria-expanded={languageOpen} aria-haspopup="menu"><Languages size={18} /><span>{language === 'my' ? 'မြန်မာ' : 'English'}</span><ChevronDown className={languageOpen ? 'language-chevron expanded' : 'language-chevron'} size={16} /></button>{languageOpen ? <div className="language-dropdown" role="menu" aria-label={t('Language')}><button type="button" role="menuitemradio" aria-checked={language === 'en'} className={language === 'en' ? 'selected' : ''} onClick={() => { setLanguage('en'); setLanguageOpen(false) }}><span>English</span><small>English</small></button><button type="button" role="menuitemradio" aria-checked={language === 'my'} className={language === 'my' ? 'selected' : ''} onClick={() => { setLanguage('my'); setLanguageOpen(false) }}><span>မြန်မာ</span><small>{t('Burmese')}</small></button></div> : null}</div><div className="profile-menu" ref={profileMenuRef}><button className="topbar-profile" type="button" onClick={() => setProfileOpen((value) => !value)} aria-label={t('Open profile menu')} aria-expanded={profileOpen} aria-haspopup="menu"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{user?.name}</strong><small>{isSuperAdmin ? t('Super admin') : t('Administrator')}</small></span><ChevronDown className={profileOpen ? 'profile-chevron expanded' : 'profile-chevron'} size={16} /></button>{profileOpen ? <div className="profile-dropdown" role="menu" aria-label={t('Profile menu')}><Link to="/admin/settings" role="menuitem" onClick={() => setProfileOpen(false)}><Settings size={17} /><span>{t('Settings')}</span></Link><div className="profile-divider" /><button type="button" role="menuitem" onClick={logout} disabled={loggingOut}><LogOut size={17} /><span>{loggingOut ? t('Signing out…') : t('Log out')}</span></button></div> : null}</div></div></header>
       <div className="admin-content"><Outlet /></div>
     </main>
   </div>
