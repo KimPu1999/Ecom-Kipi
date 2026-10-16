@@ -10,6 +10,7 @@ use App\Models\Seller;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Models\SellerOrderItem;
+use App\Models\ShippingMethod;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
@@ -42,6 +43,46 @@ class ShippingManagementTest extends TestCase
         ])->assertCreated()->assertJsonPath('data.code', 'test-courier');
 
         $this->getJson('/api/v1/admin/shipping/carriers')->assertOk()->assertJsonPath('data.0.name', 'Test Courier');
+    }
+
+    public function test_super_admin_can_create_separate_delivery_methods_and_update_one_without_replacing_the_other(): void
+    {
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::query()->create(['name' => 'super_admin', 'label' => 'Super Administrator']));
+        Sanctum::actingAs($admin);
+
+        $first = $this->postJson('/api/v1/admin/shipping/methods', [
+            'name' => 'Express delivery',
+            'code' => 'express',
+            'description' => 'One business day',
+            'price_minor' => 1500,
+            'currency' => 'MMK',
+            'sort_order' => 1,
+        ])->assertCreated();
+        $firstId = $first->json('data.id');
+
+        $second = $this->postJson('/api/v1/admin/shipping/methods', [
+            'name' => 'Pickup point',
+            'code' => 'pickup',
+            'description' => 'Collect from a Kipi point',
+            'price_minor' => 0,
+            'currency' => 'MMK',
+            'sort_order' => 2,
+        ])->assertCreated();
+        $secondId = $second->json('data.id');
+
+        $this->getJson('/api/v1/admin/shipping/methods')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $firstId, 'name' => 'Express delivery'])
+            ->assertJsonFragment(['id' => $secondId, 'name' => 'Pickup point']);
+
+        $this->patchJson('/api/v1/admin/shipping/methods/'.$firstId, ['is_active' => false])
+            ->assertOk()
+            ->assertJsonPath('data.is_active', false);
+
+        $this->assertDatabaseHas('shipping_methods', ['id' => $firstId, 'is_active' => false]);
+        $this->assertDatabaseHas('shipping_methods', ['id' => $secondId, 'is_active' => true]);
+        $this->assertSame(1, ShippingMethod::query()->where('code', 'pickup')->count());
     }
 
     public function test_only_the_assigned_rider_can_update_a_shipment(): void

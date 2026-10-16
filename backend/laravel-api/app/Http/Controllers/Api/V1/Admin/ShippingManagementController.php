@@ -6,12 +6,46 @@ use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Rider;
 use App\Models\ShippingCarrier;
+use App\Models\ShippingMethod;
 use App\Support\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class ShippingManagementController extends Controller
 {
+    public function methods(Request $request)
+    {
+        $query = ShippingMethod::query()
+            ->when($request->filled('q'), fn ($builder) => $builder->where(function ($nested) use ($request) {
+                $term = '%'.$request->string('q')->toString().'%';
+                $nested->where('name', 'like', $term)->orWhere('code', 'like', $term);
+            }))
+            ->orderBy('sort_order')
+            ->orderBy('name');
+        $page = $query->paginate(min($request->integer('per_page', 30), 100));
+
+        return ApiResponse::paginated($page, $page->items(), 'Shipping methods retrieved');
+    }
+
+    public function storeMethod(Request $request)
+    {
+        $data = $this->methodData($request);
+        $method = ShippingMethod::query()->create($data);
+        $this->audit($request, 'shipping.method_created', $method);
+
+        return ApiResponse::success($method, 'Shipping method created', 201);
+    }
+
+    public function updateMethod(Request $request, ShippingMethod $method)
+    {
+        $data = $this->methodData($request, $method->id);
+        $before = $method->toArray();
+        $method->update($data);
+        $this->audit($request, 'shipping.method_updated', $method, $before);
+
+        return ApiResponse::success($method->fresh(), 'Shipping method updated');
+    }
+
     public function carriers(Request $request)
     {
         $query = ShippingCarrier::query()->when($request->filled('q'), fn ($builder) => $builder->where('name', 'like', '%'.$request->string('q')->toString().'%'))->orderBy('sort_order')->orderBy('name');
@@ -77,6 +111,43 @@ class ShippingManagementController extends Controller
         $query = ShippingCarrier::query()->where('code', $data['code']);
         if ($ignoreId) $query->where('id', '!=', $ignoreId);
         abort_if($query->exists(), 422, 'Carrier code already exists.');
+
+        return $data;
+    }
+
+    private function methodData(Request $request, ?int $ignoreId = null): array
+    {
+        $data = $request->validate([
+            'code' => [$ignoreId ? 'sometimes' : 'required', 'string', 'max:100'],
+            'name' => [$ignoreId ? 'sometimes' : 'required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'price_minor' => [$ignoreId ? 'sometimes' : 'required', 'integer', 'min:0'],
+            'currency' => ['sometimes', 'nullable', 'string', 'size:3'],
+            'is_active' => ['sometimes', 'boolean'],
+            'sort_order' => ['sometimes', 'nullable', 'integer', 'min:0'],
+        ]);
+        if (array_key_exists('code', $data)) {
+            $data['code'] = Str::slug($data['code']);
+            abort_if($data['code'] === '', 422, 'Shipping method code must contain letters or numbers.');
+            $query = ShippingMethod::query()->where('code', $data['code']);
+            if ($ignoreId) {
+                $query->where('id', '!=', $ignoreId);
+            }
+            abort_if($query->exists(), 422, 'Shipping method code already exists.');
+        }
+        if (array_key_exists('currency', $data)) {
+            $data['currency'] = strtoupper($data['currency'] ?? 'MMK');
+        } elseif (! $ignoreId) {
+            $data['currency'] = 'MMK';
+        }
+        if (array_key_exists('sort_order', $data)) {
+            $data['sort_order'] = (int) ($data['sort_order'] ?? 0);
+        } elseif (! $ignoreId) {
+            $data['sort_order'] = 0;
+        }
+        if (! $ignoreId && ! array_key_exists('is_active', $data)) {
+            $data['is_active'] = true;
+        }
 
         return $data;
     }

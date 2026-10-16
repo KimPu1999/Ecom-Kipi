@@ -8,6 +8,31 @@ export interface Pagination<T> {
   }
 }
 
+export interface ShippingCarrier {
+  id: number
+  name: string
+  code: string
+  type: string
+  tracking_url: string | null
+  is_active: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
+export interface ShippingMethod {
+  id: number
+  code: string
+  name: string
+  description: string | null
+  price_minor: number
+  currency: string
+  is_active: boolean
+  sort_order: number
+  created_at?: string
+  updated_at?: string
+}
+
 export interface DashboardData {
   range: { from: string; to: string }
   metrics: {
