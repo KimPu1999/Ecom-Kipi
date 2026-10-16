@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { Fragment, useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ClipboardCheck, Package, SlidersHorizontal } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
@@ -52,6 +52,42 @@ function AdjustForm({ item, onSubmit, onCancel }: { item: InventoryRow; onSubmit
   return <form className="inline-form" onSubmit={(event) => { event.preventDefault(); onSubmit({ delta: Number(delta), note, low_stock_threshold: Number(threshold) }) }}><strong>Adjusting {item.sku}</strong><input aria-label="Quantity delta" type="number" value={delta} onChange={(event) => setDelta(event.target.value)} /><input aria-label="Reason" required placeholder="Reason for adjustment" value={note} onChange={(event) => setNote(event.target.value)} /><input aria-label="Low stock threshold" type="number" min="0" value={threshold} onChange={(event) => setThreshold(event.target.value)} /><button className="button primary" type="submit">Save</button><button className="button secondary" type="button" onClick={onCancel}>Cancel</button></form>
 }
 
+type OrderSeller = { id: number; store_name: string }
+
+const sellerColorTones = ['blue', 'teal', 'violet', 'amber', 'rose', 'indigo'] as const
+
+function sellerColorTone(sellerId: number) {
+  return sellerColorTones[Math.abs(sellerId) % sellerColorTones.length]
+}
+
+function getOrderSellers(order: Order): OrderSeller[] {
+  const sellers = new Map<number, OrderSeller>()
+  order.items?.forEach((item) => {
+    if (item.seller) sellers.set(item.seller.id, item.seller)
+  })
+  if (!sellers.size) order.seller_orders?.forEach((sellerOrder) => { if (sellerOrder.seller) sellers.set(sellerOrder.seller.id, sellerOrder.seller) })
+  return Array.from(sellers.values())
+}
+
+function groupOrderItems(order: Order) {
+  const groups = new Map<string, { seller: OrderSeller | null; items: NonNullable<Order['items']> }>()
+  order.items?.forEach((item) => {
+    const key = item.seller ? `seller-${item.seller.id}` : 'seller-unavailable'
+    const group = groups.get(key) ?? { seller: item.seller ?? null, items: [] }
+    group.items.push(item)
+    groups.set(key, group)
+  })
+  return Array.from(groups.entries()).map(([key, group]) => ({ key, ...group }))
+}
+
+function SellerBadge({ seller }: { seller: OrderSeller }) {
+  return <span className={`seller-badge seller-badge-${sellerColorTone(seller.id)}`}>{seller.store_name}</span>
+}
+
+function SellerBadges({ sellers }: { sellers: OrderSeller[] }) {
+  return sellers.length ? <div className="seller-badge-list">{sellers.map((seller) => <SellerBadge key={seller.id} seller={seller} />)}</div> : <span className="muted">Seller unavailable</span>
+}
+
 export function OrdersPage() {
   const { search, setSearch, page, setPage } = useListSearch()
   const [status, setStatus] = useState('')
@@ -61,7 +97,7 @@ export function OrdersPage() {
   const mutation = useMutation({ mutationFn: (payload: { id: number; status: string }) => adminApi.updateOrderStatus(payload.id, payload.status), onSuccess: () => { client.invalidateQueries({ queryKey: ['admin-orders'] }); client.invalidateQueries({ queryKey: ['admin-dashboard'] }) } })
   if (query.isLoading) return <LoadingState />
   if (query.isError || !query.data) return <ErrorState />
-  return <div className="page-stack"><PageHeader eyebrow="Operations" title="Orders" description="Process fulfillment with controlled status transitions." /><Card><div className="toolbar"><SearchBox value={search} onChange={setSearch} placeholder="Search order number" /><select className="select" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}><option value="">All fulfillment states</option>{['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map((item) => <option key={item} value={item}>{item}</option>)}</select></div>{query.data.data.length ? <div className="table-wrap"><table><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Payment</th><th>Fulfillment</th><th>Update</th></tr></thead><tbody>{query.data.data.map((order, index) => <tr key={order.id}><td><button className="text-button" onClick={() => navigate(`/admin/orders/${order.id}`, { state: { orderIds: query.data.data.map((item) => item.id), currentIndex: index, listContext: { search, status, page } } })} aria-label={`View details for ${order.order_number}`}><strong>{order.order_number}</strong></button><small>{order.placed_at ? new Date(order.placed_at).toLocaleString() : 'Not placed'}</small></td><td>{order.user?.name ?? '—'}</td><td>{order.grand_total_minor.toLocaleString()} {order.currency}</td><td><StatusBadge value={order.payment_status} /></td><td><StatusBadge value={order.fulfillment_status} /></td><td><select className="select compact" value={order.fulfillment_status} onChange={(event) => mutation.mutate({ id: order.id, status: event.target.value })} disabled={order.fulfillment_status === 'delivered' || order.fulfillment_status === 'cancelled'}><option value={order.fulfillment_status}>{order.fulfillment_status}</option>{['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].filter((item) => item !== order.fulfillment_status).map((item) => <option key={item} value={item}>{item}</option>)}</select></td></tr>)}</tbody></table></div> : <EmptyState title="No orders found" message="Orders will appear here when customers check out." />}<Pagination page={query.data.meta?.current_page ?? 1} pages={query.data.meta?.last_page ?? 1} onChange={setPage} /></Card></div>
+  return <div className="page-stack"><PageHeader eyebrow="Operations" title="Orders" description="Process fulfillment with controlled status transitions." /><Card><div className="toolbar"><SearchBox value={search} onChange={setSearch} placeholder="Search order number" /><select className="select" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1) }}><option value="">All fulfillment states</option>{['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].map((item) => <option key={item} value={item}>{item}</option>)}</select></div>{query.data.data.length ? <div className="table-wrap"><table><thead><tr><th>Order</th><th>Seller</th><th>Customer</th><th>Total</th><th>Payment</th><th>Fulfillment</th><th>Update</th></tr></thead><tbody>{query.data.data.map((order, index) => { const sellers = getOrderSellers(order); return <tr key={order.id}><td><button className="text-button" onClick={() => navigate(`/admin/orders/${order.id}`, { state: { orderIds: query.data.data.map((item) => item.id), currentIndex: index, listContext: { search, status, page } } })} aria-label={`View details for ${order.order_number}`}><span className="order-id-badge">{order.order_number}</span></button><small>{order.placed_at ? new Date(order.placed_at).toLocaleString() : 'Not placed'}</small></td><td><SellerBadges sellers={sellers} /></td><td><strong className="customer-name">{order.user?.name ?? '—'}</strong></td><td>{order.grand_total_minor.toLocaleString()} {order.currency}</td><td><StatusBadge value={order.payment_status} /></td><td><StatusBadge value={order.fulfillment_status} /></td><td><select className="select compact" value={order.fulfillment_status} onChange={(event) => mutation.mutate({ id: order.id, status: event.target.value })} disabled={order.fulfillment_status === 'delivered' || order.fulfillment_status === 'cancelled'}><option value={order.fulfillment_status}>{order.fulfillment_status}</option>{['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'].filter((item) => item !== order.fulfillment_status).map((item) => <option key={item} value={item}>{item}</option>)}</select></td></tr> })}</tbody></table></div> : <EmptyState title="No orders found" message="Orders will appear here when customers check out." />}<Pagination page={query.data.meta?.current_page ?? 1} pages={query.data.meta?.last_page ?? 1} onChange={setPage} /></Card></div>
 }
 
 type OrderNavigationState = {
@@ -102,6 +138,8 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
   if (query.isError || !query.data) return <Card><ErrorState message="Unable to load order details." /></Card>
 
   const order = query.data
+  const sellers = getOrderSellers(order)
+  const itemGroups = groupOrderItems(order)
   const primaryShipment = order.shipments?.[0]
   const primaryPayment = order.payments?.[0]
   const trackingNumbers = order.shipments?.map((shipment) => shipment.tracking_number ?? shipment.internal_tracking_id).filter(Boolean) ?? []
@@ -111,12 +149,13 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
       <div className="order-detail-heading-content">
         <div className="order-header-line"><button className="order-back-button" type="button" onClick={() => navigate('/admin/orders')}><ArrowLeft size={15} aria-hidden="true" /><span>Back</span></button><span className="eyebrow">Order details</span><h2>{order.order_number}</h2><StatusBadge value={order.fulfillment_status} /></div>
         <p>{order.user?.name ?? 'Guest'} · {order.user?.email ?? 'No email'}</p>
+        <div className="order-header-sellers"><span>Seller</span><SellerBadges sellers={sellers} /></div>
       </div>
       <div className="order-heading-actions"><div className="order-detail-navigation"><button className="order-navigation-button" type="button" onClick={() => previousOrderId && onNavigate(previousOrderId)} disabled={!previousOrderId} aria-label="Previous order">← Previous Order</button><button className="order-navigation-button" type="button" onClick={() => nextOrderId && onNavigate(nextOrderId)} disabled={!nextOrderId} aria-label="Next order">Next Order →</button></div><div className="order-heading-status"><span>Payment</span><StatusBadge value={order.payment_status} /></div></div>
     </div>
 
     <section className="order-detail-section order-meta-section" aria-label="Order, customer, delivery, and payment information">
-      <div className="order-meta-block"><h3>Order overview</h3><div className="order-detail-fields"><DetailField label="Order ID" value={order.order_number} /><DetailField label="Order date" value={formatDateTime(order.placed_at)} /><DetailField label="Order status" value={<StatusBadge value={order.fulfillment_status} />} /></div></div>
+      <div className="order-meta-block"><h3>Order overview</h3><div className="order-detail-fields"><DetailField label="Order ID" value={order.order_number} /><DetailField label="Order date" value={formatDateTime(order.placed_at)} /><DetailField label="Order status" value={<StatusBadge value={order.fulfillment_status} />} /><DetailField label="Seller brand" value={<SellerBadges sellers={sellers} />} /></div></div>
       <div className="order-meta-block"><h3>Customer information</h3><div className="order-detail-fields"><DetailField label="Customer name" value={order.user?.name ?? 'Guest'} /><DetailField label="Phone" value={order.user?.phone ?? '—'} /><DetailField label="Email" value={order.user?.email ?? '—'} /></div></div>
       <div className="order-meta-block"><h3>Shipping / delivery information</h3><div className="order-detail-fields"><DetailField label="Delivery method" value={order.shipping_method?.name ?? primaryShipment?.delivery_method?.replaceAll('_', ' ') ?? 'Not selected'} /><DetailField label="Delivery status" value={<StatusBadge value={primaryShipment?.status ?? order.fulfillment_status} />} /><DetailField label="Expected delivery" value={formatDate(primaryShipment?.estimated_delivery_at)} /><div className="order-field order-field-wide"><span>Shipping address</span><strong>{formatAddress(order.shipping_address)}</strong></div><div className="order-field order-field-wide"><span>Tracking number</span>{trackingNumbers.length ? <div className="order-tracking-list">{trackingNumbers.map((trackingNumber) => <strong key={trackingNumber}>{trackingNumber}</strong>)}</div> : <strong>Shipment not created</strong>}</div></div></div>
       <div className="order-meta-block"><h3>Payment information</h3><div className="order-detail-fields"><DetailField label="Payment method" value={primaryPayment?.provider?.replaceAll('_', ' ').toUpperCase() ?? '—'} /><DetailField label="Payment status" value={<StatusBadge value={order.payment_status} />} /><DetailField label="Transaction reference" value={getPaymentReference(primaryPayment)} /></div></div>
@@ -124,7 +163,7 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
 
     <section className="order-detail-section order-items-section" aria-labelledby="order-items-heading">
       <div className="section-heading-row"><h3 id="order-items-heading">Order items</h3><span className="muted">{order.items?.length ?? 0} item{order.items?.length === 1 ? '' : 's'}</span></div>
-      {order.items?.length ? <div className="table-wrap order-items-table-wrap"><table className="order-items-table"><thead><tr><th>Product</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{order.items.map((item, index) => { const lineTotal = item.line_total_minor ?? item.unit_price_minor * item.quantity; return <tr key={item.id ?? `${item.sku}-${index}`}><td><div className="order-product-cell">{item.product_image ? <img src={item.product_image} alt="" /> : <span className="order-item-placeholder"><Package size={18} aria-hidden="true" /></span>}<strong>{item.product_name}</strong></div></td><td>{item.sku || '—'}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td><strong>{money(lineTotal, order.currency)}</strong></td></tr> })}</tbody></table></div> : <p className="muted">No order items recorded.</p>}
+      {order.items?.length ? <div className="table-wrap order-items-table-wrap"><table className="order-items-table"><thead><tr><th>Product</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{itemGroups.map((group) => <Fragment key={group.key}><tr className="order-item-seller-row"><td colSpan={5}>{group.seller ? <><span>Seller</span><SellerBadge seller={group.seller} /></> : <><span>Seller</span><span className="muted">Seller unavailable</span></>}</td></tr>{group.items.map((item, index) => { const lineTotal = item.line_total_minor ?? item.unit_price_minor * item.quantity; return <tr key={item.id ?? `${item.sku}-${index}`}><td><div className="order-product-cell">{item.product_image ? <img src={item.product_image} alt="" /> : <span className="order-item-placeholder"><Package size={18} aria-hidden="true" /></span>}<strong>{item.product_name}</strong></div></td><td>{item.sku || '—'}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td><strong>{money(lineTotal, order.currency)}</strong></td></tr> })}</Fragment>)}</tbody></table></div> : <p className="muted">No order items recorded.</p>}
     </section>
 
     <section className="order-detail-section" aria-labelledby="order-summary-heading">

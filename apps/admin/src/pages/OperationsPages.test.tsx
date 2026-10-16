@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
 import { LanguageProvider } from '../store/language'
@@ -24,8 +24,8 @@ const order: Order = {
   user: { id: 7, name: 'Thawng Kim', email: 'thawng@example.com', phone: '09950000000', status: 'active' },
   shipping_method: { id: 1, name: 'Standard delivery', code: 'standard', price_minor: 2500, currency: 'MMK' },
   items: [
-    { id: 1, product_name: 'Blue shirt', sku: 'SHIRT-BLUE-M', quantity: 2, unit_price_minor: 60000, line_total_minor: 120000, product_image: null },
-    { id: 2, product_name: 'Canvas shoes', sku: 'SHOE-CANVAS-40', quantity: 1, unit_price_minor: 60000, line_total_minor: 60000, product_image: null },
+    { id: 1, product_name: 'Blue shirt', sku: 'SHIRT-BLUE-M', quantity: 2, unit_price_minor: 60000, line_total_minor: 120000, product_image: null, seller: { id: 4, store_name: 'Kipi Fashion' } },
+    { id: 2, product_name: 'Canvas shoes', sku: 'SHOE-CANVAS-40', quantity: 1, unit_price_minor: 60000, line_total_minor: 60000, product_image: null, seller: { id: 9, store_name: 'Kipi Shoes' } },
   ],
   payments: [{ id: 1, provider: 'cod', status: 'pending', amount_minor: 172500, currency: 'MMK', provider_payment_id: null, metadata: null }],
   shipments: [{ id: 11, status: 'preparing', delivery_method: 'self_delivery', carrier: 'Kipi Self Delivery', tracking_number: null, internal_tracking_id: 'KIPI-DEL-2026-000041', estimated_delivery_at: '2026-10-20T08:00:00.000Z' }],
@@ -44,6 +44,7 @@ const secondOrder: Order = {
 }
 
 afterEach(() => {
+  cleanup()
   vi.restoreAllMocks()
 })
 
@@ -70,12 +71,15 @@ test('navigates from All Orders to a dedicated structured order detail page', as
   expect(screen.getByText('Order items')).toBeInTheDocument()
   expect(screen.getByText('Blue shirt')).toBeInTheDocument()
   expect(screen.getByText('Canvas shoes')).toBeInTheDocument()
+  expect(screen.getAllByText('Kipi Fashion').length).toBeGreaterThan(0)
+  expect(screen.getAllByText('Kipi Shoes').length).toBeGreaterThan(0)
   expect(screen.getByText('KIPI-DEL-2026-000041')).toBeInTheDocument()
   expect(screen.getByText('Order summary')).toBeInTheDocument()
   expect(screen.getByText('Order actions')).toBeInTheDocument()
 
   fireEvent.click(screen.getByRole('button', { name: 'Next order' }))
   expect(await screen.findByRole('heading', { name: 'KIPI-ORD-0042' })).toBeInTheDocument()
+  expect(screen.getAllByText('Seller unavailable').length).toBeGreaterThan(0)
   expect(screen.getByRole('button', { name: 'Previous order' })).toBeEnabled()
   expect(screen.getByRole('button', { name: 'Next order' })).toBeDisabled()
 

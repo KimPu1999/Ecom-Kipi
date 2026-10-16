@@ -143,7 +143,7 @@ export interface Order {
   user?: User
   shipping_method?: { id: number; name: string; code: string; price_minor: number; currency: string } | null
   seller_orders?: { id: number; order_number: string; seller?: { id: number; store_name: string }; status: string; payment_status: string; fulfillment_status: string; subtotal_minor: number; commission_minor: number; net_minor: number; currency: string }[]
-  items?: { id?: number; product_name: string; sku: string; quantity: number; unit_price_minor: number; line_total_minor?: number; product_image?: string | null; attributes?: Record<string, unknown> | null }[]
+  items?: { id?: number; product_name: string; sku: string; quantity: number; unit_price_minor: number; line_total_minor?: number; product_image?: string | null; attributes?: Record<string, unknown> | null; seller?: { id: number; store_name: string } | null }[]
   status_history?: { id: number; from_status: string | null; to_status: string; note: string | null; created_at: string }[]
   notes?: { id: number; note: string; created_at: string; user?: User }[]
   payments?: { id: number; provider: string; status: string; amount_minor: number; currency: string; provider_payment_id: string | null; metadata?: Record<string, unknown> | null }[]

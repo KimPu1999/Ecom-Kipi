@@ -403,7 +403,7 @@ class AdminController extends Controller
 
     public function orders(Request $request)
     {
-        $query = Order::query()->with(['user', 'items']);
+        $query = Order::query()->with(['user', 'items.seller']);
         $query->when($request->filled('q'), fn ($builder) => $builder->where('order_number', 'like', '%'.$request->string('q').'%'));
         $query->when($request->filled('payment_status'), fn ($builder) => $builder->where('payment_status', $request->string('payment_status')));
         $query->when($request->filled('fulfillment_status'), fn ($builder) => $builder->where('fulfillment_status', $request->string('fulfillment_status')));
@@ -416,7 +416,7 @@ class AdminController extends Controller
 
     public function showOrder(Order $order)
     {
-        return ApiResponse::success(new OrderResource($order->load(['user', 'items', 'sellerOrders.seller', 'sellerOrders.items', 'statusHistory', 'notes.user', 'shippingMethod', 'payments', 'shipments.tracking', 'shipments.carrierRecord', 'shipments.rider', 'refunds'])), 'Order retrieved');
+        return ApiResponse::success(new OrderResource($order->load(['user', 'items.seller', 'sellerOrders.seller', 'sellerOrders.items', 'statusHistory', 'notes.user', 'shippingMethod', 'payments', 'shipments.tracking', 'shipments.carrierRecord', 'shipments.rider', 'refunds'])), 'Order retrieved');
     }
 
     public function updateOrderStatus(OrderStatusRequest $request, Order $order, InventoryReservationService $reservations)
