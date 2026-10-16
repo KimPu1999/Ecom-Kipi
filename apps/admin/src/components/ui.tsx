@@ -1,8 +1,8 @@
 import type { PropsWithChildren, ReactNode } from 'react'
 import { AlertCircle, ChevronLeft, ChevronRight, LoaderCircle, Search } from 'lucide-react'
 
-export function PageHeader({ eyebrow, title, description, action }: { eyebrow: string; title: string; description?: string; action?: ReactNode }) {
-  return <div className="page-title"><div><span className="eyebrow">{eyebrow}</span><h1>{title}</h1>{description ? <p>{description}</p> : null}</div>{action}</div>
+export function PageHeader({ action }: { eyebrow?: string; title?: string; description?: string; action?: ReactNode }) {
+  return action ? <div className="page-actions">{action}</div> : null
 }
 
 export function Card({ children, className = '' }: PropsWithChildren<{ className?: string }>) {
