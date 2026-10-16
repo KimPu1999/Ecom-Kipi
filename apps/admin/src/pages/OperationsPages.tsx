@@ -1,9 +1,11 @@
 import { Fragment, useId, useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, ChevronUp, ClipboardCheck, Package, SlidersHorizontal } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, Package, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { adminApi } from '../services/adminApi'
 import { useAdminAuth } from '../store/auth'
+import { DEFAULT_APPEARANCE, FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, useAppearance } from '../store/appearance'
+import type { AppearanceColors, AppearanceSettings } from '../store/appearance'
 import type { InventoryRow, Order, User } from '../types/admin'
 import { Card, EmptyState, ErrorState, LoadingState, PageHeader, Pagination, SearchBox, StatusBadge } from '../components/ui'
 import './order-detail.css'
@@ -307,10 +309,92 @@ export function SettingsPage() {
     },
     onError: (reason) => setError(reason instanceof Error ? reason.message : 'Commission setting could not be saved.'),
   })
-  if (!isSuperAdmin) return <div className="page-stack"><PageHeader eyebrow="Workspace" title="Settings" description="Local dashboard preferences and operational notes." /><ErrorState message="Commission controls are restricted to Super Admins." /></div>
-  if (rules.isLoading || sellers.isLoading) return <LoadingState />
-  if (rules.isError || sellers.isError || !rules.data || !sellers.data) return <ErrorState message="Commission settings could not be loaded." />
-  const globalRule = rules.data.data.find((rule) => rule.seller_id === null)
-  const overrides = rules.data.data.filter((rule) => rule.seller_id !== null)
-  return <div className="page-stack"><PageHeader eyebrow="Workspace" title="Settings" description="Control platform defaults and marketplace commission overrides." /><Card><div className="settings-row"><div><h2>Appearance</h2><p>Use the moon/sun control in the header to change the admin theme.</p></div><ClipboardCheck size={24} className="settings-icon" /></div><div className="settings-row"><div><h2>Authorization</h2><p>Permissions are enforced by Laravel middleware. Commission controls are Super Admin only.</p></div><StatusBadge value="protected" /></div></Card><Card><div className="card-heading"><div><span className="eyebrow">Marketplace finance</span><h2>Commission control</h2><p className="muted">Commission is calculated from eligible product subtotal only. Historical order snapshots are not changed.</p></div><StatusBadge value={String(globalRule?.percentage_bps ? globalRule.percentage_bps / 100 : 5) + '% default'} /></div><form className="toolbar" onSubmit={(event) => { event.preventDefault(); setSellerId(''); save.mutate() }}><label className="field"><span>Global default (%)</span><input type="number" min="0" max="100" step="0.01" value={globalRate} placeholder={String(globalRule?.percentage_bps ? globalRule.percentage_bps / 100 : 5)} onChange={(event) => setGlobalRate(event.target.value)} /></label><button className="button primary" disabled={save.isPending || !globalRate}>Save default</button></form><div className="toolbar"><label className="field"><span>Seller override</span><select className="select" value={sellerId} onChange={(event) => setSellerId(event.target.value)}><option value="">Choose seller</option>{sellers.data.data.map((seller) => <option value={seller.id} key={seller.id}>{seller.store_name}</option>)}</select></label><label className="field"><span>Rate (%)</span><input type="number" min="0" max="100" step="0.01" value={sellerRate} onChange={(event) => setSellerRate(event.target.value)} /></label><button className="button primary" disabled={save.isPending || !sellerId || !sellerRate} onClick={() => save.mutate()}>Save override</button></div>{error ? <p className="error-box">{error}</p> : null}<div className="table-wrap"><table><thead><tr><th>Seller</th><th>Rate</th><th>Currency</th><th>Status</th></tr></thead><tbody>{overrides.map((rule) => <tr key={rule.id}><td>{rule.seller?.store_name ?? 'Seller #' + rule.seller_id}</td><td>{rule.percentage_bps / 100}%</td><td>{rule.currency}</td><td><StatusBadge value={rule.is_active ? 'active' : 'inactive'} /></td></tr>)}{!overrides.length ? <tr><td colSpan={4}>No seller overrides. The global default applies.</td></tr> : null}</tbody></table></div></Card></div>
+  const globalRule = rules.data?.data.find((rule) => rule.seller_id === null)
+  const overrides = rules.data?.data.filter((rule) => rule.seller_id !== null) ?? []
+
+  return <div className="page-stack">
+    <PageHeader eyebrow="Workspace" title="Settings" description="Customize the Admin interface and manage platform controls." />
+    <AppearanceSettingsPanel />
+    {isSuperAdmin ? rules.isLoading || sellers.isLoading ? <LoadingState /> : rules.isError || sellers.isError || !rules.data || !sellers.data ? <ErrorState message="Commission settings could not be loaded." /> : <Card><div className="card-heading"><div><span className="eyebrow">Marketplace finance</span><h2>Commission control</h2><p className="muted">Commission is calculated from eligible product subtotal only. Historical order snapshots are not changed.</p></div><StatusBadge value={String(globalRule?.percentage_bps ? globalRule.percentage_bps / 100 : 5) + '% default'} /></div><form className="toolbar" onSubmit={(event) => { event.preventDefault(); setSellerId(''); save.mutate() }}><label className="field"><span>Global default (%)</span><input type="number" min="0" max="100" step="0.01" value={globalRate} placeholder={String(globalRule?.percentage_bps ? globalRule.percentage_bps / 100 : 5)} onChange={(event) => setGlobalRate(event.target.value)} /></label><button className="button primary" disabled={save.isPending || !globalRate}>Save default</button></form><div className="toolbar"><label className="field"><span>Seller override</span><select className="select" value={sellerId} onChange={(event) => setSellerId(event.target.value)}><option value="">Choose seller</option>{sellers.data.data.map((seller) => <option value={seller.id} key={seller.id}>{seller.store_name}</option>)}</select></label><label className="field"><span>Rate (%)</span><input type="number" min="0" max="100" step="0.01" value={sellerRate} onChange={(event) => setSellerRate(event.target.value)} /></label><button className="button primary" disabled={save.isPending || !sellerId || !sellerRate} onClick={() => save.mutate()}>Save override</button></div>{error ? <p className="error-box">{error}</p> : null}<div className="table-wrap"><table><thead><tr><th>Seller</th><th>Rate</th><th>Currency</th><th>Status</th></tr></thead><tbody>{overrides.map((rule) => <tr key={rule.id}><td>{rule.seller?.store_name ?? 'Seller #' + rule.seller_id}</td><td>{rule.percentage_bps / 100}%</td><td>{rule.currency}</td><td><StatusBadge value={rule.is_active ? 'active' : 'inactive'} /></td></tr>)}{!overrides.length ? <tr><td colSpan={4}>No seller overrides. The global default applies.</td></tr> : null}</tbody></table></div></Card> : <Card><div className="settings-row"><div><h2>Authorization</h2><p>Commission controls are restricted to Super Admins. Appearance settings are saved for your current browser.</p></div><StatusBadge value="protected" /></div></Card>}
+  </div>
+}
+
+const appearanceColorFields: { key: keyof AppearanceColors; label: string; description: string }[] = [
+  { key: 'primary', label: 'Primary / accent', description: 'Buttons, links, active indicators' },
+  { key: 'text', label: 'Main text', description: 'Headings and primary values' },
+  { key: 'secondaryText', label: 'Secondary text', description: 'Labels, hints, and muted content' },
+  { key: 'pageBackground', label: 'Page background', description: 'Main Admin workspace' },
+  { key: 'surface', label: 'Card / surface', description: 'Cards, tables, and form panels' },
+  { key: 'border', label: 'Border', description: 'Dividers and control borders' },
+  { key: 'sidebarBackground', label: 'Sidebar background', description: 'Navigation surface' },
+  { key: 'sidebarText', label: 'Sidebar text', description: 'Navigation labels and icons' },
+  { key: 'headerBackground', label: 'Header background', description: 'Global header surface' },
+  { key: 'headerText', label: 'Header text', description: 'Breadcrumbs and account controls' },
+]
+
+const appearanceColorSwatches = ['#315CF5', '#073B9A', '#0EA5E9', '#16A34A', '#FF8A00', '#1E293B', '#64748B', '#F1F5F9', '#FFFFFF']
+
+function hexRgb(value: string) {
+  const match = value.match(/^#([0-9a-f]{6})$/i)
+  if (!match) return null
+  const number = Number.parseInt(match[1], 16)
+  return { r: (number >> 16) & 255, g: (number >> 8) & 255, b: number & 255 }
+}
+
+function contrastRatio(first: string, second: string) {
+  const one = hexRgb(first)
+  const two = hexRgb(second)
+  if (!one || !two) return 1
+  const luminance = (color: typeof one) => {
+    const channels = [color.r, color.g, color.b].map((channel) => channel / 255).map((channel) => channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  }
+  const lighter = Math.max(luminance(one), luminance(two))
+  const darker = Math.min(luminance(one), luminance(two))
+  return (lighter + 0.05) / (darker + 0.05)
+}
+
+function AppearanceSettingsPanel() {
+  const { settings, preview, save, reset } = useAppearance()
+  const [draft, setDraft] = useState<AppearanceSettings>(settings)
+  const [feedback, setFeedback] = useState('')
+  const update = (next: AppearanceSettings) => {
+    setDraft(next)
+    preview(next)
+    setFeedback('')
+  }
+  const updateColor = (key: keyof AppearanceColors, value: string) => update({ ...draft, colors: { ...draft.colors, [key]: value } })
+  const contrastIssues = [
+    ['Main text / page background', draft.colors.text, draft.colors.pageBackground],
+    ['Main text / surface', draft.colors.text, draft.colors.surface],
+    ['Sidebar text / sidebar background', draft.colors.sidebarText, draft.colors.sidebarBackground],
+    ['Header text / header background', draft.colors.headerText, draft.colors.headerBackground],
+    ['White button text / primary', '#FFFFFF', draft.colors.primary],
+  ].filter(([, foreground, background]) => contrastRatio(foreground, background) < 4.5).map(([label]) => label)
+  const saveSettings = () => {
+    save(draft)
+    setFeedback('Appearance settings saved for this browser.')
+  }
+  const resetSettings = () => {
+    const defaults = { ...DEFAULT_APPEARANCE, colors: { ...DEFAULT_APPEARANCE.colors } }
+    reset()
+    setDraft(defaults)
+    setFeedback('Appearance settings reset to defaults.')
+  }
+
+  return <Card className="appearance-settings-card">
+    <div className="card-heading appearance-card-heading"><div><span className="eyebrow">Admin interface</span><h2>Appearance</h2><p>Preview typography and colors across the Admin panel before saving.</p></div><Palette size={22} className="settings-icon" aria-hidden="true" /></div>
+    <div className="appearance-controls">
+      <div className="appearance-control-group"><div className="appearance-group-title"><Type size={17} aria-hidden="true" /><div><strong>Typography</strong><span>Use a comfortable size and a Burmese-compatible fallback stack.</span></div></div><div className="appearance-form-grid"><label className="field"><span>Base font size</span><select value={draft.fontSize} onChange={(event) => update({ ...draft, fontSize: event.target.value as AppearanceSettings['fontSize'] })}>{FONT_SIZE_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label} ({option.pixels}px)</option>)}</select></label><label className="field"><span>Font family</span><select value={draft.fontFamily} onChange={(event) => update({ ...draft, fontFamily: event.target.value as AppearanceSettings['fontFamily'] })}>{FONT_FAMILY_OPTIONS.map((option) => <option value={option.value} key={option.value}>{option.label}</option>)}</select></label></div></div>
+      <div className="appearance-control-group"><div className="appearance-group-title"><Palette size={17} aria-hidden="true" /><div><strong>Color palette</strong><span>Choose a preset swatch or use the color picker for each token.</span></div></div><div className="appearance-color-grid">{appearanceColorFields.map((field) => <ColorSetting key={field.key} field={field} value={draft.colors[field.key]} onChange={(value) => updateColor(field.key, value)} />)}</div></div>
+      <div className="appearance-preview" style={{ color: draft.colors.text, backgroundColor: draft.colors.surface, borderColor: draft.colors.border, fontFamily: FONT_FAMILY_OPTIONS.find((option) => option.value === draft.fontFamily)?.stack }}><div><span className="appearance-preview-label">Live preview</span><strong>Kipi Control Center</strong><p>English · မြန်မာစာ ကို မှန်ကန်စွာ ဖော်ပြနိုင်ပါသည်</p></div><button type="button" className="button primary" style={{ backgroundColor: draft.colors.primary }}>Primary action</button></div>
+      {contrastIssues.length ? <p className="appearance-warning" role="alert">Improve contrast before saving: {contrastIssues.join(', ')}.</p> : null}
+      <div className="appearance-actions"><button type="button" className="button secondary" onClick={resetSettings}><RotateCcw size={15} aria-hidden="true" />Reset to defaults</button><button type="button" className="button primary" onClick={saveSettings} disabled={contrastIssues.length > 0}>Apply and save</button></div>
+      {feedback ? <p className="appearance-feedback" role="status">{feedback}</p> : null}
+    </div>
+  </Card>
+}
+
+function ColorSetting({ field, value, onChange }: { field: { key: keyof AppearanceColors; label: string; description: string }; value: string; onChange: (value: string) => void }) {
+  return <label className="appearance-color-setting"><span><strong>{field.label}</strong><small>{field.description}</small></span><div className="appearance-color-input"><input type="color" value={value} onChange={(event) => onChange(event.target.value.toUpperCase())} aria-label={field.label} /><code>{value.toUpperCase()}</code><div className="appearance-swatches" aria-label={`${field.label} presets`}>{appearanceColorSwatches.slice(0, 5).map((swatch) => <button type="button" key={swatch} aria-label={`Use ${swatch}`} title={swatch} style={{ backgroundColor: swatch }} onClick={() => onChange(swatch)} />)}</div></div></label>
 }
