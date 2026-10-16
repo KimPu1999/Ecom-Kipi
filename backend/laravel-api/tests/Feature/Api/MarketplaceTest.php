@@ -190,6 +190,23 @@ class MarketplaceTest extends TestCase
             ->assertJsonCount(1, 'data.commission_history');
     }
 
+    public function test_seller_dashboard_returns_scoped_overview_metrics_and_trend_views(): void
+    {
+        [$seller, $product] = $this->sellerProduct('overview-store', 'active');
+        Inventory::query()->where('product_variant_id', $product->variants->firstOrFail()->id)->update(['quantity' => 0]);
+        Sanctum::actingAs($seller->owner);
+
+        $this->getJson('/api/v1/seller/dashboard?view=monthly')
+            ->assertOk()
+            ->assertJsonPath('data.metrics.products', 1)
+            ->assertJsonPath('data.metrics.total_orders', 0)
+            ->assertJsonPath('data.metrics.out_of_stock_products', 1)
+            ->assertJsonPath('data.range.view', 'monthly')
+            ->assertJsonCount(6, 'data.sales_trend')
+            ->assertJsonCount(0, 'data.recent_orders')
+            ->assertJsonCount(0, 'data.top_products');
+    }
+
     private function sellerProduct(string $slug, string $status): array
     {
         $owner = User::factory()->create();

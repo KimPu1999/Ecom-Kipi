@@ -2,16 +2,20 @@
 
 namespace App\Http\Controllers\Api\V1\Marketplace;
 
+use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\V1\ProductImageRequest;
 use App\Http\Requests\Api\V1\InventoryAdjustmentRequest;
 use App\Http\Requests\Api\V1\VariantRequest;
 use App\Http\Resources\ProductResource;
+use App\Models\Inventory;
 use App\Models\OrderItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\Rider;
 use App\Models\Seller;
+use App\Models\SellerOrderItem;
+use App\Models\SellerLedgerEntry;
 use App\Models\SellerOrder;
 use App\Models\Shipment;
 use App\Services\MarketplaceOrderService;
@@ -36,8 +40,146 @@ class SellerController extends Controller
     public function dashboard(Request $request)
     {
         $seller = $this->seller($request);
+        $view = $request->string('view', 'daily')->toString();
+        $view = in_array($view, ['daily', 'weekly', 'monthly'], true) ? $view : 'daily';
+        [$from, $to] = $this->sellerDashboardRange($view);
+        $orders = $seller->orders();
+        $totalOrders = (clone $orders)->count();
+        $pendingOrders = (clone $orders)->where('fulfillment_status', 'pending')->count();
+        $awaitingShipment = (clone $orders)
+            ->where('payment_status', 'paid')
+            ->whereIn('fulfillment_status', ['pending', 'confirmed', 'processing'])
+            ->whereDoesntHave('shipments')
+            ->count();
+        $paymentIssues = (clone $orders)->whereIn('payment_status', ['failed', 'cancelled'])->count();
+        $products = $seller->products()->count();
+        $inventory = Inventory::query()
+            ->join('product_variants', 'inventories.product_variant_id', '=', 'product_variants.id')
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->where('products.seller_id', $seller->id);
+        $lowStockProducts = (clone $inventory)
+            ->whereRaw('inventories.quantity > inventories.reserved_quantity')
+            ->whereRaw('(inventories.quantity - inventories.reserved_quantity) <= inventories.low_stock_threshold')
+            ->distinct()
+            ->count('product_variants.product_id');
+        $outOfStockProducts = (clone $inventory)
+            ->whereRaw('inventories.quantity <= inventories.reserved_quantity')
+            ->distinct()
+            ->count('product_variants.product_id');
+        $earnings = $this->marketplace->earnings($seller->id);
 
-        return ApiResponse::success(['seller' => $seller, 'products' => $seller->products()->count(), 'orders' => $seller->orders()->count(), 'earnings' => $this->marketplace->earnings($seller->id)], 'Seller dashboard retrieved');
+        return ApiResponse::success([
+            'seller' => $seller,
+            'products' => $products,
+            'orders' => $totalOrders,
+            'earnings' => $earnings,
+            'metrics' => [
+                'total_sales_minor' => $earnings['total_sales_minor'],
+                'total_orders' => $totalOrders,
+                'pending_orders' => $pendingOrders,
+                'products' => $products,
+                'low_stock_products' => $lowStockProducts,
+                'out_of_stock_products' => $outOfStockProducts,
+                'net_earnings_minor' => $earnings['net_earnings_minor'],
+                'commission_deducted_minor' => $earnings['commission_deducted_minor'],
+                'pending_earnings_minor' => $earnings['pending_earnings_minor'],
+                'paid_earnings_minor' => $earnings['paid_earnings_minor'],
+                'refund_adjustments_minor' => $earnings['refund_adjustments_minor'],
+                'currency' => $earnings['currency'],
+                'awaiting_shipment' => $awaitingShipment,
+                'payment_issues' => $paymentIssues,
+            ],
+            'range' => ['view' => $view, 'from' => $from->toDateString(), 'to' => $to->toDateString()],
+            'sales_trend' => $this->sellerSalesTrend($seller->id, $view, $from, $to),
+            'recent_orders' => $seller->orders()->with(['order.user'])->latest()->limit(6)->get()->map(fn (SellerOrder $order) => [
+                'id' => $order->id,
+                'order_id' => $order->order_id,
+                'order_number' => $order->order_number,
+                'customer_name' => $order->order?->user?->name,
+                'created_at' => $order->created_at?->toISOString(),
+                'subtotal_minor' => (int) $order->subtotal_minor,
+                'currency' => $order->currency,
+                'payment_status' => $order->payment_status,
+                'fulfillment_status' => $order->fulfillment_status,
+            ]),
+            'top_products' => $this->sellerTopProducts($seller->id),
+        ], 'Seller dashboard retrieved');
+    }
+
+    private function sellerDashboardRange(string $view): array
+    {
+        $now = now();
+
+        return match ($view) {
+            'weekly' => [$now->copy()->startOfWeek()->subWeeks(7), $now->copy()->endOfWeek()],
+            'monthly' => [$now->copy()->startOfMonth()->subMonths(5), $now->copy()->endOfMonth()],
+            default => [$now->copy()->subDays(6)->startOfDay(), $now->copy()->endOfDay()],
+        };
+    }
+
+    private function sellerSalesTrend(int $sellerId, string $view, Carbon $from, Carbon $to): array
+    {
+        $entries = SellerLedgerEntry::query()
+            ->where('seller_id', $sellerId)
+            ->where('type', 'sale_credit')
+            ->whereBetween('occurred_at', [$from, $to])
+            ->get();
+        $grouped = $entries->groupBy(function (SellerLedgerEntry $entry) use ($view): string {
+            $occurredAt = $entry->occurred_at;
+
+            return match ($view) {
+                'weekly' => $occurredAt->copy()->startOfWeek()->toDateString(),
+                'monthly' => $occurredAt->copy()->startOfMonth()->toDateString(),
+                default => $occurredAt->toDateString(),
+            };
+        });
+        $step = match ($view) {
+            'weekly' => 'addWeek',
+            'monthly' => 'addMonth',
+            default => 'addDay',
+        };
+        $cursor = $from->copy();
+        $trend = [];
+
+        while ($cursor->lte($to)) {
+            $date = $cursor->toDateString();
+            $rows = $grouped->get($date, collect());
+            $trend[] = [
+                'date' => $date,
+                'revenue' => (int) $rows->sum('amount_minor'),
+                'orders' => $rows->pluck('seller_order_id')->filter()->unique()->count(),
+            ];
+            $cursor->{$step}();
+        }
+
+        return $trend;
+    }
+
+    private function sellerTopProducts(int $sellerId): array
+    {
+        $items = SellerOrderItem::query()
+            ->whereHas('sellerOrder', fn ($query) => $query->where('seller_id', $sellerId)->where('payment_status', 'paid')->whereNotIn('fulfillment_status', ['cancelled']))
+            ->with(['sellerOrder', 'variant.product.images'])
+            ->get();
+        $grouped = [];
+
+        foreach ($items as $item) {
+            $key = $item->product_variant_id ? 'variant:'.$item->product_variant_id : 'name:'.$item->product_name;
+            $product = $item->variant?->product;
+            $image = $product?->images?->firstWhere('is_primary', true) ?? $product?->images?->first();
+            $grouped[$key] ??= [
+                'product_id' => $product?->id,
+                'name' => $item->product_name,
+                'image_url' => $image?->url,
+                'quantity' => 0,
+                'revenue' => 0,
+                'currency' => $item->sellerOrder?->currency ?? 'MMK',
+            ];
+            $grouped[$key]['quantity'] += (int) $item->quantity;
+            $grouped[$key]['revenue'] += (int) $item->line_total_minor;
+        }
+
+        return collect($grouped)->sortByDesc('quantity')->take(5)->values()->all();
     }
 
     public function products(Request $request)
@@ -191,6 +333,13 @@ class SellerController extends Controller
         $orders = $this->seller($request)->orders()->with(['order.user', 'items', 'shipments.tracking', 'shipments.items.orderItem', 'shipments.method', 'shipments.carrierRecord', 'shipments.rider'])->latest()->paginate(min((int) $request->input('per_page', 20), 100));
 
         return ApiResponse::paginated($orders, $orders->items(), 'Seller orders retrieved');
+    }
+
+    public function showOrder(Request $request, SellerOrder $sellerOrder)
+    {
+        abort_unless((int) $sellerOrder->seller_id === (int) $this->seller($request)->id, 404);
+
+        return ApiResponse::success($sellerOrder->load(['order.user', 'items', 'shipments.tracking', 'shipments.method', 'shipments.carrierRecord', 'shipments.rider']), 'Seller order retrieved');
     }
 
     public function riders(Request $request)
