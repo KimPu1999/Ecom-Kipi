@@ -703,3 +703,66 @@ select,
   .topbar-actions { gap: 6px; }
   .language-trigger { padding-inline: 6px; }
 }
+
+/* Keep the global header visible while the page content scrolls independently. */
+:root {
+  --admin-header-height: 68px;
+}
+
+.admin-shell {
+  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  top: var(--admin-header-height);
+  bottom: 0;
+  height: auto;
+}
+
+.admin-main {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  flex: 0 0 var(--admin-header-height);
+  height: var(--admin-header-height);
+  min-height: var(--admin-header-height);
+}
+
+.admin-content {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 860px) {
+  .admin-shell {
+    height: 100dvh;
+    min-height: 100dvh;
+  }
+
+  .sidebar {
+    top: var(--admin-header-height);
+  }
+
+  .mobile-backdrop.visible {
+    top: var(--admin-header-height);
+    bottom: 0;
+  }
+
+  .admin-main {
+    height: 100dvh;
+  }
+}
