@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, BarChart3, Bell, Boxes, Check, ChevronLeft, ChevronRight, ClipboardList, ImagePlus, LayoutDashboard, LogOut, Menu, Pencil, Search, Settings, Star, Store, Trash2, UploadCloud, Wallet, X } from 'lucide-react'
+import { ArrowLeft, BarChart3, Bell, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, ClipboardList, ImagePlus, LayoutDashboard, LogOut, Menu, Pencil, Search, Settings, Star, Store, Trash2, UploadCloud, Wallet, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ApiClientError } from '@kipi/api-client'
@@ -34,14 +34,65 @@ function Login() {
   return <div className="login-page"><div className="login-panel"><span className="logo">K</span><span className="kicker">KIPI MARKETPLACE</span><h1>Your store, in focus.</h1><p>Manage products, inventory, fulfillment, earnings, and your seller team from one workspace.</p></div><form className="login-card" onSubmit={handleSubmit(submit)}><span className="kicker">Seller portal</span><h2>Welcome back</h2><p className="muted">Use your approved seller account to continue.</p>{error && <div className="error">{error}</div>}<label>Email<input type="email" placeholder="seller@example.com" {...register('email')} />{errors.email && <small>{errors.email.message}</small>}</label><label>Password<input type="password" placeholder="Your password" {...register('password')} />{errors.password && <small>{errors.password.message}</small>}</label><button className="primary" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign in'}</button></form></div>
 }
 
+export function SellerProfileMenu({ user, onLogout }: { user: { name?: string | null; email?: string | null } | null; onLogout: () => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [error, setError] = useState('')
+  const menuRef = useRef<HTMLDivElement>(null)
+  const name = user?.name?.trim() || 'Seller'
+  const initial = name.slice(0, 1).toUpperCase()
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', closeOnOutsideClick)
+    document.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutsideClick)
+      document.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [])
+
+  async function handleLogout() {
+    if (loggingOut) return
+    setError('')
+    setLoggingOut(true)
+    try {
+      await onLogout()
+    } catch (reason) {
+      setLoggingOut(false)
+      setError(apiErrorMessage(reason))
+    }
+  }
+
+  return <div className="seller-profile-menu" ref={menuRef}>
+    <button className="seller-profile-trigger" type="button" aria-label="Open profile menu" aria-expanded={open} aria-haspopup="menu" onClick={() => { setError(''); setOpen((value) => !value) }}>
+      <span className="avatar" aria-hidden="true">{initial}</span>
+      <span className="seller-profile-trigger-copy"><strong>{name}</strong><small>Seller account</small></span>
+      <ChevronDown size={16} aria-hidden="true" />
+    </button>
+    {open ? <div className="seller-profile-dropdown" role="menu" aria-label="Profile menu">
+      <div className="seller-profile-summary"><strong>{name}</strong><span>{user?.email || 'No email available'}</span></div>
+      <div className="seller-profile-divider" />
+      <Link className="seller-profile-menu-item" to="/seller/settings" role="menuitem" onClick={() => setOpen(false)}><Settings size={17} aria-hidden="true" /><span>Settings</span></Link>
+      <button className="seller-profile-menu-item danger" type="button" role="menuitem" disabled={loggingOut} onClick={handleLogout}><LogOut size={17} aria-hidden="true" /><span>{loggingOut ? 'Signing out…' : 'Log out'}</span></button>
+      {error ? <p className="seller-profile-error" role="alert">{error}</p> : null}
+    </div> : null}
+  </div>
+}
+
 function Layout() {
   const [open, setOpen] = useState(false); const [collapsed, setCollapsed] = useState(false); const navigate = useNavigate(); const location = useLocation(); const clear = useSellerAuth((s) => s.clear); const user = useSellerAuth((s) => s.user)
   const notifications = useQuery({ queryKey: ['seller-notifications'], queryFn: () => sellerRequestWithMeta<NotificationPage[]>('GET', '/notifications', undefined, { params: { per_page: 20 } }) })
-  const logout = async () => { try { await api.auth.logout() } finally { clear(); navigate('/seller/login') } }
-  const items = [["Overview", "/seller", LayoutDashboard], ["Products", "/seller/products", Store], ["Inventory", "/seller/inventory", Boxes], ["Orders", "/seller/orders", ClipboardList], ["Fulfillment", "/seller/fulfillment", ClipboardList], ["Earnings", "/seller/earnings", BarChart3], ["Payouts", "/seller/payouts", Wallet], ["Settings", "/seller/settings", Settings]] as const
+  const logout = async () => { await api.auth.logout(); clear(); navigate('/seller/login', { replace: true }) }
+  const items = [["Overview", "/seller", LayoutDashboard], ["Products", "/seller/products", Store], ["Inventory", "/seller/inventory", Boxes], ["Orders", "/seller/orders", ClipboardList], ["Fulfillment", "/seller/fulfillment", ClipboardList], ["Earnings", "/seller/earnings", BarChart3], ["Payouts", "/seller/payouts", Wallet]] as const
   const pageTitle = location.pathname.startsWith('/seller/products') ? 'Product Management' : 'Seller workspace'
   const unreadCount = notifications.data?.meta.unread_count ?? 0
-  return <div className={'shell ' + (collapsed ? 'sidebar-collapsed' : '')}><aside className={'sidebar ' + (open ? 'open' : '')}><div className="brand"><span className="logo small">K</span><span>Kipi <em>Seller</em></span><button className="icon mobile" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={19} /></button></div><p className="nav-label">Workspace</p><div className="sidebar-navigation"><nav>{items.map(([label, to, Icon]) => <NavLink key={to} to={to} end={to === '/seller'} onClick={() => setOpen(false)} aria-label={label} title={collapsed ? label : undefined}><Icon size={20} strokeWidth={2} aria-hidden="true" /><span className="nav-item-label">{label}</span></NavLink>)}</nav></div><footer className="sidebar-footer"><div className="user"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name}</strong><small>Seller account</small></div><button className="icon" onClick={logout} aria-label="Log out" title="Log out"><LogOut size={17} /></button></div><button className="sidebar-collapse" type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}<span>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span></button></footer></aside>{open ? <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setOpen(false)} /> : null}<main className="main"><header className="seller-header"><div className="header-title-group"><button className="icon mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><div><span className="kicker">SELLER WORKSPACE</span><strong>{pageTitle}</strong></div></div><div className="header-actions"><label className="header-search"><Search size={16} /><span className="visually-hidden">Search seller products</span><input placeholder="Search products" aria-label="Search seller products" onKeyDown={(event) => { if (event.key === 'Enter') navigate(`/seller/products?q=${encodeURIComponent(event.currentTarget.value.trim())}`) }} /></label><button className="header-icon" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}><Bell size={18} />{unreadCount > 0 ? <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}</button><ThemeSwitcher /><LanguageSwitcher /><div className="header-account"><span className="avatar">{user?.name?.slice(0, 1).toUpperCase()}</span><div><strong>{user?.name ?? 'Seller'}</strong><small>Seller account</small></div></div><Link className="store-link" to="/" target="_blank"><Store size={17} />Open storefront</Link></div></header><section className="content"><Outlet /></section></main></div>
+  return <div className={'shell ' + (collapsed ? 'sidebar-collapsed' : '')}><aside className={'sidebar ' + (open ? 'open' : '')}><div className="brand"><span className="logo small">K</span><span>Kipi <em>Seller</em></span><button className="icon mobile" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={19} /></button></div><p className="nav-label">Workspace</p><div className="sidebar-navigation"><nav>{items.map(([label, to, Icon]) => <NavLink key={to} to={to} end={to === '/seller'} onClick={() => setOpen(false)} aria-label={label} title={collapsed ? label : undefined}><Icon size={20} strokeWidth={2} aria-hidden="true" /><span className="nav-item-label">{label}</span></NavLink>)}</nav></div><footer className="sidebar-footer"><button className="sidebar-collapse" type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}<span>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span></button></footer></aside>{open ? <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setOpen(false)} /> : null}<main className="main"><header className="seller-header"><div className="header-title-group"><button className="icon mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><div><span className="kicker">SELLER WORKSPACE</span><strong>{pageTitle}</strong></div></div><div className="header-actions"><label className="header-search"><Search size={16} /><span className="visually-hidden">Search seller products</span><input placeholder="Search products" aria-label="Search seller products" onKeyDown={(event) => { if (event.key === 'Enter') navigate(`/seller/products?q=${encodeURIComponent(event.currentTarget.value.trim())}`) }} /></label><button className="header-icon" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}><Bell size={18} />{unreadCount > 0 ? <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}</button><ThemeSwitcher /><LanguageSwitcher /><SellerProfileMenu user={user} onLogout={logout} /><Link className="store-link" to="/" target="_blank"><Store size={17} />Open storefront</Link></div></header><section className="content"><Outlet /></section></main></div>
 }
 
 function Protected() { return useSellerAuth((s) => s.user) ? <Outlet /> : <Navigate to="/seller/login" replace /> }
