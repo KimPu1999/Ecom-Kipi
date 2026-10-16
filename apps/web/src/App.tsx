@@ -5,6 +5,7 @@ import { Footer } from './components/Footer'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { Home } from './pages/Home'
 import { LoadingState } from './components/StorefrontUI'
+import { LanguageProvider } from '../../../packages/i18n/src'
 
 const Login = lazy(() => import('./pages/AuthPages').then((module) => ({ default: module.Login })))
 const Register = lazy(() => import('./pages/AuthPages').then((module) => ({ default: module.Register })))
@@ -36,10 +37,10 @@ const CategoriesPage = lazy(() => import('./pages/ContentPages').then((module) =
 
 export function App() {
   return (
-    <BrowserRouter>
+    <LanguageProvider><BrowserRouter>
       <Header />
       <main className="page-shell"><Suspense fallback={<LoadingState />}><Routes><Route path="/" element={<Home />} /><Route path="/about" element={<AboutPage />} /><Route path="/categories" element={<CategoriesPage />} /><Route path="/contact" element={<ContactPage />} /><Route path="/faq" element={<FaqPage />} /><Route path="/promotions" element={<PromotionsPage />} /><Route path="/login" element={<Login />} /><Route path="/register" element={<Register />} /><Route path="/forgot-password" element={<ForgotPassword />} /><Route path="/products" element={<ProductListing />} /><Route path="/products/:slug" element={<ProductDetail />} /><Route path="/stores" element={<StoresPage />} /><Route path="/stores/:slug" element={<StoreDetailPage />} /><Route path="/search" element={<SearchPage />} /><Route path="/cart" element={<CartPage />} /><Route path="/checkout/success" element={<CheckoutSuccessPage />} /><Route path="/checkout/cancel" element={<CheckoutCancelPage />} /><Route path="/checkout/pending" element={<CheckoutPendingPage />} /><Route element={<ProtectedRoute />}><Route path="/account" element={<AccountPage />} /><Route path="/account/addresses" element={<AddressesPage />} /><Route path="/account/wishlist" element={<WishlistPage />} /><Route path="/account/notifications" element={<NotificationsPage />} /><Route path="/account/seller-application" element={<SellerApplicationPage />} /><Route path="/account/orders" element={<OrdersPage />} /><Route path="/account/orders/:id" element={<OrderDetailPage />} /><Route path="/account/orders/:id/tracking" element={<OrderTrackingPage />} /><Route path="/checkout" element={<CheckoutPage />} /></Route><Route path="*" element={<NotFound />} /></Routes></Suspense></main>
       <Footer />
-    </BrowserRouter>
+    </BrowserRouter></LanguageProvider>
   )
 }

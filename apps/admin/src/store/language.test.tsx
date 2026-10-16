@@ -1,7 +1,8 @@
 import '@testing-library/jest-dom/vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { expect, test, beforeEach } from 'vitest'
-import { LanguageProvider, useLanguage } from './language'
+import { LanguageProvider, LanguageSwitcher, useLanguage } from './language'
+import { missingTranslations } from '../../../../packages/i18n/src'
 
 function LanguageProbe() {
   const { language, setLanguage, t } = useLanguage()
@@ -22,4 +23,30 @@ test('switches to Burmese and persists the selected language', () => {
   view.unmount()
   render(<LanguageProvider><LanguageProbe /></LanguageProvider>)
   expect(screen.getByText('လမ်းညွှန်')).toBeInTheDocument()
+})
+
+test('keeps the shared core UI vocabulary translated', () => {
+  expect(missingTranslations([
+    'Navigation',
+    'Dashboard',
+    'Products',
+    'Orders',
+    'Settings',
+    'Search',
+    'Save',
+    'Cancel',
+    'Language',
+    'English',
+    'Burmese',
+  ])).toEqual([])
+})
+
+test('language selector changes the shared preference from its menu', () => {
+  render(<LanguageProvider><LanguageSwitcher /></LanguageProvider>)
+
+  fireEvent.click(screen.getByRole('button', { name: 'Language' }))
+  fireEvent.click(screen.getByRole('menuitemradio', { name: 'မြန်မာ' }))
+
+  expect(localStorage.getItem('kipi.language')).toBe('my')
+  expect(localStorage.getItem('kipi.admin.language')).toBe('my')
 })

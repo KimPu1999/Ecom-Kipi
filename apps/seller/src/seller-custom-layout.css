@@ -1547,11 +1547,16 @@ header {
   --seller-text: #1e293b;
   --seller-muted: #64748b;
   --seller-border: #e2e8f0;
+  --seller-soft: #eff6ff;
 }
 
 body {
   color: var(--seller-text);
   background: var(--seller-body-bg);
+}
+
+html[lang='my'] body {
+  font-family: "Noto Sans Myanmar", "Myanmar Text", Inter, system-ui, sans-serif;
 }
 
 .shell,
@@ -1814,6 +1819,65 @@ body {
   padding: 10px 12px;
 }
 
+.language-switcher {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.language-switcher-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid var(--seller-border);
+  border-radius: 7px;
+  color: var(--seller-muted);
+  background: var(--seller-surface);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.language-switcher-trigger:focus-visible,
+.language-switcher-menu button:focus-visible {
+  outline: 2px solid var(--seller-primary);
+  outline-offset: 2px;
+}
+
+.language-switcher-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 80;
+  display: grid;
+  min-width: 132px;
+  gap: 2px;
+  padding: 5px;
+  border: 1px solid var(--seller-border);
+  border-radius: 8px;
+  background: var(--seller-surface);
+  box-shadow: 0 10px 26px rgba(15, 23, 42, .12);
+}
+
+.language-switcher-menu button {
+  padding: 8px 9px;
+  border: 0;
+  border-radius: 5px;
+  color: var(--seller-muted);
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.language-switcher-menu button:hover,
+.language-switcher-menu button.selected {
+  color: var(--seller-primary);
+  background: var(--seller-soft);
+}
+
 @media (max-width: 640px) {
   .content:has(.product-management-page) {
     padding: 12px 16px 32px;
@@ -1822,5 +1886,10 @@ body {
   .product-listing-toolbar {
     align-items: stretch;
     padding: 12px 16px;
+  }
+
+  .language-switcher-trigger {
+    min-height: 34px;
+    padding-inline: 7px;
   }
 }
