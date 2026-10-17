@@ -34,6 +34,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     Route::prefix('auth')->middleware('throttle:10,1')->group(function () {
         Route::post('register', [AuthController::class, 'register']);
         Route::post('login', [AuthController::class, 'login']);
+        Route::post('google', [AuthController::class, 'google']);
         Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
         Route::post('reset-password', [AuthController::class, 'resetPassword']);
     });

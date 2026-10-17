@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { loginSchema, registerSchema, emailSchema, type LoginInput, type RegisterInput } from '@kipi/validation'
 import { ApiClientError } from '@kipi/api-client'
+import { GoogleSignInButton } from '../components/GoogleSignInButton'
 import { Logo } from '../components/Logo'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth'
@@ -19,7 +20,13 @@ function PasswordField({ label, error, show, onToggle, ...props }: { label: stri
 }
 
 function message(error: unknown) {
-  return error instanceof ApiClientError ? error.message : 'Something went wrong. Please try again.'
+  if (error instanceof ApiClientError) {
+    return error.status === undefined
+      ? 'Unable to reach THANGPC. Check your connection and try again.'
+      : error.message
+  }
+
+  return error instanceof Error ? error.message : 'Something went wrong. Please try again.'
 }
 
 type AuthMode = 'login' | 'register' | 'recovery'
@@ -57,6 +64,7 @@ export function Login() {
   const setSession = useAuthStore((state) => state.setSession)
   const [serverError, setServerError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+  const [googleSubmitting, setGoogleSubmitting] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) })
 
   async function onSubmit(values: LoginInput) {
@@ -70,7 +78,21 @@ export function Login() {
     }
   }
 
-  return <AuthFrame mode="login"><AuthBrand /><div className="auth-card-heading"><span className="auth-kicker">Welcome back to THANGPC</span><h1>Welcome Back</h1><p>Sign in to explore the latest PC hardware and electronics.</p></div>{serverError ? <div className="auth-error" role="alert">{serverError}</div> : null}<form className="auth-form" onSubmit={handleSubmit(onSubmit)}><Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" {...register('email')} error={errors.email?.message} /><PasswordField label="Password" autoComplete="current-password" placeholder="Enter your password" show={showPassword} onToggle={() => setShowPassword((value) => !value)} {...register('password')} error={errors.password?.message} /><div className="auth-form-options"><label className="auth-checkbox"><input type="checkbox" /> <span>Remember me</span></label><Link to="/forgot-password">Forgot password?</Link></div><button className="button primary full auth-submit" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign In'}<ArrowRight size={18} /></button></form><p className="auth-switch">New to THANGPC? <Link to="/register">Create your account</Link></p><p className="auth-security"><ShieldCheck size={16} /> Secure sign-in powered by THANGPC</p></AuthFrame>
+  async function onGoogleCredential(credential: string) {
+    setServerError('')
+    setGoogleSubmitting(true)
+    try {
+      const response = await api.auth.googleLogin({ credential, device_name: 'customer-web' })
+      setSession(response.data.user, response.data.token)
+      navigate(params.get('next') || '/account', { replace: true })
+    } catch (error) {
+      setServerError(message(error))
+    } finally {
+      setGoogleSubmitting(false)
+    }
+  }
+
+  return <AuthFrame mode="login"><AuthBrand /><div className="auth-card-heading"><span className="auth-kicker">Welcome back to THANGPC</span><h1>Welcome Back</h1><p>Sign in to explore the latest PC hardware and electronics.</p></div>{serverError ? <div className="auth-error" role="alert">{serverError}</div> : null}<form className="auth-form" onSubmit={handleSubmit(onSubmit)}><Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" {...register('email')} error={errors.email?.message} /><PasswordField label="Password" autoComplete="current-password" placeholder="Enter your password" show={showPassword} onToggle={() => setShowPassword((value) => !value)} {...register('password')} error={errors.password?.message} /><div className="auth-form-options"><label className="auth-checkbox"><input type="checkbox" /> <span>Remember me</span></label><Link to="/forgot-password">Forgot password?</Link></div><button className="button primary full auth-submit" disabled={isSubmitting || googleSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign In'}<ArrowRight size={18} /></button></form><div className="auth-divider"><span>or continue with</span></div><GoogleSignInButton disabled={isSubmitting || googleSubmitting} onCredential={onGoogleCredential} onError={setServerError} /><p className="auth-google-note">Google securely verifies your email. You can close the Google dialog and use email and password instead.</p><p className="auth-switch">New to THANGPC? <Link to="/register">Create your account</Link></p><p className="auth-security"><ShieldCheck size={16} /> Secure sign-in powered by THANGPC</p></AuthFrame>
 }
 
 export function Register() {
@@ -79,6 +101,7 @@ export function Register() {
   const [serverError, setServerError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmation, setShowConfirmation] = useState(false)
+  const [googleSubmitting, setGoogleSubmitting] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterInput>({ resolver: zodResolver(registerSchema) })
 
   async function onSubmit(values: RegisterInput) {
@@ -92,7 +115,21 @@ export function Register() {
     }
   }
 
-  return <AuthFrame mode="register"><AuthBrand /><div className="auth-card-heading"><span className="auth-kicker">Join the THANGPC community</span><h1>Create Your THANGPC Account</h1><p>Create an account to shop smarter, save favorites, and track every order.</p></div>{serverError ? <div className="auth-error" role="alert">{serverError}</div> : null}<form className="auth-form auth-form-register" onSubmit={handleSubmit(onSubmit)}><Field label="Full name" autoComplete="name" placeholder="Your full name" {...register('name')} error={errors.name?.message} /><Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" {...register('email')} error={errors.email?.message} /><Field label="Phone (optional)" autoComplete="tel" placeholder="Your phone number" {...register('phone')} error={errors.phone?.message} /><PasswordField label="Password" autoComplete="new-password" placeholder="At least 8 characters" show={showPassword} onToggle={() => setShowPassword((value) => !value)} {...register('password')} error={errors.password?.message} /><PasswordField label="Confirm password" autoComplete="new-password" placeholder="Re-enter your password" show={showConfirmation} onToggle={() => setShowConfirmation((value) => !value)} {...register('password_confirmation')} error={errors.password_confirmation?.message} /><button className="button primary full auth-submit" disabled={isSubmitting}>{isSubmitting ? 'Creating account…' : 'Create Account'}<ArrowRight size={18} /></button></form><p className="auth-legal">By creating an account, you agree to the THANGPC marketplace terms and privacy practices.</p><p className="auth-switch">Already have an account? <Link to="/login">Sign in</Link></p></AuthFrame>
+  async function onGoogleCredential(credential: string) {
+    setServerError('')
+    setGoogleSubmitting(true)
+    try {
+      const response = await api.auth.googleLogin({ credential, device_name: 'customer-web' })
+      setSession(response.data.user, response.data.token)
+      navigate('/account', { replace: true })
+    } catch (error) {
+      setServerError(message(error))
+    } finally {
+      setGoogleSubmitting(false)
+    }
+  }
+
+  return <AuthFrame mode="register"><AuthBrand /><div className="auth-card-heading"><span className="auth-kicker">Join the THANGPC community</span><h1>Create Your THANGPC Account</h1><p>Create an account to shop smarter, save favorites, and track every order.</p></div>{serverError ? <div className="auth-error" role="alert">{serverError}</div> : null}<form className="auth-form auth-form-register" onSubmit={handleSubmit(onSubmit)}><Field label="Full name" autoComplete="name" placeholder="Your full name" {...register('name')} error={errors.name?.message} /><Field label="Email address" type="email" autoComplete="email" placeholder="you@example.com" {...register('email')} error={errors.email?.message} /><Field label="Phone (optional)" autoComplete="tel" placeholder="Your phone number" {...register('phone')} error={errors.phone?.message} /><PasswordField label="Password" autoComplete="new-password" placeholder="At least 8 characters" show={showPassword} onToggle={() => setShowPassword((value) => !value)} {...register('password')} error={errors.password?.message} /><PasswordField label="Confirm password" autoComplete="new-password" placeholder="Re-enter your password" show={showConfirmation} onToggle={() => setShowConfirmation((value) => !value)} {...register('password_confirmation')} error={errors.password_confirmation?.message} /><button className="button primary full auth-submit" disabled={isSubmitting || googleSubmitting}>{isSubmitting ? 'Creating account…' : 'Create Account'}<ArrowRight size={18} /></button></form><div className="auth-divider"><span>or continue with</span></div><GoogleSignInButton disabled={isSubmitting || googleSubmitting} onCredential={onGoogleCredential} onError={setServerError} /><p className="auth-google-note">Google securely verifies your email. You can close the Google dialog and use email and password instead.</p><p className="auth-legal">By creating an account, you agree to the THANGPC marketplace terms and privacy practices.</p><p className="auth-switch">Already have an account? <Link to="/login">Sign in</Link></p></AuthFrame>
 }
 
 export function ForgotPassword() {

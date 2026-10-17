@@ -13,6 +13,7 @@ describe('THANGPC authentication pages', () => {
     expect(screen.getByRole('heading', { name: 'Welcome Back' })).toBeInTheDocument()
     expect(screen.getByText('Sign in to explore the latest PC hardware and electronics.')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'THANGPC home' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeDisabled()
 
     const password = screen.getByPlaceholderText('Enter your password')
     expect(password).toHaveAttribute('type', 'password')

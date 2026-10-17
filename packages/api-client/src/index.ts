@@ -33,6 +33,7 @@ export interface ApiClient {
   request<T>(config: AxiosRequestConfig): Promise<AxiosResponse<T>>
   auth: {
     login(payload: unknown): Promise<ApiResponse<AuthResponse>>
+    googleLogin(payload: unknown): Promise<ApiResponse<AuthResponse>>
     register(payload: unknown): Promise<ApiResponse<AuthResponse>>
     me(): Promise<ApiResponse<AuthUser>>
     logout(): Promise<void>
@@ -91,6 +92,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     request: (config) => client.request(config),
     auth: {
       login: (payload) => client.post('/auth/login', payload).then((response) => response.data),
+      googleLogin: (payload) => client.post('/auth/google', payload).then((response) => response.data),
       register: (payload) =>
         client.post('/auth/register', payload).then((response) => response.data),
       me: () => client.get('/auth/me').then((response) => response.data),
