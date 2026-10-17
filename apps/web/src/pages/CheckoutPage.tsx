@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { storefrontApi } from '../services/storefrontApi';
-import type { Address } from '../types/storefront';
+import type { Address, CartItem } from '../types/storefront';
 import {
     Card,
     EmptyState,
@@ -14,6 +14,18 @@ import {
 
 const manualPaymentCodes = ['kbzpay', 'ayapay', 'wavepay', 'bank_transfer'] as const;
 type CheckoutPaymentMethod = 'cod' | (typeof manualPaymentCodes)[number];
+
+function checkoutCartFingerprint(items: CartItem[]): string {
+    return items
+        .map((item) => [
+            item.id,
+            item.variant?.id ?? 'missing-variant',
+            item.quantity,
+            item.variant?.price_minor ?? 'missing-price',
+            item.variant?.currency ?? 'missing-currency',
+        ].join(':'))
+        .join('|');
+}
 
 export function CheckoutPage() {
     const client = useQueryClient();
@@ -39,12 +51,15 @@ export function CheckoutPage() {
     const method = shipping.data?.data.find(
         (item) => item.id === (methodId ?? shipping.data.data[0]?.id),
     );
+    const cartFingerprint = cart.data?.data ? checkoutCartFingerprint(cart.data.data.items) : '';
     const preview = useQuery({
-        queryKey: ['checkout-preview', method?.id, couponCode],
+        queryKey: ['checkout-preview', cartFingerprint, method?.id, couponCode],
         queryFn: () => storefrontApi.checkoutPreview(method?.id, couponCode || undefined),
         enabled: Boolean(cart.data?.data.item_count && method?.id),
     });
     const [paymentError, setPaymentError] = useState('');
+    const [showOrderConfirmation, setShowOrderConfirmation] = useState(false);
+    const [checkoutIdempotencyKey] = useState(() => crypto.randomUUID());
     const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cod');
     const [senderPhone, setSenderPhone] = useState('');
     const [transactionCode, setTransactionCode] = useState('');
@@ -70,10 +85,13 @@ export function CheckoutPage() {
                           }
                         : {}),
                 },
-                crypto.randomUUID(),
+                checkoutIdempotencyKey,
             ),
-        onSuccess: (response) => {
-            client.invalidateQueries({ queryKey: ['cart'] });
+        onSuccess: async (response) => {
+            await Promise.all([
+                client.invalidateQueries({ queryKey: ['cart'] }),
+                client.invalidateQueries({ queryKey: ['orders'] }),
+            ]);
             navigate('/account/orders/' + response.data.id);
         },
     });
@@ -396,26 +414,71 @@ export function CheckoutPage() {
                             {preview.data?.data.currency}
                         </strong>
                     </div>
-                    <button
-                        className="button primary full"
-                        disabled={
-                            !selected ||
-                            !method ||
-                            !preview.data ||
-                            confirm.isPending ||
-                            (isManualPayment && (!senderPhone.trim() || !transactionCode.trim()))
-                        }
-                        onClick={() => {
-                            setPaymentError('');
-                            if (window.confirm('Confirm this order?')) confirm.mutate();
-                        }}
-                    >
-                        {confirm.isPending ? 'Confirming order…' : 'Confirm order'}
-                    </button>
+                    {showOrderConfirmation ? (
+                        <div
+                            className="customer-action-confirmation checkout-confirmation"
+                            role="alertdialog"
+                            aria-labelledby="checkout-confirmation-title"
+                            aria-describedby="checkout-confirmation-explanation"
+                        >
+                            <strong id="checkout-confirmation-title">Confirm Order</strong>
+                            <p id="checkout-confirmation-explanation">
+                                Confirming creates this order. After confirmation, you cannot cancel
+                                it through the normal customer workflow. Payment remains pending
+                                until it is verified.
+                            </p>
+                            {confirm.isError ? (
+                                <p className="error" role="alert">
+                                    Checkout could not be confirmed. Your cart was not charged.
+                                </p>
+                            ) : null}
+                            <div className="actions">
+                                <button
+                                    className="button secondary"
+                                    type="button"
+                                    disabled={confirm.isPending}
+                                    onClick={() => {
+                                        confirm.reset();
+                                        setShowOrderConfirmation(false);
+                                    }}
+                                >
+                                    Cancel Order
+                                </button>
+                                <button
+                                    className="button primary"
+                                    type="button"
+                                    disabled={confirm.isPending}
+                                    onClick={() => confirm.mutate()}
+                                >
+                                    {confirm.isPending ? 'Confirming order…' : 'Confirm Order'}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <button
+                            className="button primary full"
+                            disabled={
+                                !selected ||
+                                !method ||
+                                !preview.data ||
+                                confirm.isPending ||
+                                (isManualPayment && (!senderPhone.trim() || !transactionCode.trim()))
+                            }
+                            onClick={() => {
+                                setPaymentError('');
+                                confirm.reset();
+                                setShowOrderConfirmation(true);
+                            }}
+                        >
+                            Confirm order
+                        </button>
+                    )}
                     {confirm.isError ? (
-                        <p className="error" role="alert">
-                            Checkout could not be confirmed. Your cart was not charged.
-                        </p>
+                        showOrderConfirmation ? null : (
+                            <p className="error" role="alert">
+                                Checkout could not be confirmed. Your cart was not charged.
+                            </p>
+                        )
                     ) : null}
                     {paymentError ? (
                         <p className="error" role="alert">

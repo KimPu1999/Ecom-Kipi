@@ -3571,6 +3571,21 @@ textarea {
 @keyframes customer-order-shimmer { to { background-position: -200% 0; } }
 .customer-orders-feedback { display: grid; justify-items: start; gap: 10px; }
 .customer-orders-feedback .feedback { width: 100%; }
+.customer-action-confirmation {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-muted);
+}
+.customer-action-confirmation p { margin: 0; color: var(--muted); font-size: .8rem; line-height: 1.5; }
+.customer-action-confirmation .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.customer-action-confirmation .actions .button { flex: 1 1 130px; }
+.customer-action-confirmation .actions .button.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 40%, var(--line)); }
+.customer-order-card > .customer-action-confirmation { grid-column: 1 / -1; }
+.checkout-confirmation { margin: 0 0 12px; }
 
 .customer-order-detail-header { display: grid; gap: 18px; padding: 20px 22px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
 .customer-order-detail-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
