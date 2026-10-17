@@ -68,7 +68,6 @@ export function Header() {
     { to: '/', label: t('Home') },
     { to: '/products', label: t('Product') },
     { to: '/stores', label: t('Shop') },
-    { to: '/account/orders', label: t('Order') },
     { to: '/about', label: t('About') },
     { to: '/contact', label: t('Contact') },
   ]
