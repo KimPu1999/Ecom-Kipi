@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
 import type { Product } from '../types/storefront'
+import { useLanguage } from '../../../../packages/i18n/src'
 
 export function Seo({ title, description }: { title: string; description: string }) {
   useEffect(() => {
@@ -41,8 +42,10 @@ export function ProductCard({ product }: { product: Product }) {
   const navigate = useNavigate()
   const client = useQueryClient()
   const user = useAuthStore((state) => state.user)
+  const { t } = useLanguage()
   const image = product.images?.[0]
   const variant = product.variants?.[0]
+  const discount = variant?.compare_at_price_minor && variant.compare_at_price_minor > variant.price_minor ? Math.round((1 - variant.price_minor / variant.compare_at_price_minor) * 100) : null
   const sellerTone = product.seller ? ` seller-tone-${(product.seller.id % 4) + 1}` : ''
   const wishlist = useQuery({ queryKey: ['wishlist'], queryFn: storefrontApi.wishlist, enabled: Boolean(user) })
   const saved = wishlist.data?.data.product_ids.includes(product.id) ?? false
@@ -50,7 +53,7 @@ export function ProductCard({ product }: { product: Product }) {
   const cartMutation = useMutation({ mutationFn: () => storefrontApi.addCartItem(variant?.id ?? 0, 1), onSuccess: () => client.invalidateQueries({ queryKey: ['cart'] }) })
   function openWishlist(event: MouseEvent<HTMLButtonElement>) { event.preventDefault(); event.stopPropagation(); if (!user) { navigate('/login?next=' + encodeURIComponent('/products/' + product.slug)); return } wishlistMutation.mutate() }
   function quickAdd(event: MouseEvent<HTMLButtonElement>) { event.preventDefault(); event.stopPropagation(); if (!user) { navigate('/login?next=' + encodeURIComponent('/products/' + product.slug)); return } if (variant?.available_quantity) cartMutation.mutate() }
-  return <article className={'product-card' + sellerTone}><Link to={'/products/' + product.slug}><div className="product-image">{image ? <img src={image.url} alt={image.alt_text || product.name} loading="lazy" /> : <span>{product.name.slice(0, 1)}</span>}{product.is_featured ? <em>Featured</em> : null}<button className={saved ? 'product-action saved' : 'product-action'} onClick={openWishlist} disabled={wishlistMutation.isPending} aria-label={saved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="product-card-body"><div><span className="seller-badge">{product.seller?.store_name ?? 'Kipi collection'}</span><h3>{product.name}</h3><p>{product.category?.name ?? 'Everyday favorite'}</p></div>{variant ? <PriceDisplay amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <span className="muted">Unavailable</span>}</div></Link><div className="product-card-footer">{variant?.available_quantity ? <span className="stock-note">In stock</span> : <span className="stock-note out">Unavailable</span>}<button className="quick-add" onClick={quickAdd} disabled={!variant?.available_quantity || cartMutation.isPending} aria-label={`Add ${product.name} to cart`}>{cartMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <ShoppingBag size={15} />} Quick add</button></div></article>
+  return <article className={'product-card' + sellerTone}><Link to={'/products/' + product.slug}><div className="product-image">{image ? <img src={image.url} alt={image.alt_text || product.name} loading="lazy" /> : <span>{product.name.slice(0, 1)}</span>}{product.is_featured ? <em>Featured</em> : null}{discount ? <em className="discount-badge">{discount}% {t('off')}</em> : null}<button className={saved ? 'product-action saved' : 'product-action'} onClick={openWishlist} disabled={wishlistMutation.isPending} aria-label={saved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="product-card-body"><div><span className="seller-badge">{product.seller?.store_name ?? 'Kipi collection'}</span><h3>{product.name}</h3><p>{product.category?.name ?? 'Everyday favorite'}</p></div>{variant ? <PriceDisplay amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <span className="muted">Unavailable</span>}</div></Link><div className="product-card-footer">{variant?.available_quantity ? <span className="stock-note">In stock</span> : <span className="stock-note out">Unavailable</span>}<button className="quick-add" onClick={quickAdd} disabled={!variant?.available_quantity || cartMutation.isPending} aria-label={`Add ${product.name} to cart`}>{cartMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <ShoppingBag size={15} />} Quick add</button></div></article>
 }
 
 export function PriceDisplay({ amount, currency, compareAt }: { amount: number; currency: string; compareAt?: number | null }) {

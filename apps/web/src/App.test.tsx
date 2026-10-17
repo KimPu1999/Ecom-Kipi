@@ -6,5 +6,5 @@ import { App } from './App'
 
 test('renders the customer home page', () => {
   render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { enabled: false } } })}><App /></QueryClientProvider>)
-  expect(screen.getByText(/Good things for/)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Shop with confidence.' })).toBeInTheDocument()
 })
