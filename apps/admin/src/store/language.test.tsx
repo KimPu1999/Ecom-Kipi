@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom/vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { expect, test, beforeEach } from 'vitest'
 import { LanguageProvider, LanguageSwitcher, useLanguage } from './language'
 import { missingTranslations } from '../../../../packages/i18n/src'
@@ -49,4 +49,18 @@ test('language selector changes the shared preference from its menu', () => {
 
   expect(localStorage.getItem('kipi.language')).toBe('my')
   expect(localStorage.getItem('kipi.admin.language')).toBe('my')
+})
+
+test('translates legacy dynamic text and status values without changing data names', async () => {
+  function LegacyProbe() {
+    return <><span>Add Daily Tote to cart</span><span>out_of_stock</span><strong>THANGPC</strong></>
+  }
+
+  render(<LanguageProvider><><LanguageSwitcher /><LegacyProbe /></></LanguageProvider>)
+  fireEvent.click(screen.getByRole('button', { name: 'Language' }))
+  fireEvent.click(screen.getByRole('menuitemradio', { name: 'မြန်မာ' }))
+
+  await waitFor(() => expect(screen.getByText(/Daily Tote/)).toHaveTextContent('ထည့်ရန်'))
+  expect(screen.getByText('THANGPC')).toBeInTheDocument()
+  expect(screen.getByText('စတော့ကုန်ပြီ')).toBeInTheDocument()
 })

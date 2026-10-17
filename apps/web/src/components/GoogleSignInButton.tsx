@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useOptionalLanguage } from '../../../../packages/i18n/src'
 
 type GoogleCredentialResponse = { credential?: string }
 
@@ -51,6 +52,7 @@ function GoogleGlyph() {
 }
 
 export function GoogleSignInButton({ onCredential, onError, disabled = false }: { onCredential: (credential: string) => void; onError?: (message: string) => void; disabled?: boolean }) {
+  const { t } = useOptionalLanguage()
   const buttonRef = useRef<HTMLDivElement>(null)
   const onCredentialRef = useRef(onCredential)
   const onErrorRef = useRef(onError)
@@ -90,22 +92,22 @@ export function GoogleSignInButton({ onCredential, onError, disabled = false }: 
       .catch((error: unknown) => {
         if (!active) return
         setStatus('error')
-        onErrorRef.current?.(error instanceof Error ? error.message : 'Google sign-in is temporarily unavailable.')
+        onErrorRef.current?.(error instanceof Error ? error.message : t('Google sign-in is temporarily unavailable.'))
       })
 
     return () => {
       active = false
       buttonRef.current?.replaceChildren()
     }
-  }, [])
+  }, [t])
 
   if (status === 'unavailable') {
-    return <button className="google-button google-button-disabled" type="button" disabled title="Google sign-in needs to be configured first"><GoogleGlyph />Continue with Google</button>
+    return <button className="google-button google-button-disabled" type="button" disabled title={t('Google sign-in needs to be configured first')}><GoogleGlyph />{t('Continue with Google')}</button>
   }
 
   if (status === 'error') {
-    return <button className="google-button google-button-disabled" type="button" disabled><GoogleGlyph />Google sign-in unavailable</button>
+    return <button className="google-button google-button-disabled" type="button" disabled><GoogleGlyph />{t('Google sign-in unavailable')}</button>
   }
 
-  return <div className={`google-button-host ${disabled ? 'is-disabled' : ''}`} aria-busy={status === 'loading'}><div ref={buttonRef} />{status === 'loading' ? <span className="google-button-loading"><GoogleGlyph />Loading Google sign-in…</span> : null}</div>
+  return <div className={`google-button-host ${disabled ? 'is-disabled' : ''}`} aria-busy={status === 'loading'}><div ref={buttonRef} />{status === 'loading' ? <span className="google-button-loading"><GoogleGlyph />{t('Loading Google sign-in…')}</span> : null}</div>
 }

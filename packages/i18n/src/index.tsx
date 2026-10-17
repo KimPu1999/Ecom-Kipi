@@ -789,9 +789,50 @@ const burmese: Record<string, string> = {
   'Hide password': 'စကားဝှက်ဖျောက်ရန်',
   'Show password': 'စကားဝှက်ပြရန်',
   'Signing in…': 'ဝင်ရောက်နေသည်…',
+  'Something went wrong.': 'တစ်စုံတစ်ရာ မှားယွင်းနေပါသည်။',
+  'Google sign-in is temporarily unavailable.': 'Google ဖြင့် ဝင်ရောက်မှုကို ယာယီမရရှိနိုင်ပါ။',
+  'Google sign-in needs to be configured first': 'Google ဖြင့် ဝင်ရောက်မှုကို ဦးစွာ ပြင်ဆင်သတ်မှတ်ရပါမည်',
+  'Continue with Google': 'Google ဖြင့် ဆက်လက်ဝင်ရောက်ရန်',
+  'Google sign-in unavailable': 'Google ဖြင့် ဝင်ရောက်၍ မရနိုင်ပါ',
+  'Loading Google sign-in…': 'Google ဖြင့် ဝင်ရောက်မှု တင်နေသည်…',
+  'We are waiting for payment confirmation.': 'ငွေပေးချေမှု အတည်ပြုချက်ကို စောင့်နေပါသည်။',
+  'Your order exists, but it is not marked paid until Stripe sends a verified webhook. Refresh this page after completing payment in the provider flow.': 'သင့်အော်ဒါ ရှိနေသော်လည်း Stripe မှ အတည်ပြု webhook ပေးပို့သည်အထိ ငွေပေးပြီးဟု မသတ်မှတ်ပါ။ ငွေပေးချေမှု ပြီးစီးပြီးနောက် ဤစာမျက်နှာကို ပြန်ဖွင့်ပါ။',
+  'Still verifying': 'အတည်ပြုနေဆဲ',
+  'Payment has not been verified yet.': 'ငွေပေးချေမှုကို အတည်မပြုရသေးပါ။',
+  'This URL is not proof of payment. The order remains safe while we wait for the provider webhook.': 'ဤ URL သည် ငွေပေးချေမှု အထောက်အထားမဟုတ်ပါ။ ဝန်ဆောင်မှုပေးသူ၏ webhook ကို စောင့်နေစဉ် အော်ဒါသည် လုံခြုံစွာ ရှိနေပါမည်။',
+  'Payment confirmed': 'ငွေပေးချေမှု အတည်ပြုပြီး',
+  'Thank you for your order.': 'အော်ဒါတင်ပေးသည့်အတွက် ကျေးဇူးတင်ပါသည်။',
+  'Your payment was verified by the payment provider.': 'သင့်ငွေပေးချေမှုကို ငွေပေးချေမှုဝန်ဆောင်မှုပေးသူက အတည်ပြုပြီးပါပြီ။',
+  'Payment canceled': 'ငွေပေးချေမှု ပယ်ဖျက်ပြီး',
+  'No payment was completed.': 'ငွေပေးချေမှု မပြီးစီးပါ။',
+  'Your order remains pending and no successful payment was recorded. You can return to the order or continue shopping.': 'သင့်အော်ဒါသည် ဆိုင်းငံ့နေဆဲဖြစ်ပြီး အောင်မြင်သော ငွေပေးချေမှု မှတ်တမ်းမရှိပါ။ အော်ဒါသို့ ပြန်သွားနိုင်သည် သို့မဟုတ် ဆက်လက်ဈေးဝယ်နိုင်ပါသည်။',
+  'View order': 'အော်ဒါကြည့်ရန်',
+  'Shop more': 'ဆက်လက်ဈေးဝယ်ရန်',
+  '404 · Page not found': '404 · စာမျက်နှာမတွေ့ပါ',
+  'That page wandered off.': 'ထိုစာမျက်နှာကို ရှာမတွေ့ပါ။',
+  'Let’s get you back to the good stuff.': 'ကောင်းမွန်သောအရာများထံ ပြန်သွားကြရအောင်။',
+  'Return home': 'ပင်မစာမျက်နှာသို့ ပြန်ရန်',
+  'Unable to sign in. Check your credentials.': 'ဝင်ရောက်၍ မရပါ။ သင့်အကောင့်အချက်အလက်များကို စစ်ဆေးပါ။',
+  'THANGPC CONTROL CENTER': 'THANGPC ထိန်းချုပ်ရေးစင်တာ',
+  'Role-protected by Laravel': 'Laravel ဖြင့် အခန်းကဏ္ဍအလိုက် ကာကွယ်ထားသည်',
+  'Live metrics from your database': 'သင့်ဒေတာဘေ့စ်မှ တိုက်ရိုက်စာရင်းအင်းများ',
+  'Administrator access': 'အက်ဒမင်အသုံးပြုခွင့်',
+  'Sign in to manage the THANGPC marketplace.': 'THANGPC ဈေးကွက်ကို စီမံရန် ဝင်ရောက်ပါ။',
+  'Sign in to control center': 'ထိန်းချုပ်ရေးစင်တာသို့ ဝင်ရောက်ရန်',
+  'Unauthorized': 'ခွင့်ပြုချက်မရှိပါ',
+  'Your account does not have admin access.': 'သင့်အကောင့်တွင် အက်ဒမင်အသုံးပြုခွင့် မရှိပါ။',
+  'Try another account': 'အခြားအကောင့်ကို စမ်းသုံးရန်',
+  'Page not found': 'စာမျက်နှာမတွေ့ပါ',
+  'Back to dashboard': 'ဒက်ရှ်ဘုတ်သို့ ပြန်ရန်',
 }
 
 const values = { en: {}, my: burmese } satisfies Record<Language, Record<string, string>>
+const translationPatterns = Object.entries(values.my)
+  .filter(([key]) => key.includes('{'))
+  .map(([key, translation]) => ({
+    expression: new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{[^}]+\\\}/g, '(.+?)')}$`),
+    translation,
+  }))
 
 export type TranslationKey = string
 
@@ -819,10 +860,20 @@ const textSources = new WeakMap<Text, SourceRecord>()
 const attributeSources = new WeakMap<Element, Map<string, SourceRecord>>()
 const warnedMissingKeys = new Set<string>()
 
-function replaceVisibleBrandText(value: string): string {
-  return value
-    .replace(/\bKIPI(?=\s+(?:MARKETPLACE|CONTROL CENTER)\b)/g, 'THANGPC')
-    .replace(/\bKipi(?=\s+(?:Commerce|Marketplace|marketplace|Control|collection|update|delivery|Self|does|shopping|offers|edit|is|brings|connects|products|customer)|-managed|[.!?,]|$)/g, 'THANGPC')
+function lookupTranslation(source: string): string | undefined {
+  const exact = values.my[source]
+  if (exact) return exact
+  const normalizedStatus = source.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  if (values.my[normalizedStatus]) return values.my[normalizedStatus]
+  const statusKey = Object.keys(values.my).find((key) => key.toLowerCase() === normalizedStatus.toLowerCase())
+  if (statusKey) return values.my[statusKey]
+  for (const pattern of translationPatterns) {
+    const match = source.match(pattern.expression)
+    if (!match) continue
+    let index = 1
+    return pattern.translation.replace(/\{[^}]+\}/g, () => match[index++] ?? '')
+  }
+  return undefined
 }
 
 function translateDocument(language: Language) {
@@ -840,7 +891,7 @@ function translateDocument(language: Language) {
       const trimmed = source.trim()
       // Only translate known static strings. Product names, seller names, SKUs,
       // and API-provided notes must remain data, even when they resemble a key.
-      const translated = language === 'my' ? values.my[trimmed] ?? source : source
+      const translated = language === 'my' ? lookupTranslation(trimmed) ?? source : source
       textSources.set(text, { source, translated })
       if (current !== translated) text.nodeValue = translated
     }
@@ -854,7 +905,7 @@ function translateDocument(language: Language) {
       if (current === null) return
       const previous = records.get(attribute)
       const source = previous && current === previous.translated ? previous.source : current
-      const translated = language === 'my' ? values.my[source] ?? source : source
+      const translated = language === 'my' ? lookupTranslation(source) ?? source : source
       records.set(attribute, { source, translated })
       if (current !== translated) element.setAttribute(attribute, translated)
     })
