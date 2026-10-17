@@ -1,6 +1,6 @@
-import { useEffect, useState, type InputHTMLAttributes } from 'react'
+import { useEffect, useMemo, useState, type InputHTMLAttributes } from 'react'
 import { ApiClientError } from '@kipi/api-client'
-import { ArrowLeft, ArrowRight, Bell, CalendarDays, CheckCircle2, CircleHelp, Copy, CreditCard, Edit3, FileText, Heart, LogOut, MapPin, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Trash2, Truck, Upload, UserRound, X, type LucideIcon } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Bell, CalendarDays, CheckCircle2, CircleHelp, Copy, CreditCard, Edit3, FileText, Heart, HeartOff, LogOut, MapPin, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Trash2, Truck, Upload, UserRound, X, type LucideIcon } from 'lucide-react'
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
@@ -10,8 +10,8 @@ import { profileSchema, type ProfileInput } from '@kipi/validation'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
-import type { Address, NotificationPreferences, Order, OrderSummary, Shipment, TrackingEvent } from '../types/storefront'
-import { Breadcrumbs, Card, EmptyState, ErrorState, LoadingState, PageIntro, Pagination, PriceDisplay, ProductCard, StatusBadge } from '../components/StorefrontUI'
+import type { Address, NotificationPreferences, Order, OrderSummary, Product, Shipment, TrackingEvent } from '../types/storefront'
+import { Breadcrumbs, Card, EmptyState, ErrorState, LoadingState, PageIntro, Pagination, PriceDisplay, StatusBadge } from '../components/StorefrontUI'
 import { useLanguage } from '../../../../packages/i18n/src'
 
 const addressSchema = z.object({ label: z.string().max(80).optional(), recipient_name: z.string().min(2, 'Enter a recipient name.'), phone: z.string().min(5, 'Enter a phone number.'), line1: z.string().min(2, 'Enter an address.'), line2: z.string().optional(), city: z.string().min(2, 'Enter a city.'), state: z.string().optional(), postal_code: z.string().optional(), country: z.string().length(2, 'Use a 2-letter country code.'), is_default: z.boolean() })
@@ -129,13 +129,83 @@ export function AddressesPage() {
   return <div className="account-page"><Breadcrumbs items={[{ label: 'Account', to: '/account' }, { label: 'Addresses' }]} /><div className="section-heading"><PageIntro eyebrow="Account" title="Your addresses." description="Save delivery details for a smoother checkout." /><button className="button primary" onClick={() => setEditing(null)}><Plus size={17} /> Add address</button></div>{editing !== undefined ? <Card><AddressForm initial={editing} onCancel={() => setEditing(undefined)} onSubmit={(data) => mutation.mutate({ id: editing?.id, data })} /></Card> : null}{query.data.data.length ? <div className="address-grid">{query.data.data.map((address) => <Card key={address.id} className={address.is_default ? 'address-card default' : 'address-card'}><div className="address-heading"><strong>{address.label || 'Delivery address'}</strong>{address.is_default ? <StatusBadge value="default" /> : null}</div><p><b>{address.recipient_name}</b><br />{address.line1}{address.line2 ? <><br />{address.line2}</> : null}<br />{address.city}{address.state ? ', ' + address.state : ''} {address.postal_code}<br />{address.country}</p><div className="card-actions"><button className="text-link" onClick={() => setEditing(address)}><Edit3 size={15} /> Edit</button><button className="text-link danger" onClick={() => { if (window.confirm('Remove this address?')) remove.mutate(address.id) }}><Trash2 size={15} /> Remove</button></div></Card>)}</div> : <EmptyState title="No saved addresses" message="Add one to make checkout quicker." />}</div>
 }
 
+function wishlistHasStock(product: Product) {
+  return product.status === 'published' && Boolean(product.variants?.some((variant) => variant.is_active && variant.available_quantity > 0))
+}
+
+function wishlistPrice(product: Product) {
+  return wishlistDisplayVariant(product)?.price_minor ?? null
+}
+
+function wishlistIsOnSale(product: Product) {
+  const variant = wishlistDisplayVariant(product)
+  return Boolean(variant?.compare_at_price_minor && variant.compare_at_price_minor > variant.price_minor)
+}
+
+function wishlistDisplayVariant(product: Product) {
+  return product.variants?.find((variant) => variant.is_active && variant.available_quantity > 0) ?? product.variants?.[0]
+}
+
+function WishlistLoading() {
+  return <div className="account-page wishlist-page"><Breadcrumbs items={[{ label: 'Home', to: '/' }, { label: 'Wishlist' }]} /><div className="wishlist-loading-header"><span /><i /><i /></div><div className="wishlist-loading-grid">{[1, 2, 3, 4].map((item) => <div className="wishlist-loading-card" key={item}><span /><div><i /><i /><i /></div></div>)}</div></div>
+}
+
+function WishlistEmpty({ filtered, onClear }: { filtered?: boolean; onClear?: () => void }) {
+  const { t } = useLanguage()
+  return <section className="wishlist-empty-state"><div className="wishlist-empty-icon"><HeartOff size={30} /></div><h2>{t(filtered ? 'No saved products match your filters.' : 'Your wishlist is empty')}</h2><p>{t(filtered ? 'Try a different search or clear the filters to see all saved products.' : 'Save products with the heart button and keep them close for your next purchase.')}</p><div className="wishlist-empty-actions">{filtered && onClear ? <button className="button secondary" type="button" onClick={onClear}>{t('Clear filters')}</button> : null}<Link className="button primary" to="/products"><ShoppingBag size={16} />{t('Explore Products')}</Link></div></section>
+}
+
+function WishlistProductCard({ product, removing, adding, added, error, onRemove, onAdd }: { product: Product; removing: boolean; adding: boolean; added: boolean; error?: string; onRemove: () => void; onAdd: (variantId: number) => void }) {
+  const { t } = useLanguage()
+  const image = product.images?.[0]
+  const displayVariant = wishlistDisplayVariant(product)
+  const purchasableVariant = product.variants?.find((variant) => variant.is_active && variant.available_quantity > 0)
+  const isAvailable = wishlistHasStock(product)
+  const status = product.status !== 'published' ? 'unavailable' : isAvailable ? 'available' : 'out-of-stock'
+  const statusLabel = status === 'available' ? t('In stock') : status === 'out-of-stock' ? t('Out of stock') : t('Unavailable')
+  return <article className={'wishlist-product-card' + (isAvailable ? '' : ' unavailable')}><div className="wishlist-product-media"><Link to={'/products/' + product.slug} aria-label={t('View {product}', { product: product.name })}>{image ? <img src={image.url} alt={image.alt_text || product.name} loading="lazy" /> : <span aria-hidden="true">{product.name.slice(0, 1)}</span>}</Link><button className="wishlist-remove-button" type="button" onClick={onRemove} disabled={removing || adding} aria-label={t('Remove {product} from wishlist', { product: product.name })}>{removing ? <span className="wishlist-spinner" aria-hidden="true" /> : <Heart size={17} fill="currentColor" />}</button>{wishlistIsOnSale(product) ? <span className="wishlist-sale-badge">{t('Sale')}</span> : null}</div><div className="wishlist-product-content"><div className="wishlist-product-heading"><div><Link className="wishlist-product-name" to={'/products/' + product.slug}>{product.name}</Link>{product.seller?.store_name ? <span className="wishlist-product-seller">{product.seller.store_name}</span> : null}</div>{product.category?.name ? <span className="wishlist-product-category">{product.category.name}</span> : null}</div><div className="wishlist-product-price">{displayVariant ? <PriceDisplay amount={displayVariant.price_minor} currency={displayVariant.currency} compareAt={displayVariant.compare_at_price_minor} /> : <span className="muted">{t('Price unavailable')}</span>}</div><div className="wishlist-product-footer"><span className={'wishlist-availability ' + status}><span />{statusLabel}</span><Link className="text-link" to={'/products/' + product.slug}>{t('View details')} <ArrowRight size={14} /></Link></div>{error ? <p className="wishlist-product-error" role="alert">{error}</p> : null}<button className="button primary full wishlist-add-button" type="button" onClick={() => purchasableVariant && onAdd(purchasableVariant.id)} disabled={!purchasableVariant || removing || adding}>{adding ? t('Adding…') : added ? <><CheckCircle2 size={15} />{t('Added to cart')}</> : <><ShoppingBag size={15} />{t('Add to cart')}</>}</button></div></article>
+}
+
 export function WishlistPage() {
+  const { t } = useLanguage()
   const client = useQueryClient()
   const query = useQuery({ queryKey: ['wishlist'], queryFn: storefrontApi.wishlist })
-  const clear = useMutation({ mutationFn: async () => { const products = query.data?.data.products ?? []; await Promise.all(products.map((product) => storefrontApi.removeWishlist(product.id))) }, onSuccess: () => client.invalidateQueries({ queryKey: ['wishlist'] }) })
-  if (query.isLoading) return <LoadingState />
-  if (query.isError || !query.data) return <ErrorState message="We could not load your wishlist." />
-  return <div className="account-page"><Breadcrumbs items={[{ label: 'Account', to: '/account' }, { label: 'Wishlist' }]} /><div className="section-heading"><PageIntro eyebrow="Account" title="Saved for later." description="Keep the pieces you want to come back to." />{query.data.data.products.length ? <button className="button secondary" onClick={() => clear.mutate()} disabled={clear.isPending}>Clear wishlist</button> : null}</div>{query.data.data.products.length ? <div className="product-grid">{query.data.data.products.map((product) => <ProductCard key={product.id} product={product} />)}</div> : <EmptyState title="Your wishlist is empty" message="Tap the heart on a product to save it here." action={<Link className="button primary" to="/products">Browse products</Link>} />}</div>
+  const [searchText, setSearchText] = useState('')
+  const [category, setCategory] = useState('')
+  const [availability, setAvailability] = useState<'all' | 'available' | 'unavailable'>('all')
+  const [sale, setSale] = useState<'all' | 'on-sale' | 'regular'>('all')
+  const [sort, setSort] = useState<'saved' | 'price-low' | 'price-high'>('saved')
+  const [showClearConfirmation, setShowClearConfirmation] = useState(false)
+  const [actionErrors, setActionErrors] = useState<Record<number, string>>({})
+  const [addedProductId, setAddedProductId] = useState<number | null>(null)
+  const remove = useMutation({ mutationFn: storefrontApi.removeWishlist, onSuccess: (_, productId) => { setActionErrors((current) => { const next = { ...current }; delete next[productId]; return next }); if (addedProductId === productId) setAddedProductId(null); void client.invalidateQueries({ queryKey: ['wishlist'] }) }, onError: (error, productId) => setActionErrors((current) => ({ ...current, [productId]: apiErrorMessage(error) })) })
+  const addToCart = useMutation({ mutationFn: ({ variantId }: { productId: number; variantId: number }) => storefrontApi.addCartItem(variantId, 1), onSuccess: (_, variables) => { setActionErrors((current) => { const next = { ...current }; delete next[variables.productId]; return next }); setAddedProductId(variables.productId); void client.invalidateQueries({ queryKey: ['cart'] }) }, onError: (error, variables) => setActionErrors((current) => ({ ...current, [variables.productId]: apiErrorMessage(error) })) })
+  const clear = useMutation({ mutationFn: storefrontApi.clearWishlist, onSuccess: () => { setShowClearConfirmation(false); setActionErrors({}); setAddedProductId(null); void client.invalidateQueries({ queryKey: ['wishlist'] }) } })
+  const products = query.data?.data.products ?? []
+  const categories = useMemo(() => Array.from(new Map(products.flatMap((product) => product.category ? [[product.category.slug, product.category.name]] : [])).entries()).sort((a, b) => a[1].localeCompare(b[1])), [products])
+  const filteredProducts = useMemo(() => {
+    const search = searchText.trim().toLowerCase()
+    const next = products.filter((product) => {
+      const matchesSearch = !search || product.name.toLowerCase().includes(search)
+      const matchesCategory = !category || product.category?.slug === category
+      const matchesAvailability = availability === 'all' || (availability === 'available' ? wishlistHasStock(product) : !wishlistHasStock(product))
+      const matchesSale = sale === 'all' || (sale === 'on-sale' ? wishlistIsOnSale(product) : !wishlistIsOnSale(product))
+      return matchesSearch && matchesCategory && matchesAvailability && matchesSale
+    })
+    if (sort === 'price-low') return next.sort((a, b) => (wishlistPrice(a) ?? Number.MAX_SAFE_INTEGER) - (wishlistPrice(b) ?? Number.MAX_SAFE_INTEGER))
+    if (sort === 'price-high') return next.sort((a, b) => (wishlistPrice(b) ?? -1) - (wishlistPrice(a) ?? -1))
+    return next
+  }, [availability, category, products, sale, searchText, sort])
+  function clearFilters() {
+    setSearchText('')
+    setCategory('')
+    setAvailability('all')
+    setSale('all')
+    setSort('saved')
+  }
+  if (query.isLoading) return <WishlistLoading />
+  if (query.isError || !query.data) return <div className="account-page wishlist-page"><Breadcrumbs items={[{ label: t('Home'), to: '/' }, { label: t('Wishlist') }]} /><div className="wishlist-error-state"><ErrorState message={t('We could not load your wishlist.')} /><button className="button secondary" type="button" onClick={() => void query.refetch()}>{t('Retry')}</button></div></div>
+  return <div className="account-page wishlist-page"><Breadcrumbs items={[{ label: t('Home'), to: '/' }, { label: t('Wishlist') }]} /><header className="wishlist-page-header"><div><span className="eyebrow">{t('Saved products')}</span><h1>{t('My Wishlist')}</h1><p>{t('Save your favorite items for later.')}</p></div><div className="wishlist-header-actions"><Link className="button secondary" to="/products"><ShoppingBag size={16} />{t('Continue shopping')}</Link>{products.length ? <button className="button ghost-danger" type="button" onClick={() => { setShowClearConfirmation(true); clear.reset() }} disabled={clear.isPending}><Trash2 size={16} />{t('Clear saved items')}</button> : null}</div></header><div className="wishlist-summary-bar"><div><strong>{products.length}</strong><span>{t(products.length === 1 ? 'saved item' : 'saved items')}</span></div><span>{t('{count} shown', { count: filteredProducts.length })}</span></div>{showClearConfirmation && products.length ? <div className="wishlist-clear-confirmation" role="status"><div><strong>{t('Remove all saved items?')}</strong><span>{t('This will clear your wishlist but will not change your cart.')}</span></div><div><button className="button secondary" type="button" onClick={() => setShowClearConfirmation(false)} disabled={clear.isPending}>{t('Keep items')}</button><button className="button danger" type="button" onClick={() => clear.mutate()} disabled={clear.isPending}>{clear.isPending ? t('Clearing…') : t('Clear wishlist')}</button></div>{clear.isError ? <p className="error" role="alert">{apiErrorMessage(clear.error)}</p> : null}</div> : null}{products.length ? <section className="wishlist-controls" aria-label={t('Wishlist filters')}><label className="wishlist-search"><Search size={17} /><input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder={t('Search saved products')} aria-label={t('Search saved products')} />{searchText ? <button type="button" onClick={() => setSearchText('')} aria-label={t('Clear search')}><X size={15} /></button> : null}</label><label className="wishlist-select"><span>{t('Category')}</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option value="">{t('All categories')}</option>{categories.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label><label className="wishlist-select"><span>{t('Availability')}</span><select value={availability} onChange={(event) => setAvailability(event.target.value as typeof availability)}><option value="all">{t('All items')}</option><option value="available">{t('In stock')}</option><option value="unavailable">{t('Unavailable')}</option></select></label><label className="wishlist-select"><span>{t('Offers')}</span><select value={sale} onChange={(event) => setSale(event.target.value as typeof sale)}><option value="all">{t('All prices')}</option><option value="on-sale">{t('On sale')}</option><option value="regular">{t('Regular price')}</option></select></label><label className="wishlist-select"><span>{t('Sort by')}</span><select value={sort} onChange={(event) => setSort(event.target.value as typeof sort)}><option value="saved">{t('Recently saved')}</option><option value="price-low">{t('Price: low to high')}</option><option value="price-high">{t('Price: high to low')}</option></select></label>{searchText || category || availability !== 'all' || sale !== 'all' || sort !== 'saved' ? <button className="text-button" type="button" onClick={clearFilters}><SlidersHorizontal size={15} />{t('Clear filters')}</button> : null}</section> : null}{products.length ? filteredProducts.length ? <section className="wishlist-results" aria-live="polite"><div className="wishlist-results-heading"><div><span className="eyebrow">{t('Your saved selection')}</span><h2>{t('{count} products', { count: filteredProducts.length })}</h2></div><span className="wishlist-results-note">{t('Prices and availability are current.')}</span></div><div className="wishlist-product-grid">{filteredProducts.map((product) => <WishlistProductCard key={product.id} product={product} removing={remove.isPending && remove.variables === product.id} adding={addToCart.isPending && addToCart.variables?.productId === product.id} added={addedProductId === product.id} error={actionErrors[product.id]} onRemove={() => { setAddedProductId(null); remove.mutate(product.id) }} onAdd={(variantId) => { setActionErrors((current) => { const next = { ...current }; delete next[product.id]; return next }); addToCart.mutate({ productId: product.id, variantId }) }} />)}</div></section> : <WishlistEmpty filtered onClear={clearFilters} /> : <WishlistEmpty />}</div>
 }
 
 export function NotificationsPage() {

@@ -27,6 +27,7 @@ export const storefrontApi = {
   wishlist: () => request<{ products: Product[]; product_ids: number[] }>({ url: '/wishlist' }),
   addWishlist: (productId: number) => request<null>({ url: '/wishlist/' + productId, method: 'POST' }),
   removeWishlist: (productId: number) => request<null>({ url: '/wishlist/' + productId, method: 'DELETE' }),
+  clearWishlist: () => request<null>({ url: '/wishlist', method: 'DELETE' }),
   addCartItem: (variant_id: number, quantity: number) => request<Cart>({ url: '/cart/items', method: 'POST', data: { variant_id, quantity } }),
   updateCartItem: (id: number, quantity: number) => request<Cart>({ url: '/cart/items/' + id, method: 'PATCH', data: { quantity } }),
   removeCartItem: (id: number) => request<Cart>({ url: '/cart/items/' + id, method: 'DELETE' }),
