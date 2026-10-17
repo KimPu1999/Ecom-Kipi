@@ -1,7 +1,7 @@
 import type { AxiosRequestConfig } from 'axios'
 import { api } from '../lib/api'
 import type { ApiResponse, AuthUser } from '@kipi/types'
-import type { Address, Brand, Cart, Category, CheckoutPreview, NotificationItem, Order, Pagination, Payment, Product, ReviewResponse, SellerApplication, SellerSummary, Shipment, TrackingEvent } from '../types/storefront'
+import type { Address, Brand, Cart, Category, CheckoutPreview, NotificationItem, NotificationPreferences, Order, Pagination, Payment, Product, ReviewResponse, SellerApplication, SellerSummary, Shipment, TrackingEvent } from '../types/storefront'
 
 async function request<T>(config: AxiosRequestConfig): Promise<ApiResponse<T>> {
   const response = await api.request<ApiResponse<T>>(config)
@@ -32,6 +32,8 @@ export const storefrontApi = {
   removeCartItem: (id: number) => request<Cart>({ url: '/cart/items/' + id, method: 'DELETE' }),
   profile: () => request<AuthUser>({ url: '/profile' }),
   updateProfile: (data: unknown) => request<AuthUser>({ url: '/profile', method: 'PUT', data }),
+  notificationPreferences: () => request<NotificationPreferences>({ url: '/notification-preferences' }),
+  updateNotificationPreferences: (data: NotificationPreferences) => request<NotificationPreferences>({ url: '/notification-preferences', method: 'PUT', data }),
   addresses: () => request<Address[]>({ url: '/addresses' }),
   createAddress: (data: unknown) => request<Address>({ url: '/addresses', method: 'POST', data }),
   updateAddress: (id: number, data: unknown) => request<Address>({ url: '/addresses/' + id, method: 'PUT', data }),

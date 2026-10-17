@@ -73,8 +73,8 @@ export function SearchInput({ value, onChange, placeholder = 'Search products' }
   return <label className="search-input"><Search size={18} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} /></label>
 }
 
-export function Card({ children, className = '' }: PropsWithChildren<{ className?: string }>) {
-  return <section className={'surface-card ' + className}>{children}</section>
+export function Card({ children, className = '', id }: PropsWithChildren<{ className?: string; id?: string }>) {
+  return <section className={'surface-card ' + className} id={id}>{children}</section>
 }
 
 export function StatusBadge({ value }: { value: string }) {

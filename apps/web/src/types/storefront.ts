@@ -217,6 +217,12 @@ export interface NotificationItem {
   created_at: string
 }
 
+export interface NotificationPreferences {
+  order_updates: boolean
+  payment_updates: boolean
+  delivery_updates: boolean
+}
+
 export interface SellerApplication {
   id: number
   business_name: string

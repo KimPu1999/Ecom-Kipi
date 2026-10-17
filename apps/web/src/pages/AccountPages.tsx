@@ -1,7 +1,7 @@
 import { useEffect, useState, type InputHTMLAttributes } from 'react'
 import { ApiClientError } from '@kipi/api-client'
-import { ArrowLeft, ArrowRight, Bell, CalendarDays, CheckCircle2, Copy, CreditCard, Edit3, FileText, LogOut, MapPin, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Trash2, Truck, X } from 'lucide-react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Bell, CalendarDays, CheckCircle2, CircleHelp, Copy, CreditCard, Edit3, FileText, Heart, LogOut, MapPin, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, SlidersHorizontal, Trash2, Truck, UserRound, X, type LucideIcon } from 'lucide-react'
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
@@ -10,7 +10,7 @@ import { profileSchema, type ProfileInput } from '@kipi/validation'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
-import type { Address, Order, OrderSummary, Shipment, TrackingEvent } from '../types/storefront'
+import type { Address, NotificationPreferences, Order, OrderSummary, Shipment, TrackingEvent } from '../types/storefront'
 import { Breadcrumbs, Card, EmptyState, ErrorState, LoadingState, PageIntro, Pagination, PriceDisplay, ProductCard, StatusBadge } from '../components/StorefrontUI'
 import { useLanguage } from '../../../../packages/i18n/src'
 
@@ -30,19 +30,62 @@ function FormField({ label, error, ...props }: { label: string; error?: string }
   return <label className="field"><span>{label}</span><input {...props} />{error ? <small className="error">{error}</small> : null}</label>
 }
 
+const accountNavigation = [
+  { label: 'Overview', to: '/account', icon: UserRound },
+  { label: 'Personal information', to: '/account#personal-information', icon: Edit3 },
+  { label: 'My Orders', to: '/account/orders', icon: ShoppingBag },
+  { label: 'Address book', to: '/account/addresses', icon: MapPin },
+  { label: 'Wishlist', to: '/account/wishlist', icon: Heart },
+  { label: 'Notifications', to: '/account/notifications', icon: Bell },
+  { label: 'Become a seller', to: '/account/seller-application', icon: FileText },
+  { label: 'Preferences', to: '/account#preferences', icon: SlidersHorizontal },
+]
+
+function AccountNavigation() {
+  const { t } = useLanguage()
+  const location = useLocation()
+  return <nav className="account-navigation" aria-label={t('Account navigation')}><span className="eyebrow">{t('Manage your account')}</span>{accountNavigation.map((item) => { const Icon = item.icon; const active = item.to === '/account' ? location.pathname === '/account' && !location.hash : item.to.includes('#') ? location.pathname === '/account' && location.hash === '#' + item.to.split('#')[1] : location.pathname === item.to; return <Link className={active ? 'active' : ''} key={item.to} to={item.to} aria-current={active ? 'page' : undefined}><Icon size={17} /><span>{t(item.label)}</span><ArrowRight size={14} /></Link> })}</nav>
+}
+
+function AccountStatus({ value }: { value: string }) {
+  const { t } = useLanguage()
+  const normalized = value.toLowerCase().replaceAll('_', '-')
+  const labels: Record<string, string> = { pending: 'Pending', confirmed: 'Confirmed', processing: 'Processing', shipped: 'Shipped', delivered: 'Delivered', cancelled: 'Cancelled', paid: 'Paid', failed: 'Payment failed', refunded: 'Refunded' }
+  return <span className={'status-badge status-' + normalized}>{t(labels[value] ?? value.replaceAll('_', ' '))}</span>
+}
+
+function AccountStat({ icon: Icon, label, value, to }: { icon: LucideIcon; label: string; value: number | string; to: string }) {
+  const { t } = useLanguage()
+  return <Link className="account-stat" to={to}><span className="account-stat-icon"><Icon size={18} /></span><span><small>{t(label)}</small><strong>{value}</strong></span><ArrowRight size={15} /></Link>
+}
+
 export function AccountPage() {
+  const { t } = useLanguage()
   const clear = useAuthStore((state) => state.clear)
-  const query = useQuery({ queryKey: ['profile'], queryFn: storefrontApi.profile })
   const client = useQueryClient()
+  const profileQuery = useQuery({ queryKey: ['profile'], queryFn: storefrontApi.profile })
+  const ordersQuery = useQuery({ queryKey: ['account-overview-orders'], queryFn: () => storefrontApi.orders(1) })
+  const addressesQuery = useQuery({ queryKey: ['addresses'], queryFn: storefrontApi.addresses })
+  const wishlistQuery = useQuery({ queryKey: ['wishlist'], queryFn: storefrontApi.wishlist })
+  const preferencesQuery = useQuery({ queryKey: ['notification-preferences'], queryFn: storefrontApi.notificationPreferences })
   const [editing, setEditing] = useState(false)
+  const [logoutError, setLogoutError] = useState('')
+  const [loggingOut, setLoggingOut] = useState(false)
+  const [preferenceDraft, setPreferenceDraft] = useState<NotificationPreferences | null>(null)
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProfileInput>({ resolver: zodResolver(profileSchema) })
-  useEffect(() => { if (query.data?.data) reset({ name: query.data.data.name, email: query.data.data.email, phone: query.data.data.phone ?? '' }) }, [query.data, reset])
-  const mutation = useMutation({ mutationFn: storefrontApi.updateProfile, onSuccess: () => { setEditing(false); client.invalidateQueries({ queryKey: ['profile'] }) } })
-  async function logout() { try { await api.auth.logout() } finally { clear(); client.clear() } }
-  if (query.isLoading) return <LoadingState />
-  if (query.isError || !query.data) return <ErrorState />
-  const profile = query.data.data
-  return <div className="account-page"><PageIntro eyebrow="Your account" title={`Hello, ${profile.name.split(' ')[0]}.`} description="Keep your details, addresses, and orders in one place." /><div className="account-layout"><Card className="profile-card"><div className="avatar">{profile.name.slice(0, 1)}</div><span className="eyebrow">Personal details</span>{editing ? <form onSubmit={handleSubmit((values) => mutation.mutate(values))}><FormField label="Name" {...register('name')} error={errors.name?.message} /><FormField label="Email" type="email" {...register('email')} error={errors.email?.message} /><FormField label="Phone" {...register('phone')} error={errors.phone?.message} /><div className="form-actions"><button className="button secondary" type="button" onClick={() => setEditing(false)}>Cancel</button><button className="button primary" disabled={isSubmitting || mutation.isPending}>Save changes</button></div></form> : <><h2>{profile.name}</h2><p>{profile.email}</p><p>{profile.phone || 'No phone number added'}</p><button className="text-link" onClick={() => setEditing(true)}><Edit3 size={15} /> Edit profile</button></>}</Card><div className="account-links"><Link className="account-link-card" to="/account/addresses"><MapPin size={22} /><span><strong>Addresses</strong><small>Manage delivery details</small></span><ArrowRight size={17} /></Link><Link className="account-link-card" to="/account/wishlist"><span><strong>Wishlist</strong><small>Saved pieces for later</small></span><ArrowRight size={17} /></Link><Link className="account-link-card" to="/account/notifications"><Bell size={22} /><span><strong>Notifications</strong><small>Order and delivery updates</small></span><ArrowRight size={17} /></Link><Link className="account-link-card" to="/account/seller-application"><FileText size={22} /><span><strong>Become a seller</strong><small>Apply for store approval</small></span><ArrowRight size={17} /></Link><Link className="account-link-card" to="/account/orders"><span><strong>Order history</strong><small>Track your Kipi purchases</small></span><ArrowRight size={17} /></Link><button className="account-link-card signout" onClick={logout}><LogOut size={20} /><span><strong>Sign out</strong><small>End this session securely</small></span></button></div></div></div>
+  useEffect(() => { if (profileQuery.data?.data) reset({ name: profileQuery.data.data.name, email: profileQuery.data.data.email, phone: profileQuery.data.data.phone ?? '' }) }, [profileQuery.data, reset])
+  useEffect(() => { if (preferencesQuery.data?.data) setPreferenceDraft(preferencesQuery.data.data) }, [preferencesQuery.data])
+  const profileMutation = useMutation({ mutationFn: storefrontApi.updateProfile, onSuccess: () => { setEditing(false); client.invalidateQueries({ queryKey: ['profile'] }) } })
+  const preferenceMutation = useMutation({ mutationFn: storefrontApi.updateNotificationPreferences, onSuccess: (response) => { setPreferenceDraft(response.data); client.setQueryData(['notification-preferences'], response) }, onError: () => { if (preferencesQuery.data?.data) setPreferenceDraft(preferencesQuery.data.data) } })
+  async function logout() { setLoggingOut(true); setLogoutError(''); try { await api.auth.logout(); clear(); client.clear() } catch (error) { setLogoutError(apiErrorMessage(error)) } finally { setLoggingOut(false) } }
+  function togglePreference(key: keyof NotificationPreferences) { if (!preferenceDraft || preferenceMutation.isPending) return; const next = { ...preferenceDraft, [key]: !preferenceDraft[key] }; setPreferenceDraft(next); preferenceMutation.mutate(next) }
+  if (profileQuery.isLoading) return <LoadingState />
+  if (profileQuery.isError || !profileQuery.data) return <ErrorState message={t('We could not load your account.')} />
+  const profile = profileQuery.data.data
+  const summary = ordersQuery.data?.meta?.summary
+  const activeOrders = summary ? summary.pending + summary.confirmed + summary.processing + summary.shipped : '—'
+  const recentOrders = ordersQuery.data?.data.slice(0, 4) ?? []
+  return <div className="account-page account-dashboard-page"><header className="account-dashboard-header"><div><span className="eyebrow">{t('Customer account')}</span><h1>{t('My Account')}</h1><p>{t('Manage your profile, orders, addresses, and preferences in one place.')}</p></div><Link className="button primary" to="/products"><ShoppingBag size={16} />{t('Continue shopping')}</Link></header><div className="account-dashboard-layout"><aside className="account-dashboard-sidebar"><div className="account-sidebar-profile"><div className="avatar">{profile.name.trim().slice(0, 1).toUpperCase()}</div><div><strong>{profile.name}</strong><small>{profile.email}</small></div></div><AccountNavigation /><Link className="account-help-link" to="/contact"><CircleHelp size={17} /><span>{t('Need help?')}</span><ArrowRight size={14} /></Link></aside><main className="account-dashboard-main"><section className="account-welcome"><div><span className="eyebrow">{t('Welcome back')}</span><h2>{t('Hello, {name}.', { name: profile.name.split(' ')[0] })}</h2><p>{t('Your account activity and saved details are ready when you are.')}</p></div><button className="text-link" type="button" onClick={() => { profileMutation.reset(); setEditing(true) }}><Edit3 size={15} />{t('Edit personal information')}</button></section><div className="account-stat-grid"><AccountStat icon={ShoppingBag} label="Total orders" value={summary?.all ?? ordersQuery.data?.meta?.total ?? '—'} to="/account/orders" /><AccountStat icon={Truck} label="Active orders" value={activeOrders} to="/account/orders" /><AccountStat icon={MapPin} label="Saved addresses" value={addressesQuery.data?.data.length ?? '—'} to="/account/addresses" /><AccountStat icon={Heart} label="Wishlist items" value={wishlistQuery.data?.data.products.length ?? '—'} to="/account/wishlist" /></div><div className="account-overview-grid"><Card className="account-profile-panel" id="personal-information"><div className="account-panel-heading"><div><span className="eyebrow">{t('Personal information')}</span><h2>{t('Your profile')}</h2></div><UserRound size={19} /></div>{editing ? <form className="stack-form" onSubmit={handleSubmit((values) => profileMutation.mutate(values))}><FormField label={t('Full name')} autoComplete="name" {...register('name')} error={errors.name?.message} /><FormField label={t('Email address')} type="email" autoComplete="email" {...register('email')} error={errors.email?.message} /><FormField label={t('Phone number')} type="tel" autoComplete="tel" {...register('phone')} error={errors.phone?.message} /><div className="form-actions"><button className="button secondary" type="button" onClick={() => { setEditing(false); profileMutation.reset() }}>{t('Cancel')}</button><button className="button primary" disabled={isSubmitting || profileMutation.isPending}>{profileMutation.isPending ? t('Saving…') : t('Save changes')}</button></div>{profileMutation.isError ? <p className="error" role="alert">{apiErrorMessage(profileMutation.error)}</p> : null}{profileMutation.isSuccess ? <p className="success-box" role="status">{t('Profile saved.')}</p> : null}</form> : <div className="account-profile-details"><div className="account-profile-large"><div className="avatar">{profile.name.trim().slice(0, 1).toUpperCase()}</div><div><strong>{profile.name}</strong><span>{profile.email}</span></div></div><dl><div><dt>{t('Phone number')}</dt><dd>{profile.phone || t('No phone number added')}</dd></div><div><dt>{t('Account status')}</dt><dd><AccountStatus value={profile.status} /></dd></div></dl><button className="button secondary" type="button" onClick={() => { profileMutation.reset(); setEditing(true) }}><Edit3 size={15} />{t('Edit profile')}</button></div>}</Card><Card className="account-recent-panel"><div className="account-panel-heading"><div><span className="eyebrow">{t('Latest activity')}</span><h2>{t('Recent orders')}</h2></div><Link className="text-link" to="/account/orders">{t('View all')} <ArrowRight size={14} /></Link></div>{ordersQuery.isLoading ? <div className="account-inline-loading"><LoadingState label={t('Loading orders')} /></div> : ordersQuery.isError ? <div className="account-inline-message"><p className="error">{t('Orders could not be loaded.')}</p><button className="text-link" type="button" onClick={() => void ordersQuery.refetch()}>{t('Retry')}</button></div> : recentOrders.length ? <div className="account-recent-orders">{recentOrders.map((order) => <div className="account-recent-order" key={order.id}><div><strong>{order.order_number}</strong><small>{order.placed_at ? new Date(order.placed_at).toLocaleDateString() : t('Date unavailable')}</small></div><div className="account-recent-order-status"><AccountStatus value={order.payment_status} /><AccountStatus value={order.fulfillment_status} /></div><strong>{order.grand_total_minor.toLocaleString()} {order.currency}</strong><Link className="text-link" to={'/account/orders/' + order.id} aria-label={t('View order {order}', { order: order.order_number })}><ArrowRight size={16} /></Link></div>)}</div> : <div className="account-inline-message"><p>{t('No orders yet.')}</p><Link className="button secondary" to="/products">{t('Start shopping')}</Link></div>}</Card></div><Card className="account-preferences-panel" id="preferences"><div className="account-panel-heading"><div><span className="eyebrow">{t('Preferences')}</span><h2>{t('Notifications and privacy')}</h2><p>{t('Choose which account updates you want to receive.')}</p></div><ShieldCheck size={19} /></div>{preferencesQuery.isLoading ? <LoadingState label={t('Loading preferences')} /> : preferencesQuery.isError || !preferenceDraft ? <p className="error">{t('Notification preferences are unavailable.')}</p> : <div className="preference-list">{([{ key: 'order_updates', label: 'Order updates', description: 'Get updates when your order changes.' }, { key: 'payment_updates', label: 'Payment updates', description: 'Get updates about payment verification.' }, { key: 'delivery_updates', label: 'Delivery updates', description: 'Get updates about shipments and delivery.' }] as const).map((item) => <button className="preference-row" type="button" key={item.key} onClick={() => togglePreference(item.key)} disabled={preferenceMutation.isPending} role="switch" aria-checked={preferenceDraft[item.key]}><span><strong>{t(item.label)}</strong><small>{t(item.description)}</small></span><span className={preferenceDraft[item.key] ? 'preference-toggle on' : 'preference-toggle'} aria-hidden="true"><span /></span></button>)}{preferenceMutation.isError ? <p className="error" role="alert">{apiErrorMessage(preferenceMutation.error)}</p> : null}{preferenceMutation.isSuccess ? <p className="success-box" role="status">{t('Preferences saved.')}</p> : null}</div>}</Card><div className="account-footer-actions"><Link className="account-footer-action" to="/account/wishlist"><Heart size={17} /><span><strong>{t('Saved products')}</strong><small>{t('Review the products you saved for later.')}</small></span><ArrowRight size={15} /></Link><button className="account-footer-action signout" type="button" onClick={() => void logout()} disabled={loggingOut}><LogOut size={17} /><span><strong>{loggingOut ? t('Signing out…') : t('Sign out')}</strong><small>{t('End this session securely.')}</small></span><ArrowRight size={15} /></button>{logoutError ? <p className="error" role="alert">{logoutError}</p> : null}</div></main></div></div>
 }
 
 export function SellerApplicationPage() {
