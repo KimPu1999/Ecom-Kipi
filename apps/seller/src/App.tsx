@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, ArrowUpRight, BarChart3, Bell, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Clock3, ImagePlus, LayoutDashboard, LogOut, Menu, PackageCheck, Pencil, Search, Settings, ShoppingBag, Star, Store, Trash2, TrendingUp, UploadCloud, Wallet, X } from 'lucide-react'
+import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { AlertTriangle, ArrowLeft, ArrowUpRight, BarChart3, Bell, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Clock3, ImagePlus, LayoutDashboard, LogOut, Menu, PackageCheck, Palette, Pencil, Search, Settings, ShoppingBag, Star, Store, Trash2, TrendingUp, UploadCloud, Wallet, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ApiClientError } from '@kipi/api-client'
@@ -101,8 +101,8 @@ function Layout() {
   const [open, setOpen] = useState(false); const [collapsed, setCollapsed] = useState(false); const navigate = useNavigate(); const location = useLocation(); const clear = useSellerAuth((s) => s.clear); const user = useSellerAuth((s) => s.user)
   const notifications = useQuery({ queryKey: ['seller-notifications'], queryFn: () => sellerRequestWithMeta<NotificationPage[]>('GET', '/notifications', undefined, { params: { per_page: 20 } }) })
   const logout = async () => { await api.auth.logout(); clear(); navigate('/seller/login', { replace: true }) }
-  const items = [["Overview", "/seller", LayoutDashboard], ["Products", "/seller/products", Store], ["Inventory", "/seller/inventory", Boxes], ["Orders", "/seller/orders", ClipboardList], ["Fulfillment", "/seller/fulfillment", ClipboardList], ["Earnings", "/seller/earnings", BarChart3], ["Payouts", "/seller/payouts", Wallet]] as const
-  const pageTitle = location.pathname.startsWith('/seller/products') ? 'Product Management' : 'Seller workspace'
+  const items = [["Overview", "/seller", LayoutDashboard], ["Products", "/seller/products", Store], ["Inventory", "/seller/inventory", Boxes], ["Orders", "/seller/orders", ClipboardList], ["Fulfillment", "/seller/fulfillment", ClipboardList], ["Earnings", "/seller/earnings", BarChart3], ["Payouts", "/seller/payouts", Wallet], ["Settings", "/seller/settings", Settings]] as const
+  const pageTitle = location.pathname.startsWith('/seller/products') ? 'Product Management' : location.pathname.startsWith('/seller/settings') ? 'Settings' : location.pathname.startsWith('/seller/payouts') ? 'Payouts' : 'Seller workspace'
   const unreadCount = notifications.data?.meta.unread_count ?? 0
   return <div className={'shell ' + (collapsed ? 'sidebar-collapsed' : '')}><aside className={'sidebar ' + (open ? 'open' : '')}><div className="brand"><span className="logo small">K</span><span>Kipi <em>Seller</em></span><button className="icon mobile" onClick={() => setOpen(false)} aria-label="Close navigation"><X size={19} /></button></div><p className="nav-label">Workspace</p><div className="sidebar-navigation"><nav>{items.map(([label, to, Icon]) => <NavLink key={to} to={to} end={to === '/seller'} onClick={() => setOpen(false)} aria-label={label} title={collapsed ? label : undefined}><Icon size={20} strokeWidth={2} aria-hidden="true" /><span className="nav-item-label">{label}</span></NavLink>)}</nav></div><footer className="sidebar-footer"><button className="sidebar-collapse" type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>{collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}<span>{collapsed ? 'Expand sidebar' : 'Collapse sidebar'}</span></button></footer></aside>{open ? <button className="sidebar-backdrop" type="button" aria-label="Close navigation" onClick={() => setOpen(false)} /> : null}<main className="main"><header className="seller-header"><div className="header-title-group"><button className="icon mobile-menu" onClick={() => setOpen(true)} aria-label="Open navigation"><Menu size={21} /></button><div><span className="kicker">SELLER WORKSPACE</span><strong>{pageTitle}</strong></div></div><div className="header-actions"><label className="header-search"><Search size={16} /><span className="visually-hidden">Search seller products</span><input placeholder="Search products" aria-label="Search seller products" onKeyDown={(event) => { if (event.key === 'Enter') navigate(`/seller/products?q=${encodeURIComponent(event.currentTarget.value.trim())}`) }} /></label><button className="header-icon" aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ''}`}><Bell size={18} />{unreadCount > 0 ? <span className="notification-badge">{unreadCount > 99 ? '99+' : unreadCount}</span> : null}</button><ThemeSwitcher /><LanguageSwitcher /><SellerProfileMenu user={user} onLogout={logout} /><Link className="store-link" to="/" target="_blank"><Store size={17} />Open storefront</Link></div></header><section className="content"><Outlet /></section></main></div>
 }
@@ -673,7 +673,84 @@ export function Payouts() {
     {selectedPayout ? <div className="payout-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedPayoutId(null) }}><section className="payout-modal payout-detail-modal" role="dialog" aria-modal="true" aria-labelledby="payout-detail-title"><div className="payout-modal-heading"><div><span className="kicker">PAYOUT RECORD</span><h2 id="payout-detail-title">Payout #{selectedPayout.id}</h2></div><button className="icon" type="button" aria-label="Close payout details" onClick={() => setSelectedPayoutId(null)}><X size={18} /></button></div><dl className="payout-detail-grid"><div><dt>Status</dt><dd><span className={`pill payout-status-${selectedPayout.status}`}>{payoutStatusLabel(selectedPayout.status)}</span></dd></div><div><dt>Amount</dt><dd>{money(selectedPayout.amount_minor, selectedPayout.currency)}</dd></div><div><dt>Requested</dt><dd>{selectedPayout.requested_at ? formatSellerOrderDate(selectedPayout.requested_at) : 'Not recorded'}</dd></div><div><dt>Processed</dt><dd>{selectedPayout.processed_at ? formatSellerOrderDate(selectedPayout.processed_at) : 'Not recorded'}</dd></div><div><dt>Method</dt><dd>{selectedPayout.payout_method?.provider_name || selectedPayout.provider || 'Provider pending'}{selectedPayout.payout_method?.masked_identifier ? <small>{selectedPayout.payout_method.masked_identifier}</small> : null}</dd></div><div><dt>Payment reference</dt><dd>{selectedPayout.provider_payout_id ?? 'Not recorded'}</dd></div></dl>{selectedPayout.failure_message ? <div className="error block">{selectedPayout.failure_message}</div> : null}<h3 className="payout-history-title">Status history</h3>{selectedPayout.status_history?.length ? <ol className="payout-status-history">{selectedPayout.status_history.map((event) => <li key={event.id}><div><strong>{payoutStatusLabel(event.to_status)}</strong><span>{event.created_at ? formatSellerOrderDate(event.created_at) : 'Not recorded'}</span></div>{event.note ? <p>{event.note}</p> : null}{event.provider_reference ? <small>Reference: {event.provider_reference}</small> : null}</li>)}</ol> : <Empty text="No status events recorded." />}<div className="button-row payout-modal-actions">{['pending', 'approved'].includes(selectedPayout.status) ? <button className="button secondary" type="button" disabled={cancelPayout.isPending} onClick={() => { if (window.confirm('Cancel this payout request?')) cancelPayout.mutate(selectedPayout.id) }}>{cancelPayout.isPending ? 'Cancelling…' : 'Cancel request'}</button> : null}<button className="button secondary" type="button" onClick={() => setSelectedPayoutId(null)}>Close</button></div></section></div> : null}
   </>
 }
-function SettingsPage() { const query = useQuery({ queryKey: ['seller-settings'], queryFn: () => sellerRequest<{ store_policies: Record<string, unknown> | null }>('GET', '/seller/settings') }); const save = useMutation({ mutationFn: (value: { store_policies: Record<string, unknown> }) => sellerRequest('PUT', '/seller/settings', value) }); const { register, handleSubmit } = useForm<{ policyText: string }>({ defaultValues: { policyText: query.data?.store_policies?.summary ? String(query.data.store_policies.summary) : '' } }); return <><PageTitle title="Store settings" subtitle="Manage operational configuration for your seller account." />{query.error ? <ErrorBox message="Unable to load settings" /> : <form className="card form-card" onSubmit={handleSubmit((value) => save.mutate({ store_policies: { summary: value.policyText } }))}><label>Store policy summary<textarea rows={5} placeholder="Returns, support hours, and customer-facing policies" {...register('policyText')} /></label><button className="button primary" disabled={save.isPending}>{save.isPending ? 'Saving…' : 'Save settings'}</button>{save.isSuccess && <span className="success">Settings saved.</span>}</form>}</> }
+type SellerSettingsData = {
+  store_policies: Record<string, unknown> | null
+}
+
+type SellerSettingsForm = {
+  policyText: string
+}
+
+export function SettingsPage() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
+  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
+  const activeSection = searchParams.get('section') === 'appearance' ? 'appearance' : 'general'
+  const query = useQuery({ queryKey: ['seller-settings'], queryFn: () => sellerRequest<SellerSettingsData>('GET', '/seller/settings') })
+  const { register, handleSubmit, reset, formState: { isDirty } } = useForm<SellerSettingsForm>({ defaultValues: { policyText: '' } })
+  const save = useMutation({
+    mutationFn: (value: SellerSettingsForm) => sellerRequest<SellerSettingsData>('PUT', '/seller/settings', { store_policies: { summary: value.policyText.trim() } }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(['seller-settings'], data)
+      reset({ policyText: data.store_policies?.summary ? String(data.store_policies.summary) : '' })
+      setFeedback({ tone: 'success', message: 'Settings saved.' })
+    },
+    onError: (error) => setFeedback({ tone: 'error', message: apiErrorMessage(error) }),
+  })
+
+  useEffect(() => {
+    if (!query.data || isDirty) return
+    reset({ policyText: query.data.store_policies?.summary ? String(query.data.store_policies.summary) : '' })
+  }, [isDirty, query.data, reset])
+
+  const sections = [
+    { id: 'general', label: 'General Settings', description: 'Store policies', to: '/seller/settings?section=general', icon: Settings },
+    { id: 'appearance', label: 'Language & Appearance', description: 'Theme and language', to: '/seller/settings?section=appearance', icon: Palette },
+    { id: 'payouts', label: 'Payout Settings', description: 'Methods and requests', to: '/seller/payouts', icon: Wallet },
+  ] as const
+
+  return <div className="seller-settings-page">
+    <label className="settings-mobile-navigation">
+      <span>Settings section</span>
+      <select aria-label="Settings section" value={activeSection === 'appearance' ? '/seller/settings?section=appearance' : '/seller/settings?section=general'} onChange={(event) => navigate(event.target.value)}>
+        {sections.map((section) => <option key={section.id} value={section.to}>{section.label}</option>)}
+      </select>
+    </label>
+    <div className="settings-layout">
+      <aside className="card settings-sidebar" aria-label="Settings navigation">
+        <div className="settings-sidebar-heading"><span className="kicker">SELLER SETTINGS</span><strong>Store controls</strong></div>
+        <nav>
+          {sections.map((section) => {
+            const Icon = section.icon
+            const active = section.id === activeSection
+            return <Link key={section.id} className={active ? 'active' : ''} to={section.to} aria-current={active ? 'page' : undefined}>
+              <Icon size={18} aria-hidden="true" />
+              <span><strong>{section.label}</strong><small>{section.description}</small></span>
+              <ChevronRight size={16} aria-hidden="true" />
+            </Link>
+          })}
+        </nav>
+      </aside>
+      <div className="settings-content">
+        {activeSection === 'general' ? <section className="card settings-panel">
+          <div className="settings-panel-heading"><span className="kicker">STORE OPERATIONS</span><h2>General Settings</h2><p>Manage the customer-facing policy summary saved for this seller account.</p></div>
+          {query.isPending ? <div className="settings-state" role="status">Loading seller settings…</div> : query.isError ? <ErrorBox message="Unable to load settings" /> : <form className="settings-form" onSubmit={handleSubmit((value) => { setFeedback(null); save.mutate(value) })}>
+            <label>Store policy summary<textarea rows={7} placeholder="Returns, support hours, and customer-facing policies" {...register('policyText', { onChange: () => setFeedback(null) })} /></label>
+            <div className="settings-form-actions"><button className="button primary" type="submit" disabled={save.isPending || !isDirty}>{save.isPending ? 'Saving…' : 'Save settings'}</button>{feedback ? <span className={feedback.tone} role={feedback.tone === 'error' ? 'alert' : 'status'}>{feedback.message}</span> : null}</div>
+          </form>}
+        </section> : <section className="card settings-panel">
+          <div className="settings-panel-heading"><span className="kicker">PERSONAL PREFERENCES</span><h2>Language & Appearance</h2><p>These preferences apply immediately throughout the Seller workspace.</p></div>
+          <div className="settings-preference-list">
+            <div className="settings-preference-row"><div><strong>Theme</strong><p>Choose how the Seller workspace looks on this browser.</p></div><ThemeSwitcher /></div>
+            <div className="settings-preference-row"><div><strong>Language</strong><p>Choose the language used across the Seller workspace.</p></div><LanguageSwitcher /></div>
+          </div>
+          <p className="settings-browser-note"><strong>Browser preference:</strong> Theme and language preferences are saved in this browser.</p>
+        </section>}
+      </div>
+    </div>
+  </div>
+}
 function PageTitle({ action }: { title: string; subtitle: string; action?: React.ReactNode }) { return action ? <div className="seller-page-actions">{action}</div> : null }
 function Stat({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) { return <div className="stat card"><span className="stat-icon">{icon}</span><div><small>{label}</small><strong>{value}</strong></div></div> }
 function Loading() { return <div className="card loading">Loading seller data…</div> }
