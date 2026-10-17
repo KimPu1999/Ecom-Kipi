@@ -33,6 +33,193 @@
 @media (max-width: 580px) { .page-title { align-items: flex-start; flex-direction: column; } .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .stat-card { padding: 13px; } .stat-card strong { font-size: 1rem; } .stat-icon { width: 32px; height: 32px; } .toolbar { align-items: stretch; flex-direction: column; } .search-box { width: 100%; } .form-grid { grid-template-columns: 1fr; } .card { padding: 17px; } .breadcrumbs span, .breadcrumbs b { display: none; } }
 .login-shell { display: grid; grid-template-columns: 1.05fr .95fr; min-height: 100vh; background: #f8fafc; } .login-art { position: relative; display: flex; flex-direction: column; justify-content: center; overflow: hidden; padding: 10%; color: white; background: #0f172a; } .login-art .eyebrow { color: #93c5fd; } .login-art h1 { position: relative; z-index: 1; max-width: 570px; margin: 15px 0; font-size: clamp(3rem, 6vw, 6.8rem); line-height: .94; letter-spacing: -.08em; } .login-art > p { position: relative; z-index: 1; max-width: 410px; color: #a9bad0; } .login-orb { position: absolute; top: 18%; right: 12%; width: 420px; height: 420px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #2563eb, #1e3a8a 48%, transparent 70%); opacity: .68; filter: blur(12px); } .login-points { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 18px; margin-top: 38px; color: #cbd5e1; font-size: .78rem; } .login-points span { display: inline-flex; align-items: center; gap: 7px; } .login-card { align-self: center; width: min(440px, calc(100% - 56px)); margin: auto; padding: 44px; border: 1px solid var(--border); border-radius: 18px; background: white; box-shadow: 0 25px 70px #0f172a12; } .login-card > .brand-mark { margin-bottom: 35px; } .login-card h2 { margin: 9px 0 5px; color: #0f172a; font-size: 2.25rem; letter-spacing: -.06em; } .login-subtitle, .login-footnote { color: #64748b; font-size: .82rem; } .login-card form { margin-top: 27px; } .login-card form label:not(.checkbox) { display: grid; gap: 7px; color: #334155; font-size: .78rem; font-weight: 800; } .login-card small { color: #dc2626; font-weight: 500; } .password-input { display: flex; align-items: center; border: 1px solid var(--border); border-radius: 8px; } .password-input:focus-within { outline: 2px solid #93c5fd; } .password-input input { flex: 1; border: 0; outline: 0; } .password-input .icon-button { margin-right: 3px; } .remember { color: #64748b !important; font-size: .76rem !important; font-weight: 500 !important; } .login-button { width: 100%; margin-top: 6px; padding: 13px; } .login-error { margin-top: 18px; border: 1px solid #fecaca; border-radius: 8px; padding: 10px 12px; color: #991b1b; background: #fff1f2; font-size: .77rem; } .login-footnote { margin: 24px 0 0; text-align: center; }
 @media (max-width: 760px) { .login-shell { grid-template-columns: 1fr; } .login-art { min-height: 300px; padding: 52px 30px; } .login-art h1 { font-size: 3.5rem; } .login-orb { top: -100px; right: -100px; width: 300px; height: 300px; } .login-card { margin: -25px auto 35px; position: relative; } }
+
+.marketplace-modal-backdrop {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  overflow-y: auto;
+  background: rgba(15, 23, 42, .58);
+}
+
+.marketplace-review-modal {
+  width: min(920px, 100%);
+  max-height: min(900px, calc(100vh - 48px));
+  overflow-y: auto;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  color: var(--text);
+  background: var(--surface);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+}
+
+.marketplace-review-heading,
+.marketplace-review-actions,
+.marketplace-review-status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.marketplace-review-heading {
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.marketplace-review-heading h2 {
+  margin: 6px 0 4px;
+  font-size: 1.35rem;
+}
+
+.marketplace-review-heading p,
+.marketplace-empty-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: .8rem;
+}
+
+.marketplace-review-status {
+  flex-wrap: wrap;
+  padding: 14px 0;
+  color: var(--muted);
+  font-size: .76rem;
+}
+
+.marketplace-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(240px, .65fr);
+  gap: 24px;
+}
+
+.marketplace-review-grid section,
+.marketplace-review-grid aside {
+  min-width: 0;
+}
+
+.marketplace-review-grid h3 {
+  margin: 18px 0 10px;
+  color: var(--text);
+  font-size: .9rem;
+}
+
+.marketplace-review-grid h3:first-child {
+  margin-top: 0;
+}
+
+.marketplace-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.marketplace-detail-record {
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--background);
+}
+
+.marketplace-detail-record dt {
+  color: var(--muted);
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.marketplace-detail-record dd {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: .8rem;
+}
+
+.marketplace-document-list,
+.marketplace-approval-history {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.marketplace-document-list li,
+.marketplace-approval-history li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.marketplace-document-list li > svg {
+  flex: 0 0 auto;
+  color: var(--primary);
+}
+
+.marketplace-document-list span,
+.marketplace-approval-history li {
+  min-width: 0;
+}
+
+.marketplace-document-list strong,
+.marketplace-document-list small,
+.marketplace-approval-history strong,
+.marketplace-approval-history span {
+  display: block;
+}
+
+.marketplace-document-list small,
+.marketplace-approval-history span,
+.marketplace-approval-history p {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: .72rem;
+}
+
+.marketplace-approval-history {
+  padding-left: 20px;
+  list-style: decimal;
+}
+
+.marketplace-approval-history p {
+  margin-bottom: 0;
+}
+
+.marketplace-review-actions {
+  flex-wrap: wrap;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.marketplace-review-actions .error-text {
+  color: var(--danger);
+  font-size: .78rem;
+}
+
+@media (max-width: 700px) {
+  .marketplace-modal-backdrop {
+    padding: 10px;
+  }
+
+  .marketplace-review-modal {
+    max-height: calc(100vh - 20px);
+    padding: 17px;
+    border-radius: 12px;
+  }
+
+  .marketplace-review-grid,
+  .marketplace-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
 .admin-brand{gap:8px}.admin-brand .brand-mark{width:54px;height:36px;font-size:0;background:url('/kipi-logo.png') center/contain no-repeat}.admin-brand>span:last-child{font-size:0}.admin-brand>span:last-child em{font-size:.78rem;color:#60a5fa;letter-spacing:.02em}.login-logo{width:220px;height:90px;object-fit:contain;object-position:left center}.login-card>.brand-mark{font-size:0;background:url('/kipi-logo.png') center/contain no-repeat}
 .sidebar-collapse { display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 14px; padding: 9px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); background: var(--surface); font-size: .72rem; font-weight: 800; }
 .sidebar-collapse:hover { color: var(--primary); border-color: #bfdbfe; background: #eff6ff; }
