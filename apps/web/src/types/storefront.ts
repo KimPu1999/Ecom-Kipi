@@ -80,7 +80,7 @@ export interface CartItem {
   id: number
   quantity: number
   line_total_minor: number
-  variant: Variant & { product: Pick<Product, 'id' | 'name' | 'slug'> & { variants?: Variant[] } }
+  variant: Variant & { product: Pick<Product, 'id' | 'name' | 'slug' | 'status'> & { seller?: SellerSummary | null; images?: ProductImage[]; variants?: Variant[] } }
 }
 
 export interface Cart {

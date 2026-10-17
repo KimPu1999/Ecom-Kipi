@@ -14,6 +14,8 @@ class CartService
     {
         return Cart::query()->firstOrCreate(['user_id' => $userId])->load([
             'items.variant.product.category',
+            'items.variant.product.images',
+            'items.variant.product.seller',
             'items.variant.product.variants.inventory',
             'items.variant.inventory',
         ]);
@@ -34,7 +36,7 @@ class CartService
             $item->quantity = $nextQuantity;
             $item->save();
 
-            return $cart->fresh()->load(['items.variant.product', 'items.variant.inventory']);
+            return $cart->fresh()->load(['items.variant.product.images', 'items.variant.product.seller', 'items.variant.product.variants.inventory', 'items.variant.inventory']);
         });
     }
 
@@ -44,7 +46,7 @@ class CartService
         $this->assertAvailable($item->variant, $quantity);
         $item->update(['quantity' => $quantity]);
 
-        return $item->cart->fresh()->load(['items.variant.product', 'items.variant.inventory']);
+        return $item->cart->fresh()->load(['items.variant.product.images', 'items.variant.product.seller', 'items.variant.product.variants.inventory', 'items.variant.inventory']);
     }
 
     public function remove(CartItem $item): Cart
@@ -52,14 +54,14 @@ class CartService
         $cart = $item->cart;
         $item->delete();
 
-        return $cart->fresh()->load(['items.variant.product', 'items.variant.inventory']);
+        return $cart->fresh()->load(['items.variant.product.images', 'items.variant.product.seller', 'items.variant.product.variants.inventory', 'items.variant.inventory']);
     }
 
     public function clear(Cart $cart): Cart
     {
         $cart->items()->delete();
 
-        return $cart->load(['items.variant.product', 'items.variant.inventory']);
+        return $cart->load(['items.variant.product.images', 'items.variant.product.seller', 'items.variant.product.variants.inventory', 'items.variant.inventory']);
     }
 
     public function totals(Cart $cart): array

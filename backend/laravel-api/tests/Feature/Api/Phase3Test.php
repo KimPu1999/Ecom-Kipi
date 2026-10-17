@@ -133,6 +133,36 @@ class Phase3Test extends TestCase
         $this->assertDatabaseHas('inventories', ['product_variant_id' => $variant->id, 'reserved_quantity' => 2]);
     }
 
+    public function test_customer_cart_returns_context_and_recalculates_after_update_and_removal(): void
+    {
+        [$customer, $variant] = $this->catalogFixture();
+        Sanctum::actingAs($customer);
+
+        $this->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 2])->assertOk();
+
+        $cart = $this->getJson('/api/v1/cart')
+            ->assertOk()
+            ->assertJsonPath('data.item_count', 2)
+            ->assertJsonPath('data.subtotal_minor', 2000)
+            ->assertJsonPath('data.items.0.variant.product.status', 'published')
+            ->assertJsonPath('data.items.0.variant.is_active', true)
+            ->assertJsonPath('data.items.0.variant.available_quantity', 10)
+            ->assertJsonPath('data.items.0.line_total_minor', 2000);
+
+        $itemId = $cart->json('data.items.0.id');
+        $this->patchJson('/api/v1/cart/items/'.$itemId, ['quantity' => 3])
+            ->assertOk()
+            ->assertJsonPath('data.item_count', 3)
+            ->assertJsonPath('data.subtotal_minor', 3000)
+            ->assertJsonPath('data.items.0.line_total_minor', 3000);
+
+        $this->deleteJson('/api/v1/cart/items/'.$itemId)
+            ->assertOk()
+            ->assertJsonPath('data.item_count', 0)
+            ->assertJsonPath('data.subtotal_minor', 0)
+            ->assertJsonPath('data.items', []);
+    }
+
     public function test_customer_cannot_read_another_customers_order(): void
     {
         [$owner, $variant] = $this->catalogFixture();
