@@ -2076,3 +2076,75 @@ html[data-seller-theme='dark'] .status-note {
     align-self: flex-start;
   }
 }
+
+.seller-auth-logo {
+  display: block;
+  width: 130px;
+  height: 76px;
+  margin-bottom: 34px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.seller-auth-wordmark {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 12px;
+}
+
+.seller-auth-wordmark strong {
+  color: var(--seller-text);
+  font-size: 1.22rem;
+  letter-spacing: 0.08em;
+}
+
+.seller-auth-wordmark small {
+  color: var(--seller-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.seller-password-field {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--seller-border-strong);
+  border-radius: 9px;
+  background: var(--seller-input-bg);
+}
+
+.seller-password-field:focus-within {
+  border-color: var(--seller-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+}
+
+.seller-password-field input {
+  min-width: 0;
+  border: 0;
+  background: transparent;
+}
+
+.seller-password-field button {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--seller-muted);
+}
+
+.seller-password-field button:hover,
+.seller-password-field button:focus-visible {
+  color: var(--seller-primary);
+}
+
+.login-panel {
+  background: radial-gradient(circle at 75% 22%, rgba(37, 99, 235, 0.58), transparent 34%), linear-gradient(145deg, #061327, #101f43 62%, #25124c);
+}
+
+@media (max-width: 900px) {
+  .seller-auth-logo {
+    margin-bottom: 24px;
+  }
+}

@@ -5,5 +5,5 @@ import { App } from './App'
 
 test('redirects the admin root to login when signed out', () => {
   render(<App />)
-  expect(screen.getByText('Welcome back.')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Welcome Back' })).toBeInTheDocument()
 })

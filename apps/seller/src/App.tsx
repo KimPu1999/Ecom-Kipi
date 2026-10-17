@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BrowserRouter, Link, Navigate, NavLink, Outlet, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, ArrowUpRight, BarChart3, Bell, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Clock3, ImagePlus, LayoutDashboard, LogOut, Menu, PackageCheck, Palette, Pencil, Search, Settings, ShoppingBag, Star, Store, Trash2, TrendingUp, UploadCloud, Wallet, X } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowUpRight, BarChart3, Bell, Boxes, Check, ChevronDown, ChevronLeft, ChevronRight, CircleDollarSign, ClipboardList, Clock3, Eye, EyeOff, ImagePlus, LayoutDashboard, LogOut, Menu, PackageCheck, Palette, Pencil, Search, Settings, ShoppingBag, Star, Store, Trash2, TrendingUp, UploadCloud, Wallet, X } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { ApiClientError } from '@kipi/api-client'
@@ -10,6 +10,7 @@ import { loginSchema, type LoginInput } from '@kipi/validation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, sellerRequest, sellerRequestWithMeta } from './lib/api'
 import { useSellerAuth } from './lib/auth'
+import logoUrl from '../../../packages/brand/assets/kipi-logo.png'
 import './product-form.css'
 import './seller-custom-layout.css'
 import './shipment-workflow.css'
@@ -40,10 +41,10 @@ function createProductOptionId(): string {
 }
 
 function Login() {
-  const navigate = useNavigate(); const setSession = useSellerAuth((s) => s.setSession); const clear = useSellerAuth((s) => s.clear); const [error, setError] = useState('')
+  const navigate = useNavigate(); const setSession = useSellerAuth((s) => s.setSession); const clear = useSellerAuth((s) => s.clear); const [error, setError] = useState(''); const [showPassword, setShowPassword] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) })
   async function submit(values: LoginInput) { setError(''); try { const result = await api.auth.login(values); setSession(result.data.user, result.data.token); try { await sellerRequest<Dashboard>('GET', '/seller/dashboard') } catch (sellerError) { clear(); throw sellerError } navigate('/seller') } catch (e) { setError(apiErrorMessage(e)) } }
-  return <div className="login-page"><div className="login-panel"><span className="logo">K</span><span className="kicker">KIPI MARKETPLACE</span><h1>Your store, in focus.</h1><p>Manage products, inventory, fulfillment, earnings, and your seller team from one workspace.</p></div><form className="login-card" onSubmit={handleSubmit(submit)}><span className="kicker">Seller portal</span><h2>Welcome back</h2><p className="muted">Use your approved seller account to continue.</p>{error && <div className="error">{error}</div>}<label>Email<input type="email" placeholder="seller@example.com" {...register('email')} />{errors.email && <small>{errors.email.message}</small>}</label><label>Password<input type="password" placeholder="Your password" {...register('password')} />{errors.password && <small>{errors.password.message}</small>}</label><button className="primary" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign in'}</button></form></div>
+  return <div className="login-page"><div className="login-panel"><img className="seller-auth-logo" src={logoUrl} alt="THANGPC" /><span className="kicker">THANGPC MARKETPLACE</span><h1>Your store, in focus.</h1><p>Manage products, inventory, fulfillment, earnings, and your seller team from one workspace.</p></div><form className="login-card" onSubmit={handleSubmit(submit)}><div className="seller-auth-wordmark"><strong>THANGPC</strong><small>Seller workspace</small></div><span className="kicker">Seller portal</span><h2>Welcome Back</h2><p className="muted">Use your approved seller account to continue.</p>{error && <div className="error">{error}</div>}<label>Email<input type="email" autoComplete="email" placeholder="seller@example.com" {...register('email')} />{errors.email && <small>{errors.email.message}</small>}</label><label>Password<div className="seller-password-field"><input type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Your password" {...register('password')} /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div>{errors.password && <small>{errors.password.message}</small>}</label><button className="primary" disabled={isSubmitting}>{isSubmitting ? 'Signing in…' : 'Sign in'}</button></form></div>
 }
 
 export function SellerProfileMenu({ user, onLogout }: { user: { name?: string | null; email?: string | null } | null; onLogout: () => Promise<void> }) {

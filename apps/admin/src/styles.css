@@ -1719,3 +1719,38 @@ textarea {
     padding: 0;
   }
 }
+
+.admin-auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.admin-auth-brand img {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: #eff6ff;
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.13);
+}
+
+.admin-auth-brand span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.admin-auth-brand strong {
+  color: #0f172a;
+  font-size: 1.18rem;
+  letter-spacing: 0.08em;
+}
+
+.admin-auth-brand small {
+  color: #64748b;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
