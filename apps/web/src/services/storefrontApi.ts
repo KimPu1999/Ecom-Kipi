@@ -22,7 +22,7 @@ export const storefrontApi = {
   reviews: (productId: number, pageNumber = 1) => request<ReviewResponse>({ url: '/products/' + productId + '/reviews', params: { page: pageNumber } }),
   createReview: (productId: number, data: { rating: number; title?: string; body?: string }) => request<unknown>({ url: '/products/' + productId + '/reviews', method: 'POST', data }),
   stores: () => request<SellerSummary[]>({ url: '/stores' }),
-  store: (slug: string) => request<{ store: SellerSummary & { description: string | null }; products: Product[] }>({ url: '/stores/' + encodeURIComponent(slug) }),
+  store: (slug: string, pageNumber = 1) => request<{ store: SellerSummary; products: Product[]; meta?: { current_page: number; last_page: number; total: number } }>({ url: '/stores/' + encodeURIComponent(slug), params: { page: pageNumber } }),
   cart: () => request<Cart>({ url: '/cart' }),
   wishlist: () => request<{ products: Product[]; product_ids: number[] }>({ url: '/wishlist' }),
   addWishlist: (productId: number) => request<null>({ url: '/wishlist/' + productId, method: 'POST' }),

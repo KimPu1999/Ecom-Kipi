@@ -25,7 +25,17 @@ export interface ProductImage {
   is_primary: boolean
   sort_order: number
 }
-export interface SellerSummary { id: number; store_name: string; slug: string }
+export interface SellerSummary {
+  id: number
+  store_name: string
+  slug: string
+  description?: string | null
+  logo_path?: string | null
+  banner_path?: string | null
+  support_email?: string | null
+  support_phone?: string | null
+  products_count?: number
+}
 
 export interface Variant {
   id: number
