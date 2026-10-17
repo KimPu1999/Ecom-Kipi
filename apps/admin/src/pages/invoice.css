@@ -64,9 +64,9 @@
   height: 42px;
   place-items: center;
   border-radius: 11px;
-  color: #fff;
-  background: #315cf5;
-  font-size: 1.5rem;
+  color: transparent;
+  background: url('/kipi-logo.png') center / contain no-repeat;
+  font-size: 0;
   font-weight: 850;
 }
 

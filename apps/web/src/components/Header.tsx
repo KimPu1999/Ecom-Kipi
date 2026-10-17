@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
 import { SearchInput } from './StorefrontUI'
 import { LanguageSwitcher, useLanguage } from '../../../../packages/i18n/src'
+import { Logo } from './Logo'
 
 export function Header() {
   const navigate = useNavigate()
@@ -86,7 +87,7 @@ export function Header() {
       <button className="icon-button marketplace-menu-button" type="button" onClick={() => setMobileOpen(true)} aria-label={t('Open menu')} aria-expanded={mobileOpen}>
         <Menu size={19} aria-hidden="true" />
       </button>
-      <Link className="brand marketplace-brand" to="/" aria-label="Kipi home">Kipi</Link>
+      <Link className="brand marketplace-brand" to="/" aria-label="THANGPC home"><Logo className="brand-logo" /></Link>
 
       <nav className={'marketplace-primary-nav' + (mobileOpen ? ' mobile-open' : '')} aria-label="Primary navigation">
         <div className="marketplace-mobile-nav-heading"><strong>{t('Menu')}</strong><button className="icon-button" type="button" onClick={closeNavigation} aria-label={t('Close menu')}><X size={19} /></button></div>
