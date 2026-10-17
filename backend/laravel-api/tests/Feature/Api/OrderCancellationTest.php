@@ -83,6 +83,15 @@ class OrderCancellationTest extends TestCase
             'id' => $order->id,
             'fulfillment_status' => 'cancelled',
         ]);
+
+        $this->getJson('/api/v1/orders?fulfillment_status=pending')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 0);
+        $this->getJson('/api/v1/orders?fulfillment_status=cancelled')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.id', $order->id)
+            ->assertJsonPath('data.0.fulfillment_status', 'cancelled');
     }
 
     private function checkoutOrder(string $idempotencyKey): array

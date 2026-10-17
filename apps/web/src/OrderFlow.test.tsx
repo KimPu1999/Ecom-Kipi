@@ -65,6 +65,28 @@ describe('customer order flow navigation', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/account/orders/42'))
   })
 
+  test('cancels the checkout draft without creating an order', async () => {
+    renderWithProviders(<CheckoutPage />, ['/checkout'])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm order' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel Order' }))
+
+    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/products'))
+    expect(storefrontApiMock.confirmCheckout).not.toHaveBeenCalled()
+  })
+
+  test('keeps checkout open when order confirmation fails', async () => {
+    storefrontApiMock.confirmCheckout.mockRejectedValue(new Error('Checkout failed'))
+
+    renderWithProviders(<CheckoutPage />, ['/checkout'])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm order' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Order' }))
+
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Checkout could not be confirmed'))
+    expect(screen.getByTestId('location')).toHaveTextContent('/checkout')
+  })
+
   test('refreshes the checkout preview when the cart lines change', async () => {
     const firstCart = { item_count: 1, items: [{ id: 1, quantity: 1, line_total_minor: 15000, variant: { id: 1, sku: 'TSHIRT-1', price_minor: 15000, currency: 'MMK', attributes: null, product: { name: 'T-Shirt' } } }] }
     const secondCart = { item_count: 2, items: [...firstCart.items, { id: 2, quantity: 1, line_total_minor: 200000, variant: { id: 2, sku: 'DEMO-1', price_minor: 200000, currency: 'MMK', attributes: null, product: { name: 'Demo' } } }] }

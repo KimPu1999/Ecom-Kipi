@@ -88,13 +88,20 @@ export function CheckoutPage() {
                 checkoutIdempotencyKey,
             ),
         onSuccess: async (response) => {
-            await Promise.all([
+            await Promise.allSettled([
                 client.invalidateQueries({ queryKey: ['cart'] }),
                 client.invalidateQueries({ queryKey: ['orders'] }),
             ]);
+            client.removeQueries({ queryKey: ['checkout-preview'] });
             navigate('/account/orders/' + response.data.id);
         },
     });
+    function cancelCheckout() {
+        confirm.reset();
+        client.removeQueries({ queryKey: ['checkout-preview'] });
+        setShowOrderConfirmation(false);
+        navigate('/products');
+    }
     if (
         addresses.isLoading ||
         cart.isLoading ||
@@ -437,10 +444,7 @@ export function CheckoutPage() {
                                     className="button secondary"
                                     type="button"
                                     disabled={confirm.isPending}
-                                    onClick={() => {
-                                        confirm.reset();
-                                        setShowOrderConfirmation(false);
-                                    }}
+                                    onClick={cancelCheckout}
                                 >
                                     Cancel Order
                                 </button>
