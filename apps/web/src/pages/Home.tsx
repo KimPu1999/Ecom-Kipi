@@ -20,7 +20,7 @@ export function Home() {
   }).slice(0, 4) ?? []
 
   return <div className="home-page">
-    <Seo title="Kipi · Everyday goods, selected with care" description="Discover products from approved sellers on Kipi." />
+    <Seo title="THANGPC · Everyday goods, selected with care" description="Discover products from approved sellers on THANGPC." />
 
     <section className="home-hero" aria-labelledby="home-hero-title">
       <div className="home-hero-copy">

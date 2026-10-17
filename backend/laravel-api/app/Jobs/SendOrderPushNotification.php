@@ -36,7 +36,7 @@ class SendOrderPushNotification implements ShouldQueue
 
         $messages = array_map(fn (string $token) => [
             'to' => $token,
-            'title' => 'Kipi order update',
+            'title' => 'THANGPC order update',
             'body' => $this->body,
             'data' => ['order_id' => $this->order->id, 'event' => $this->event],
             'sound' => 'default',

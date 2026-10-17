@@ -110,7 +110,7 @@ export function InvoicePage() {
 
     <article className="invoice-sheet" aria-labelledby="invoice-title">
       <header className="invoice-header">
-        <div className="invoice-brand"><span className="invoice-brand-mark">K</span><div><strong>Kipi</strong><span>Marketplace</span></div></div>
+        <div className="invoice-brand"><span className="invoice-brand-mark">T</span><div><strong>THANGPC</strong><span>Marketplace</span></div></div>
         <div className="invoice-title-block"><span className="invoice-eyebrow">Order document</span><h1 id="invoice-title">Invoice</h1><p>{invoiceNumber}</p></div>
       </header>
 
@@ -135,7 +135,7 @@ export function InvoicePage() {
         <section className="invoice-section invoice-summary-section"><div className="invoice-section-heading"><h2>Order summary</h2><FileText size={17} aria-hidden="true" /></div><dl className="invoice-summary-list"><div><dt>Subtotal</dt><dd>{formatMoney(order.subtotal_minor, order.currency)}</dd></div><div><dt>Discount</dt><dd>{formatMoney(order.discount_minor, order.currency)}</dd></div><div><dt>Shipping fee</dt><dd>{formatMoney(order.shipping_minor, order.currency)}</dd></div><div><dt>Tax</dt><dd>{formatMoney(order.tax_minor, order.currency)}</dd></div><div className="invoice-total"><dt>Grand total</dt><dd>{formatMoney(order.grand_total_minor, order.currency)}</dd></div></dl></section>
       </div>
 
-      <footer className="invoice-footer"><span>Kipi Marketplace</span><span>Generated from the selected order's authorized records. Invoice number remains stable when reprinted.</span></footer>
+      <footer className="invoice-footer"><span>THANGPC Marketplace</span><span>Generated from the selected order's authorized records. Invoice number remains stable when reprinted.</span></footer>
     </article>
   </div>
 }

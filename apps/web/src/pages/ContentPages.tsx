@@ -51,7 +51,7 @@ export function ContactPage() {
   const [values, setValues] = useState({ name: '', email: '', message: '' })
   function submit(event: FormEvent) {
     event.preventDefault()
-    const subject = encodeURIComponent(`Kipi customer message from ${values.name}`)
+    const subject = encodeURIComponent(`THANGPC customer message from ${values.name}`)
     const body = encodeURIComponent(`${values.message}\n\nReply to: ${values.email}`)
     window.location.href = `mailto:hello@kipi.example?subject=${subject}&body=${body}`
     setSubmitted(true)

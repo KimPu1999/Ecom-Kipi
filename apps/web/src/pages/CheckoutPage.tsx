@@ -177,7 +177,7 @@ export function CheckoutPage() {
             <div className="checkout-trust">
                 <strong>Secure checkout</strong>
                 <span>
-                    Choose cash on delivery or a manual online transfer. Kipi does not store card details.
+                    Choose cash on delivery or a manual online transfer. THANGPC does not store card details.
                 </span>
             </div>
             <div className="checkout-layout">

@@ -9,7 +9,7 @@ import { useLanguage } from '../../../../packages/i18n/src'
 
 export function Seo({ title, description }: { title: string; description: string }) {
   useEffect(() => {
-    document.title = `${title} · Kipi Commerce`
+    document.title = `${title} · THANGPC Commerce`
     const meta = document.querySelector('meta[name="description"]') ?? document.createElement('meta')
     meta.setAttribute('name', 'description')
     meta.setAttribute('content', description)

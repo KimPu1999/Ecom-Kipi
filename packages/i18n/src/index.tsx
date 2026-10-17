@@ -770,6 +770,12 @@ type SourceRecord = { source: string; translated: string }
 const textSources = new WeakMap<Text, SourceRecord>()
 const attributeSources = new WeakMap<Element, Map<string, SourceRecord>>()
 
+function replaceVisibleBrandText(value: string): string {
+  return value
+    .replace(/\bKIPI(?=\s+(?:MARKETPLACE|CONTROL CENTER)\b)/g, 'THANGPC')
+    .replace(/\bKipi(?=\s+(?:Commerce|Marketplace|marketplace|Control|collection|update|delivery|Self|does|shopping|offers|edit|is|brings|connects|products|customer)|-managed|[.!?,]|$)/g, 'THANGPC')
+}
+
 function translateDocument(language: Language) {
   if (typeof document === 'undefined' || !document.body) return
   document.documentElement.lang = language
@@ -783,7 +789,7 @@ function translateDocument(language: Language) {
       const previous = textSources.get(text)
       const source = previous && current === previous.translated ? previous.source : current
       const trimmed = source.trim()
-      const translated = language === 'my' ? values.my[trimmed] ?? source : source
+      const translated = replaceVisibleBrandText(language === 'my' ? values.my[trimmed] ?? source : source)
       textSources.set(text, { source, translated })
       if (current !== translated) text.nodeValue = translated
     }
@@ -797,7 +803,7 @@ function translateDocument(language: Language) {
       if (current === null) return
       const previous = records.get(attribute)
       const source = previous && current === previous.translated ? previous.source : current
-      const translated = language === 'my' ? values.my[source] ?? source : source
+      const translated = replaceVisibleBrandText(language === 'my' ? values.my[source] ?? source : source)
       records.set(attribute, { source, translated })
       if (current !== translated) element.setAttribute(attribute, translated)
     })
@@ -841,7 +847,7 @@ export function LanguageProvider({ children }: PropsWithChildren) {
     t: (key, replacements) => {
       let translated = language === 'my' ? values.my[key] ?? key : key
       Object.entries(replacements ?? {}).forEach(([name, replacement]) => { translated = translated.replaceAll(`{${name}}`, String(replacement)) })
-      return translated
+      return translated.replaceAll('Kipi', 'THANGPC').replaceAll('KIPI', 'THANGPC')
     },
   }), [language])
 

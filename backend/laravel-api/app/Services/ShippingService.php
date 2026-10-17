@@ -14,7 +14,9 @@ class ShippingService
     {
         if (! empty($data['idempotency_key'])) {
             $existing = $order->shipments()->where('idempotency_key', $data['idempotency_key'])->first();
-            if ($existing) return $existing->load(['items.orderItem', 'tracking', 'method', 'carrierRecord', 'rider']);
+            if ($existing) {
+                return $existing->load(['items.orderItem', 'tracking', 'method', 'carrierRecord', 'rider']);
+            }
         }
         $isCod = $order->payments()->where('provider', 'cod')->exists();
         if (! $isCod && $order->payment_status !== 'paid') {
@@ -31,7 +33,7 @@ class ShippingService
                 'delivery_method' => $deliveryMethod,
                 'carrier_id' => $data['carrier_id'] ?? null,
                 'status' => 'pending',
-                'carrier' => $deliveryMethod === 'self_delivery' ? ($data['carrier'] ?? 'Kipi Self Delivery') : ($data['carrier'] ?? null),
+                'carrier' => $deliveryMethod === 'self_delivery' ? ($data['carrier'] ?? 'THANGPC Self Delivery') : ($data['carrier'] ?? null),
                 'tracking_number' => $deliveryMethod === 'external_courier' ? ($data['tracking_number'] ?? null) : null,
                 'internal_tracking_id' => $deliveryMethod === 'self_delivery' ? Shipment::nextInternalTrackingId() : null,
                 'rider_id' => $data['rider_id'] ?? null,
