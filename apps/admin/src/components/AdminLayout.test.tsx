@@ -38,6 +38,13 @@ test('shows a Back button on a direct admin page and safely falls back to the da
   expect(await screen.findByText('Dashboard content')).toBeInTheDocument()
 })
 
+test('keeps Commission Settings on its own navigation route', () => {
+  render(<AppearanceProvider><LanguageProvider><MemoryRouter initialEntries={['/admin/commission-settings']}><Routes><Route element={<AdminLayout />}><Route path="/admin" element={<span>Dashboard content</span>} /><Route path="/admin/commission-settings" element={<span>Commission settings content</span>} /><Route path="/admin/settings" element={<span>General settings content</span>} /></Route></Routes></MemoryRouter></LanguageProvider></AppearanceProvider>)
+
+  expect(screen.getByText('Commission settings content')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Commission Settings' })).toHaveAttribute('href', '/admin/commission-settings')
+})
+
 test('does not show a redundant Back button on a direct dashboard entry', () => {
   render(<AppearanceProvider><LanguageProvider><MemoryRouter initialEntries={['/admin']}><Routes><Route element={<AdminLayout />}><Route path="/admin" element={<span>Dashboard content</span>} /></Route></Routes></MemoryRouter></LanguageProvider></AppearanceProvider>)
 

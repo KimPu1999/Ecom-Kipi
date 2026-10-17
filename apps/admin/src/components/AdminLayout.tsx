@@ -36,7 +36,7 @@ const navSections: NavSection[] = [
     { label: 'Refunds', to: '/admin/refunds', icon: RotateCcw, permission: 'manage_orders' },
   ] },
   { key: 'commission', label: 'Commission', icon: Percent, items: [
-    { label: 'Commission Settings', to: '/admin/settings', icon: Percent, permission: null, superAdminOnly: true },
+    { label: 'Commission Settings', to: '/admin/commission-settings', icon: Percent, permission: null, superAdminOnly: true },
   ] },
   { key: 'reports', label: 'Reports', icon: FileBarChart, items: [
     { label: 'Reports', to: '/admin/reports', icon: FileBarChart, permission: null },

@@ -291,8 +291,14 @@ export function AuditLogsPage() {
 
 export function SettingsPage() {
   return <div className="page-stack">
-    <PageHeader eyebrow="Workspace" title="Settings" description="Customize the Admin interface and manage platform controls." />
+    <PageHeader eyebrow="Workspace" title="General Settings" description="Customize the Admin interface using the settings supported by this application." />
     <AppearanceSettingsPanel />
+  </div>
+}
+
+export function CommissionSettingsPage() {
+  return <div className="page-stack">
+    <PageHeader eyebrow="Marketplace finance" title="Commission Settings" description="Manage the global commission policy and seller-specific commission rules." />
     <CommissionSettingsPanel />
   </div>
 }
