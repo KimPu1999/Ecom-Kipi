@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\V1\Marketplace\StoreController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\Order\OrderController;
 use App\Http\Controllers\Api\V1\PaymentController;
+use App\Http\Controllers\Api\V1\PaymentReceiptController;
 use App\Http\Controllers\Api\V1\ReviewController;
 use App\Http\Controllers\Api\V1\RiderController;
 use App\Http\Controllers\Api\V1\ShippingController;
@@ -46,6 +47,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
     Route::get('products/search', [CatalogController::class, 'products']);
     Route::get('products/{product}/reviews', [ReviewController::class, 'index']);
     Route::get('products/{slug}', [CatalogController::class, 'product']);
+    Route::get('payment-methods/manual', [PaymentReceiptController::class, 'manualMethods']);
     Route::get('stores', [StoreController::class, 'index']);
     Route::get('stores/{slug}', [StoreController::class, 'show']);
     Route::post('webhooks/payments/{provider}', [WebhookController::class, 'payment']);
@@ -79,6 +81,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::delete('cart', [CartController::class, 'clear']);
         Route::post('checkout/preview', [CheckoutController::class, 'preview']);
         Route::post('checkout/confirm', [CheckoutController::class, 'confirm']);
+        Route::post('orders/{order}/payments/{payment}/receipt', [PaymentReceiptController::class, 'submit'])->middleware('throttle:10,1');
         Route::post('payments/initialize', [PaymentController::class, 'initialize']);
         Route::get('payments/{payment}/status', [PaymentController::class, 'status']);
         Route::post('payments/{payment}/retry', [PaymentController::class, 'retry']);
@@ -186,6 +189,10 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
             Route::post('orders/{order}/refunds', [RefundController::class, 'store']);
             Route::post('payments/{payment}/collect-cod', [PaymentController::class, 'collectCod']);
             Route::post('payments/{payment}/verify-manual', [PaymentController::class, 'verifyManual']);
+            Route::get('payment-receipts', [PaymentReceiptController::class, 'index']);
+            Route::get('payments/{payment}/receipt', [PaymentReceiptController::class, 'file']);
+            Route::post('payments/{payment}/receipt/approve', [PaymentReceiptController::class, 'approve']);
+            Route::post('payments/{payment}/receipt/reject', [PaymentReceiptController::class, 'reject']);
             Route::get('shipping/methods', [ShippingManagementController::class, 'methods']);
             Route::post('shipping/methods', [ShippingManagementController::class, 'storeMethod']);
             Route::patch('shipping/methods/{method}', [ShippingManagementController::class, 'updateMethod']);

@@ -159,6 +159,32 @@ export interface InventoryRow {
   is_low_stock: boolean
 }
 
+export interface PaymentReceiptSummary {
+  status: 'submitted' | 'approved' | 'rejected' | 'not_submitted' | string
+  submitted_at?: string | null
+  reviewed_at?: string | null
+  rejection_reason?: string | null
+  has_file?: boolean
+}
+
+export interface PaymentReceiptSubmission {
+  payment_id: number
+  order_id: number
+  order_number: string | null
+  customer: { id: number; name: string; email: string } | null
+  provider: string
+  amount_minor: number
+  currency: string
+  sender_name: string | null
+  sender_phone: string | null
+  transaction_code: string | null
+  status: PaymentReceiptSummary['status']
+  submitted_at: string | null
+  reviewed_at: string | null
+  rejection_reason: string | null
+  has_file: boolean
+}
+
 export interface Order {
   id: number
   order_number: string
@@ -178,7 +204,7 @@ export interface Order {
   items?: { id?: number; product_name: string; sku: string; quantity: number; unit_price_minor: number; line_total_minor?: number; product_image?: string | null; attributes?: Record<string, unknown> | null; seller?: { id: number; store_name: string } | null }[]
   status_history?: { id: number; from_status: string | null; to_status: string; note: string | null; created_at: string }[]
   notes?: { id: number; note: string; created_at: string; user?: User }[]
-  payments?: { id: number; provider: string; status: string; amount_minor: number; currency: string; provider_payment_id: string | null; metadata?: Record<string, unknown> | null }[]
+  payments?: { id: number; provider: string; status: string; amount_minor: number; currency: string; provider_payment_id: string | null; metadata?: Record<string, unknown> | null; receipt?: PaymentReceiptSummary | null }[]
   shipments?: { id: number; status: string; delivery_method?: string | null; carrier: string | null; tracking_number: string | null; internal_tracking_id?: string | null; estimated_delivery_at?: string | null; shipped_at?: string | null; delivered_at?: string | null; metadata?: Record<string, unknown> | null; seller_order?: { seller?: { store_name: string } | null } | null; rider?: { name?: string | null } | null }[]
   refunds?: { id: number; status: string; amount_minor: number; currency: string; reason: string | null }[]
 }

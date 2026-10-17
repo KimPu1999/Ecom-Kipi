@@ -57,7 +57,7 @@ class PaymentController extends Controller
 
     public function verifyManual(Request $request, Payment $payment, PaymentService $payments)
     {
-        if (! in_array($payment->provider, ['kbzpay', 'wavepay', 'bank_transfer'], true)) {
+        if (! in_array($payment->provider, ['kbzpay', 'ayapay', 'wavepay', 'bank_transfer'], true)) {
             throw ValidationException::withMessages(['payment' => 'Only manual online payments can be verified here.']);
         }
         if ($payment->status === 'paid') {

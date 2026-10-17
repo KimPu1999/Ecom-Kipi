@@ -80,6 +80,11 @@ class Order extends Model
         return $this->hasMany(Refund::class);
     }
 
+    public function customerConfirmed(): bool
+    {
+        return $this->placed_at !== null;
+    }
+
     public function sellerOrders(): HasMany
     {
         return $this->hasMany(SellerOrder::class);

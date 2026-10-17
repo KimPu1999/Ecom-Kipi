@@ -138,6 +138,7 @@ export interface Order {
   currency: string
   payment_status: string
   fulfillment_status: string
+  customer_confirmed?: boolean
   placed_at: string | null
   cancelled_at?: string | null
   items?: OrderItem[]
@@ -181,6 +182,22 @@ export interface Payment {
   amount_minor: number
   currency: string
   failure_message?: string | null
+  metadata?: Record<string, unknown> | null
+  receipt?: {
+    status: 'not_submitted' | 'submitted' | 'approved' | 'rejected' | string
+    submitted_at?: string | null
+    reviewed_at?: string | null
+    rejection_reason?: string | null
+    has_file?: boolean
+  } | null
+}
+
+export interface ManualPaymentMethod {
+  code: 'kbzpay' | 'ayapay' | 'wavepay' | string
+  label: string
+  recipient_name: string
+  recipient_phone: string
+  qr_url: string | null
 }
 
 export interface Shipment {

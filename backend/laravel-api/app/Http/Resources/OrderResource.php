@@ -22,6 +22,7 @@ class OrderResource extends JsonResource
             'currency' => $this->currency,
             'payment_status' => $this->payment_status,
             'fulfillment_status' => $this->fulfillment_status,
+            'customer_confirmed' => $this->customerConfirmed(),
             'placed_at' => $this->placed_at?->toISOString(),
             'cancelled_at' => $this->cancelled_at?->toISOString(),
             'user' => new UserResource($this->whenLoaded('user')),
@@ -69,7 +70,7 @@ class OrderResource extends JsonResource
             'status_history' => $this->whenLoaded('statusHistory'),
             'notes' => $this->whenLoaded('notes'),
             'shipping_method' => $this->whenLoaded('shippingMethod'),
-            'payments' => $this->whenLoaded('payments'),
+            'payments' => $this->whenLoaded('payments', fn () => PaymentResource::collection($this->payments)),
             'shipments' => $this->whenLoaded('shipments'),
             'refunds' => $this->whenLoaded('refunds'),
         ];

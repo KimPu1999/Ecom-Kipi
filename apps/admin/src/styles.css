@@ -1000,6 +1000,28 @@ textarea { font-family: var(--appearance-font-family); }
   .language-trigger { padding-inline: 6px; }
 }
 
+.receipt-admin-preview {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.receipt-admin-preview .card-heading {
+  margin-bottom: 0;
+}
+
+.receipt-admin-preview img {
+  display: block;
+  width: min(100%, 520px);
+  max-height: 620px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-muted);
+}
+
 /* Keep the global header visible while the page content scrolls independently. */
 :root {
   --admin-header-height: 68px;

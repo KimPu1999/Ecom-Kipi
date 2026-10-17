@@ -12,8 +12,8 @@ import {
     StatusBadge,
 } from '../components/StorefrontUI';
 
-const manualPaymentMethods = ['kbzpay', 'wavepay', 'bank_transfer'] as const;
-type CheckoutPaymentMethod = 'cod' | (typeof manualPaymentMethods)[number];
+const manualPaymentCodes = ['kbzpay', 'ayapay', 'wavepay', 'bank_transfer'] as const;
+type CheckoutPaymentMethod = 'cod' | (typeof manualPaymentCodes)[number];
 
 export function CheckoutPage() {
     const client = useQueryClient();
@@ -23,6 +23,10 @@ export function CheckoutPage() {
     const shipping = useQuery({
         queryKey: ['shipping-methods'],
         queryFn: storefrontApi.shippingMethods,
+    });
+    const manualMethods = useQuery({
+        queryKey: ['manual-payment-methods'],
+        queryFn: storefrontApi.manualPaymentMethods,
     });
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [methodId, setMethodId] = useState<number | null>(null);
@@ -44,9 +48,10 @@ export function CheckoutPage() {
     const [paymentMethod, setPaymentMethod] = useState<CheckoutPaymentMethod>('cod');
     const [senderPhone, setSenderPhone] = useState('');
     const [transactionCode, setTransactionCode] = useState('');
-    const isManualPayment = manualPaymentMethods.includes(
-        paymentMethod as (typeof manualPaymentMethods)[number],
+    const isManualPayment = manualPaymentCodes.includes(
+        paymentMethod as (typeof manualPaymentCodes)[number],
     );
+    const selectedManualMethod = manualMethods.data?.data.find((item) => item.code === paymentMethod);
     const confirm = useMutation({
         mutationFn: () =>
             storefrontApi.confirmCheckout(
@@ -76,7 +81,8 @@ export function CheckoutPage() {
         addresses.isLoading ||
         cart.isLoading ||
         shipping.isLoading ||
-        (cart.data?.data.item_count && preview.isLoading)
+        (cart.data?.data.item_count && preview.isLoading) ||
+        manualMethods.isLoading
     )
         return <LoadingState />;
     if (addresses.isError || cart.isError || shipping.isError)
@@ -223,38 +229,34 @@ export function CheckoutPage() {
                             <button
                                 type="button"
                                 className={
-                                    isManualPayment ? 'address-select selected' : 'address-select'
+                                    isManualPayment && !manualMethods.isError && manualMethods.data?.data.length
+                                        ? 'address-select selected'
+                                        : 'address-select'
                                 }
                                 onClick={() => {
-                                    setPaymentMethod('kbzpay');
+                                    setPaymentMethod((manualMethods.data?.data[0]?.code ?? 'kbzpay') as CheckoutPaymentMethod);
                                     setPaymentError('');
                                 }}
+                                disabled={manualMethods.isError || !manualMethods.data?.data.length}
                             >
                                 <span className="radio-dot" />
                                 <div>
                                     <strong>Online payment</strong>
                                     <p>
-                                        KBZPay, WavePay, or bank transfer. Payment stays pending
-                                        until Admin verifies it.
+                                        KBZPay, AYA Pay, WavePay, or bank transfer. Payment stays
+                                        pending until Admin verifies it.
                                     </p>
                                 </div>
                             </button>
                         </div>
+                        {manualMethods.isError ? <p className="error" role="alert">Online payment methods are unavailable. Please use another payment method or try again later.</p> : null}
                         {isManualPayment ? (
                             <div className="stack-form mt-3">
+                                {selectedManualMethod ? <div className="manual-payment-recipient"><div><span>Send payment to</span><strong>{selectedManualMethod.recipient_name}</strong><small>{selectedManualMethod.recipient_phone} · {selectedManualMethod.label}</small></div>{selectedManualMethod.qr_url ? <img src={selectedManualMethod.qr_url} alt={`${selectedManualMethod.label} payment QR code`} /> : null}</div> : null}
                                 <label className="field">
                                     <span>Online payment provider</span>
-                                    <select
-                                        value={paymentMethod}
-                                        onChange={(event) =>
-                                            setPaymentMethod(
-                                                event.target.value as CheckoutPaymentMethod,
-                                            )
-                                        }
-                                    >
-                                        <option value="kbzpay">KBZPay</option>
-                                        <option value="wavepay">WavePay</option>
-                                        <option value="bank_transfer">Bank transfer</option>
+                                    <select value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value as CheckoutPaymentMethod)}>
+                                        {manualMethods.data?.data.map((item) => <option value={item.code} key={item.code}>{item.label}</option>)}
                                     </select>
                                 </label>
                                 <label className="field">
@@ -405,14 +407,10 @@ export function CheckoutPage() {
                         }
                         onClick={() => {
                             setPaymentError('');
-                            confirm.mutate();
+                            if (window.confirm('Confirm this order?')) confirm.mutate();
                         }}
                     >
-                        {confirm.isPending
-                            ? 'Placing order…'
-                            : paymentMethod === 'cod'
-                              ? 'Place COD order'
-                              : 'Submit payment for verification'}
+                        {confirm.isPending ? 'Confirming order…' : 'Confirm order'}
                     </button>
                     {confirm.isError ? (
                         <p className="error" role="alert">

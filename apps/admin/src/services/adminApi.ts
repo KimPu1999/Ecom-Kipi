@@ -1,6 +1,6 @@
 import type { AxiosRequestConfig } from 'axios'
 import { api } from '../lib/api'
-import type { AuditLog, Brand, Category, CommissionRule, CommissionSettings, Coupon, DashboardData, InventoryRow, Order, Pagination, Product, SellerBrand, ShippingCarrier, ShippingMethod, User, Variant } from '../types/admin'
+import type { AuditLog, Brand, Category, CommissionRule, CommissionSettings, Coupon, DashboardData, InventoryRow, Order, Pagination, PaymentReceiptSubmission, Product, SellerBrand, ShippingCarrier, ShippingMethod, User, Variant } from '../types/admin'
 
 async function request<T>(config: AxiosRequestConfig): Promise<T> {
   const response = await api.request<{ data: T; meta?: Pagination<unknown>['meta'] }>(config)
@@ -37,6 +37,10 @@ export const adminApi = {
   updateShipment: (id: number, data: unknown) => request<unknown>({ url: '/admin/shipments/' + id + '/status', method: 'PATCH', data }),
   collectCodPayment: (paymentId: number) => request<unknown>({ url: '/admin/payments/' + paymentId + '/collect-cod', method: 'POST' }),
   verifyManualPayment: (paymentId: number) => request<unknown>({ url: '/admin/payments/' + paymentId + '/verify-manual', method: 'POST' }),
+  paymentReceipts: (params: Record<string, string> = {}) => request<Pagination<PaymentReceiptSubmission>>({ url: '/admin/payment-receipts', params }),
+  paymentReceiptFile: async (paymentId: number) => (await api.http.get<Blob>('/admin/payments/' + paymentId + '/receipt', { responseType: 'blob' })).data,
+  approvePaymentReceipt: (paymentId: number) => request<unknown>({ url: '/admin/payments/' + paymentId + '/receipt/approve', method: 'POST' }),
+  rejectPaymentReceipt: (paymentId: number, rejection_reason: string) => request<unknown>({ url: '/admin/payments/' + paymentId + '/receipt/reject', method: 'POST', data: { rejection_reason } }),
   shippingMethods: (params: Record<string, string> = {}) => request<Pagination<ShippingMethod>>({ url: '/admin/shipping/methods', params }),
   createShippingMethod: (data: unknown) => request<ShippingMethod>({ url: '/admin/shipping/methods', method: 'POST', data }),
   updateShippingMethod: (id: number, data: unknown) => request<ShippingMethod>({ url: '/admin/shipping/methods/' + id, method: 'PATCH', data }),

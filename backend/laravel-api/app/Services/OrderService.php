@@ -22,6 +22,13 @@ class OrderService
     public function cancel(Order $order, ?int $userId = null): Order
     {
         return DB::transaction(function () use ($order, $userId) {
+            $order = Order::query()->whereKey($order->getKey())->lockForUpdate()->firstOrFail();
+            if ($userId !== null && $order->user_id !== $userId) {
+                abort(404);
+            }
+            if ($order->customerConfirmed()) {
+                throw ValidationException::withMessages(['order' => 'A confirmed order cannot be cancelled by the customer.']);
+            }
             if ($order->fulfillment_status !== 'pending' || $order->cancelled_at) {
                 throw ValidationException::withMessages(['order' => 'This order cannot be cancelled.']);
             }

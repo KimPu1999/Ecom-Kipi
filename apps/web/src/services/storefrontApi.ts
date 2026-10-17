@@ -1,7 +1,7 @@
 import type { AxiosRequestConfig } from 'axios'
 import { api } from '../lib/api'
 import type { ApiResponse, AuthUser } from '@kipi/types'
-import type { Address, Brand, Cart, Category, CheckoutPreview, NotificationItem, NotificationPreferences, Order, Pagination, Payment, Product, ReviewResponse, SellerApplication, SellerSummary, Shipment, TrackingEvent } from '../types/storefront'
+import type { Address, Brand, Cart, Category, CheckoutPreview, ManualPaymentMethod, NotificationItem, NotificationPreferences, Order, Pagination, Payment, Product, ReviewResponse, SellerApplication, SellerSummary, Shipment, TrackingEvent } from '../types/storefront'
 
 async function request<T>(config: AxiosRequestConfig): Promise<ApiResponse<T>> {
   const response = await api.request<ApiResponse<T>>(config)
@@ -50,8 +50,10 @@ export const storefrontApi = {
   sellerApplications: () => request<SellerApplication[]>({ url: '/seller/applications' }),
   submitSellerApplication: (data: FormData) => request<SellerApplication>({ url: '/seller/applications', method: 'POST', data }),
   shippingMethods: () => request<{ id: number; code: string; name: string; description: string | null; price_minor: number; currency: string }[]>({ url: '/shipping/methods' }),
+  manualPaymentMethods: () => request<ManualPaymentMethod[]>({ url: '/payment-methods/manual' }),
   checkoutPreview: (shippingMethodId?: number, couponCode?: string) => request<CheckoutPreview>({ url: '/checkout/preview', method: 'POST', data: { ...(shippingMethodId ? { shipping_method_id: shippingMethodId } : {}), ...(couponCode ? { coupon_code: couponCode } : {}) } }),
   confirmCheckout: (data: unknown, idempotencyKey: string) => request<Order>({ url: '/checkout/confirm', method: 'POST', data, headers: { 'Idempotency-Key': idempotencyKey } }),
   initializePayment: (orderId: number, idempotencyKey: string) => request<{ payment: Payment; attempt: unknown; client_secret: string | null }>({ url: '/payments/initialize', method: 'POST', data: { order_id: orderId, idempotency_key: idempotencyKey } }),
   paymentStatus: (paymentId: number) => request<{ payment: Payment; order: Order }>({ url: '/payments/' + paymentId + '/status' }),
+  submitPaymentReceipt: (orderId: number, paymentId: number, data: FormData, onUploadProgress?: AxiosRequestConfig['onUploadProgress']) => request<Payment>({ url: '/orders/' + orderId + '/payments/' + paymentId + '/receipt', method: 'POST', data, onUploadProgress }),
 }
