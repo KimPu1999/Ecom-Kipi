@@ -130,3 +130,45 @@ test('requires in-page confirmation and approves a submitted payment receipt thr
 
   await waitFor(() => expect(approveReceipt).toHaveBeenCalledWith(8))
 })
+
+test('shows the server validation error and keeps payment unconfirmed when verification fails', async () => {
+  const manualOrder: Order = {
+    ...order,
+    payments: [{ id: 9, provider: 'wavepay', status: 'pending', amount_minor: 172500, currency: 'MMK', provider_payment_id: null, metadata: { transaction_code: 'WAVE-TEST-009' } }],
+  }
+  vi.spyOn(adminApi, 'order').mockResolvedValue(manualOrder)
+  vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [manualOrder], meta: { current_page: 1, per_page: 100, last_page: 1, total: 1 } })
+  const verifyManual = vi.spyOn(adminApi, 'verifyManualPayment').mockRejectedValue({ status: 422, message: 'Validation failed', errors: { payment: ['Only pending or processing manual online payments can be verified.'] } })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+  render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders/41']}><Routes><Route path="/admin/orders/:id" element={<OrderDetailsPage />} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
+
+  expect((await screen.findAllByText('WAVE-TEST-009')).length).toBeGreaterThan(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Payment' }))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Confirm Payment' })[1])
+
+  expect(await screen.findByRole('alert')).toHaveTextContent('Only pending or processing manual online payments can be verified.')
+  expect(screen.getByRole('alertdialog')).toBeInTheDocument()
+  expect(verifyManual).toHaveBeenCalledWith(9)
+})
+
+test('does not expose server details for a payment verification server error', async () => {
+  const manualOrder: Order = {
+    ...order,
+    payments: [{ id: 10, provider: 'ayapay', status: 'pending', amount_minor: 172500, currency: 'MMK', provider_payment_id: null, metadata: null }],
+  }
+  vi.spyOn(adminApi, 'order').mockResolvedValue(manualOrder)
+  vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [manualOrder], meta: { current_page: 1, per_page: 100, last_page: 1, total: 1 } })
+  vi.spyOn(adminApi, 'verifyManualPayment').mockRejectedValue({ status: 500, message: 'SQLSTATE[secret-details]' })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+  render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders/41']}><Routes><Route path="/admin/orders/:id" element={<OrderDetailsPage />} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
+
+  expect((await screen.findAllByText('AYAPAY')).length).toBeGreaterThan(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Payment' }))
+  fireEvent.click(screen.getAllByRole('button', { name: 'Confirm Payment' })[1])
+
+  const alert = await screen.findByRole('alert')
+  expect(alert).toHaveTextContent('payment verification service is temporarily unavailable')
+  expect(alert).not.toHaveTextContent('SQLSTATE')
+})

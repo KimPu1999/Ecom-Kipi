@@ -117,6 +117,26 @@ class Phase6CommerceTest extends TestCase
         $this->assertDatabaseHas('inventory_reservations', ['order_id' => $order['id'], 'status' => 'committed']);
     }
 
+    public function test_manual_verification_requires_authorization_and_a_real_payment_id(): void
+    {
+        [$variant, $customer] = $this->catalogFixture(1);
+        Sanctum::actingAs($customer);
+        $this->postJson('/api/v1/cart/items', ['variant_id' => $variant->id, 'quantity' => 1])->assertOk();
+        $order = $this->postJson('/api/v1/checkout/confirm', $this->checkoutPayload('authorization-order') + [
+            'payment_method' => 'kbzpay',
+            'payment_metadata' => ['sender_phone' => '0912345678', 'transaction_code' => 'KBZ-AUTH-1234'],
+        ])->assertCreated()->json('data');
+        $payment = Payment::query()->where('order_id', $order['id'])->firstOrFail();
+
+        $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertForbidden();
+
+        $admin = User::factory()->create();
+        $admin->roles()->attach(Role::query()->create(['name' => 'super_admin', 'label' => 'Super Administrator']));
+        Sanctum::actingAs($admin);
+        $this->postJson('/api/v1/admin/payments/999999999/verify-manual')->assertNotFound();
+        $this->assertDatabaseHas('payments', ['id' => $payment->id, 'status' => 'pending']);
+    }
+
     private function catalogFixture(int $quantity): array
     {
         $user = User::factory()->create();
