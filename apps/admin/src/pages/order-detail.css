@@ -128,6 +128,19 @@
   flex-wrap: wrap;
 }
 
+.order-invoice-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.order-invoice-actions .order-navigation-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .order-navigation-button {
   min-height: 32px;
   padding: 6px 9px;
@@ -685,6 +698,15 @@
 
   .order-detail-navigation {
     justify-content: space-between;
+  }
+
+  .order-invoice-actions {
+    width: 100%;
+  }
+
+  .order-invoice-actions .order-navigation-button {
+    flex: 1 1 0;
+    justify-content: center;
   }
 
   .order-navigation-button {
