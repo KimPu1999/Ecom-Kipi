@@ -1,10 +1,10 @@
-import { AlertTriangle, ArrowLeft, ShieldCheck, ShoppingBag, Store, Trash2, Truck } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, ArrowRight, ShieldCheck, ShoppingBag, Store, Tags, Trash2, Truck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ApiClientError } from '@kipi/api-client'
 import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
-import { Breadcrumbs, Card, EmptyState, ErrorState, PriceDisplay, QuantitySelector } from '../components/StorefrontUI'
+import { Breadcrumbs, Card, EmptyState, ErrorState, PriceDisplay, ProductCard, QuantitySelector } from '../components/StorefrontUI'
 import type { CartItem } from '../types/storefront'
 import { useLanguage } from '../../../../packages/i18n/src'
 
@@ -34,6 +34,37 @@ function CartLoading() {
   return <div className="cart-loading"><div className="cart-loading-list">{[1, 2, 3].map((item) => <div className="cart-loading-row" key={item}><span /><div><i /><i /><i /></div></div>)}</div><div className="cart-loading-summary"><i /><i /><i /><i /></div></div>
 }
 
+function EmptyCartDiscovery() {
+  const { t } = useLanguage()
+  const categories = useQuery({ queryKey: ['empty-cart-categories'], queryFn: storefrontApi.categories })
+  const recommendations = useQuery({ queryKey: ['empty-cart-recommendations'], queryFn: () => storefrontApi.products({ available: 1, sort: 'latest', per_page: 4 }) })
+  const categoryItems = categories.data?.data.slice(0, 6) ?? []
+  const recommendedProducts = recommendations.data?.data.filter((product) => product.variants?.some((variant) => variant.is_active && variant.available_quantity > 0)).slice(0, 4) ?? []
+
+  return <div className="cart-empty-discovery">
+    <section className="cart-empty-hero" aria-labelledby="cart-empty-title">
+      <div className="cart-empty-hero-mark" aria-hidden="true"><span /><ShoppingBag size={42} strokeWidth={1.65} /></div>
+      <span className="eyebrow">{t('Shopping Cart')}</span>
+      <h1 id="cart-empty-title">{t('Your cart is waiting')}</h1>
+      <p>{t("Discover something you'll love and add it to your cart.")}</p>
+      <div className="actions">
+        <Link className="button primary" to="/products">{t('Explore Products')} <ArrowRight size={16} /></Link>
+        <Link className="button secondary" to="/categories">{t('Browse Categories')}</Link>
+      </div>
+    </section>
+
+    <section className="cart-discovery-section" aria-labelledby="cart-categories-title">
+      <div className="cart-discovery-heading"><div><span className="eyebrow">{t('Browse the marketplace')}</span><h2 id="cart-categories-title">{t('Popular categories')}</h2></div><Link className="text-link" to="/categories">{t('View all categories')} <ArrowRight size={15} /></Link></div>
+      {categories.isLoading ? <div className="cart-category-grid">{[1, 2, 3, 4].map((item) => <div className="cart-category-skeleton" key={item} />)}</div> : categories.isError ? <div className="cart-discovery-feedback"><ErrorState message={t('Categories are temporarily unavailable.')} /><button className="button secondary" type="button" onClick={() => void categories.refetch()}>{t('Retry')}</button></div> : categoryItems.length ? <div className="cart-category-grid">{categoryItems.map((category, index) => <Link className="cart-category-card" style={{ borderColor: category.color || undefined }} key={category.id} to={'/products?category=' + encodeURIComponent(category.slug)}><span className="cart-category-mark" style={{ color: category.color || undefined }}><Tags size={18} /></span><span className="cart-category-index">{String(index + 1).padStart(2, '0')}</span><strong>{category.name}</strong>{category.description ? <small>{category.description}</small> : null}<ArrowRight className="cart-category-arrow" size={16} /></Link>)}</div> : <EmptyState title={t('No categories available')} message={t('Product categories will appear here when they are configured.')} action={<Link className="button secondary" to="/categories">{t('Browse Categories')}</Link>} />}
+    </section>
+
+    <section className="cart-discovery-section cart-recommendations" aria-labelledby="cart-recommendations-title">
+      <div className="cart-discovery-heading"><div><span className="eyebrow">{t('A fresh start')}</span><h2 id="cart-recommendations-title">{t('You may like these')}</h2></div><Link className="text-link" to="/products">{t('Explore Products')} <ArrowRight size={15} /></Link></div>
+      {recommendations.isLoading ? <div className="product-grid cart-recommendation-grid">{[1, 2, 3, 4].map((item) => <div className="product-skeleton" key={item} />)}</div> : recommendations.isError ? <div className="cart-discovery-feedback"><ErrorState message={t('Products are temporarily unavailable.')} /><button className="button secondary" type="button" onClick={() => void recommendations.refetch()}>{t('Retry')}</button></div> : recommendedProducts.length ? <div className="product-grid cart-recommendation-grid">{recommendedProducts.map((product) => <ProductCard key={product.id} product={product} actionLabel={t('Add to cart')} />)}</div> : <EmptyState title={t('No products available')} message={t('New products will appear here when they are published by approved sellers.')} action={<Link className="button secondary" to="/products">{t('Explore Products')}</Link>} />}
+    </section>
+  </div>
+}
+
 export function CartPage() {
   const { t } = useLanguage()
   const user = useAuthStore((state) => state.user)
@@ -45,7 +76,7 @@ export function CartPage() {
   if (query.isLoading) return <div className="cart-page"><CartLoading /></div>
   if (query.isError || !query.data) return <div className="cart-page cart-error-state"><ErrorState message={t('We could not load your cart.')} /><button className="button secondary" type="button" onClick={() => void query.refetch()}>{t('Retry')}</button></div>
   const cart = query.data.data
-  if (!cart.items.length) return <div className="cart-page"><Breadcrumbs items={[{ label: t('Home'), to: '/' }, { label: t('Cart') }]} /><section className="cart-empty-state"><div className="cart-empty-icon"><ShoppingBag size={29} /></div><span className="eyebrow">{t('Shopping Cart')}</span><h1>{t('Your cart is empty')}</h1><p>{t('There is plenty of room for something good.')}</p><Link className="button primary" to="/products">{t('Continue shopping')}</Link></section></div>
+  if (!cart.items.length) return <div className="cart-page cart-empty-page"><Breadcrumbs items={[{ label: t('Home'), to: '/' }, { label: t('Cart') }]} /><EmptyCartDiscovery /></div>
   const unavailableItems = cart.items.filter((item) => item.variant.product.status !== 'published' || !item.variant.is_active || item.variant.available_quantity < item.quantity)
   const currency = cart.items[0]?.variant.currency ?? 'MMK'
   function removeItem(item: CartItem) {

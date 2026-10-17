@@ -8,6 +8,10 @@ import { CartPage } from './pages/CartPages'
 
 const storefrontApiMock = vi.hoisted(() => ({
   cart: vi.fn(),
+  categories: vi.fn(),
+  products: vi.fn(),
+  wishlist: vi.fn(),
+  addCartItem: vi.fn(),
   removeCartItem: vi.fn(),
   updateCartItem: vi.fn(),
 }))
@@ -77,6 +81,9 @@ describe('customer cart item removal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    storefrontApiMock.categories.mockResolvedValue({ data: [] })
+    storefrontApiMock.products.mockResolvedValue({ data: [], meta: { current_page: 1, per_page: 4, last_page: 1, total: 0 } })
+    storefrontApiMock.wishlist.mockResolvedValue({ data: { products: [], product_ids: [] } })
   })
 
   test('removes an item without a native confirmation and refreshes cart totals', async () => {
@@ -107,8 +114,33 @@ describe('customer cart item removal', () => {
     renderCart()
     fireEvent.click(await screen.findByRole('button', { name: 'Remove T-Shirt from cart' }))
 
-    await waitFor(() => expect(screen.getByText('Your cart is empty')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Your cart is waiting' })).toBeInTheDocument())
     expect(screen.queryByText('T-Shirt')).not.toBeInTheDocument()
+  })
+
+  test('loads real categories and products in the empty-cart discovery sections', async () => {
+    const category = { id: 41, name: 'Accessories', slug: 'accessories', description: 'Useful everyday pieces.', color: '#38bdf8', is_active: true }
+    const product = { id: 51, name: 'Daily Tote', slug: 'daily-tote', description: null, status: 'published', is_featured: false, category, seller: null, images: [], variants: [{ id: 61, sku: 'TOTE-1', price_minor: 25000, compare_at_price_minor: null, currency: 'MMK', attributes: null, is_active: true, available_quantity: 4 }] }
+    const updatedCart = { item_count: 1, subtotal_minor: 15000, items: [firstItem] }
+    storefrontApiMock.cart.mockResolvedValueOnce({ data: { item_count: 0, subtotal_minor: 0, items: [] } }).mockResolvedValueOnce({ data: updatedCart })
+    storefrontApiMock.categories.mockResolvedValue({ data: [category] })
+    storefrontApiMock.products.mockResolvedValue({ data: [product], meta: { current_page: 1, per_page: 4, last_page: 1, total: 1 } })
+    storefrontApiMock.addCartItem.mockResolvedValue({ data: updatedCart })
+
+    renderCart()
+
+    expect(await screen.findByRole('heading', { name: 'Popular categories' })).toBeInTheDocument()
+    const categoryLink = await waitFor(() => {
+      const link = document.querySelector('a.cart-category-card')
+      if (!link) throw new Error('Category link is not ready')
+      return link
+    })
+    expect(categoryLink).toHaveAttribute('href', '/products?category=accessories')
+    expect(await screen.findByText('Daily Tote')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Add Daily Tote to cart' }))
+
+    await waitFor(() => expect(storefrontApiMock.addCartItem.mock.calls[0]?.[0]).toBe(61))
+    await waitFor(() => expect(screen.getByText('T-Shirt')).toBeInTheDocument())
   })
 
   test('keeps the item visible and shows an inline error when removal fails', async () => {
