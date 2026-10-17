@@ -5,15 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { storefrontApi } from '../services/storefrontApi'
 import { EmptyState, ErrorState, LoadingState, Pagination, ProductCard, Seo } from '../components/StorefrontUI'
 import { useLanguage } from '../../../../packages/i18n/src'
-
-function mediaUrl(path: string | null | undefined) {
-  if (!path) return null
-  if (/^https?:\/\//i.test(path)) return path
-  const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:8000/api/v1'
-  const origin = apiUrl.replace(/\/api\/v1\/?$/, '')
-  const normalized = path.replace(/^\/+/, '')
-  return origin + '/' + (normalized.startsWith('storage/') ? normalized : 'storage/' + normalized)
-}
+import { mediaUrl } from '../lib/media'
 
 export function StoresPage() {
   const { t } = useLanguage()

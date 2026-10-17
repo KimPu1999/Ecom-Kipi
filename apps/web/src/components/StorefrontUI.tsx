@@ -1,4 +1,4 @@
-import { useEffect, type MouseEvent, type PropsWithChildren, type ReactNode } from 'react'
+import { useEffect, useState, type MouseEvent, type PropsWithChildren, type ReactNode } from 'react'
 import { AlertCircle, ChevronLeft, ChevronRight, Heart, LoaderCircle, Minus, Plus, Search, ShoppingBag } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
 import type { Product } from '../types/storefront'
 import { useLanguage } from '../../../../packages/i18n/src'
+import { mediaUrl } from '../lib/media'
 
 export function Seo({ title, description }: { title: string; description: string }) {
   useEffect(() => {
@@ -28,6 +29,17 @@ export function ErrorState({ message = 'We could not load this right now.' }: { 
 
 export function EmptyState({ title, message, action }: { title: string; message: string; action?: ReactNode }) {
   return <div className="empty-state"><div className="empty-icon">✦</div><h2>{title}</h2><p>{message}</p>{action}</div>
+}
+
+export function ProductImage({ url, alt, fallback, loading = 'lazy', className }: { url?: string | null; alt: string; fallback: string; loading?: 'eager' | 'lazy'; className?: string }) {
+  const src = mediaUrl(url)
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
+
+  if (!src || failedSrc === src) {
+    return <span className={'product-image-fallback' + (className ? ` ${className}` : '')} role="img" aria-label={alt}>{fallback}</span>
+  }
+
+  return <img className={className} src={src} alt={alt} loading={loading} onError={() => setFailedSrc(src)} />
 }
 
 export function PageIntro({ title }: { eyebrow: string; title: string; description?: string }) {
@@ -53,7 +65,7 @@ export function ProductCard({ product, actionLabel = 'Quick add' }: { product: P
   const cartMutation = useMutation({ mutationFn: () => storefrontApi.addCartItem(variant?.id ?? 0, 1), onSuccess: () => client.invalidateQueries({ queryKey: ['cart'] }) })
   function openWishlist(event: MouseEvent<HTMLButtonElement>) { event.preventDefault(); event.stopPropagation(); if (!user) { navigate('/login?next=' + encodeURIComponent('/products/' + product.slug)); return } wishlistMutation.mutate() }
   function quickAdd(event: MouseEvent<HTMLButtonElement>) { event.preventDefault(); event.stopPropagation(); if (!user) { navigate('/login?next=' + encodeURIComponent('/products/' + product.slug)); return } if (variant?.available_quantity) cartMutation.mutate() }
-  return <article className={'product-card' + sellerTone}><Link to={'/products/' + product.slug}><div className="product-image">{image ? <img src={image.url} alt={image.alt_text || product.name} loading="lazy" /> : <span>{product.name.slice(0, 1)}</span>}{product.is_featured ? <em>Featured</em> : null}{discount ? <em className="discount-badge">{discount}% {t('off')}</em> : null}<button className={saved ? 'product-action saved' : 'product-action'} onClick={openWishlist} disabled={wishlistMutation.isPending} aria-label={saved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="product-card-body"><div><span className="seller-badge">{product.seller?.store_name ?? 'Kipi collection'}</span><h3>{product.name}</h3><p>{product.category?.name ?? 'Everyday favorite'}</p></div>{variant ? <PriceDisplay amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <span className="muted">Unavailable</span>}</div></Link><div className="product-card-footer">{variant?.available_quantity ? <span className="stock-note">In stock</span> : <span className="stock-note out">Unavailable</span>}<button className="quick-add" onClick={quickAdd} disabled={!variant?.available_quantity || cartMutation.isPending} aria-label={`Add ${product.name} to cart`}>{cartMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <ShoppingBag size={15} />} {actionLabel}</button></div></article>
+  return <article className={'product-card' + sellerTone}><Link to={'/products/' + product.slug}><div className="product-image"><ProductImage url={image?.url} alt={image?.alt_text || product.name} fallback={product.name.slice(0, 1)} />{product.is_featured ? <em>Featured</em> : null}{discount ? <em className="discount-badge">{discount}% {t('off')}</em> : null}<button className={saved ? 'product-action saved' : 'product-action'} onClick={openWishlist} disabled={wishlistMutation.isPending} aria-label={saved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="product-card-body"><div><span className="seller-badge">{product.seller?.store_name ?? 'Kipi collection'}</span><h3>{product.name}</h3><p>{product.category?.name ?? 'Everyday favorite'}</p></div>{variant ? <PriceDisplay amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <span className="muted">Unavailable</span>}</div></Link><div className="product-card-footer">{variant?.available_quantity ? <span className="stock-note">In stock</span> : <span className="stock-note out">Unavailable</span>}<button className="quick-add" onClick={quickAdd} disabled={!variant?.available_quantity || cartMutation.isPending} aria-label={`Add ${product.name} to cart`}>{cartMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <ShoppingBag size={15} />} {actionLabel}</button></div></article>
 }
 
 export function PriceDisplay({ amount, currency, compareAt }: { amount: number; currency: string; compareAt?: number | null }) {

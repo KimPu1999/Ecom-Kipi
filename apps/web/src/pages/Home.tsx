@@ -2,7 +2,7 @@ import { ArrowRight, CheckCircle2, Headphones, MapPin, PackageCheck, ShieldCheck
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { storefrontApi } from '../services/storefrontApi'
-import { EmptyState, ErrorState, LoadingState, ProductCard, Seo } from '../components/StorefrontUI'
+import { EmptyState, ErrorState, LoadingState, ProductCard, ProductImage, Seo } from '../components/StorefrontUI'
 import { useLanguage } from '../../../../packages/i18n/src'
 
 export function Home() {
@@ -34,7 +34,7 @@ export function Home() {
         <div className="home-hero-note"><ShieldCheck size={16} />{t('Secure checkout with order visibility')}</div>
       </div>
       <div className="home-hero-visual" aria-label={heroProduct ? heroProduct.name : t('Kipi marketplace')}>
-        {heroProduct?.images?.[0] ? <img src={heroProduct.images[0].url} alt={heroProduct.images[0].alt_text || heroProduct.name} /> : <div className="home-hero-placeholder"><Store size={42} /><span>{t('Explore the marketplace')}</span></div>}
+        {heroProduct ? <ProductImage url={heroProduct.images?.[0]?.url} alt={heroProduct.images?.[0]?.alt_text || heroProduct.name} fallback={heroProduct.name.slice(0, 1)} loading="eager" /> : <div className="home-hero-placeholder"><Store size={42} /><span>{t('Explore the marketplace')}</span></div>}
         {heroProduct ? <div className="home-hero-product"><span>{t('Featured product')}</span><strong>{heroProduct.name}</strong></div> : null}
       </div>
     </section>

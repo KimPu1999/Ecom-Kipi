@@ -3,7 +3,7 @@ import { ArrowRight, CheckCircle2, ChevronDown, Clock3, Compass, CreditCard, Hea
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { storefrontApi } from '../services/storefrontApi'
-import { EmptyState, ErrorState, LoadingState, PageIntro, ProductCard, Seo } from '../components/StorefrontUI'
+import { EmptyState, ErrorState, LoadingState, PageIntro, ProductCard, ProductImage, Seo } from '../components/StorefrontUI'
 import { useLanguage } from '../../../../packages/i18n/src'
 
 export function AboutPage() {
@@ -25,7 +25,7 @@ export function AboutPage() {
 
     <section className="about-hero" aria-labelledby="about-hero-title">
       <div className="about-hero-copy"><span className="eyebrow">{t('About Kipi')}</span><h1 id="about-hero-title">{t('A marketplace made for discovery.')}</h1><p>{t('Find useful products, explore different sellers and brands, and move from a considered choice to a supported order.')}</p><div className="actions"><Link className="button light" to="/products">{t('Explore products')} <ArrowRight size={17} /></Link><Link className="button about-hero-secondary" to="/contact">{t('Contact us')}</Link></div></div>
-      <div className="about-hero-visual">{heroProduct?.images?.[0] ? <img src={heroProduct.images[0].url} alt={heroProduct.images[0].alt_text || heroProduct.name} /> : <div className="about-hero-placeholder"><ShoppingBag size={42} /><span>{t('Explore the marketplace')}</span></div>}{heroProduct ? <div className="about-hero-caption"><span>{t('From the marketplace')}</span><strong>{heroProduct.name}</strong></div> : null}</div>
+      <div className="about-hero-visual">{heroProduct ? <ProductImage url={heroProduct.images?.[0]?.url} alt={heroProduct.images?.[0]?.alt_text || heroProduct.name} fallback={heroProduct.name.slice(0, 1)} loading="eager" /> : <div className="about-hero-placeholder"><ShoppingBag size={42} /><span>{t('Explore the marketplace')}</span></div>}{heroProduct ? <div className="about-hero-caption"><span>{t('From the marketplace')}</span><strong>{heroProduct.name}</strong></div> : null}</div>
     </section>
 
     <section className="about-story-section" aria-labelledby="about-story-title"><div className="about-section-heading"><span className="eyebrow">{t('Our story')}</span><h2 id="about-story-title">{t('Bringing the marketplace closer to everyday life.')}</h2></div><div className="about-story-grid"><div><p className="about-lead">{t('Kipi is a customer marketplace built to make product discovery feel more useful and less overwhelming.')}</p><p>{t('Customers can browse by category, brand, or seller, review available product details, place orders through the supported checkout flow, and follow order progress from their account.')}</p></div><div className="about-story-note"><Compass size={22} /><div><strong>{t('Our point of view')}</strong><p>{t('Good marketplace experiences are clear about what is available, who sells it, and what happens after an order is placed.')}</p></div></div></div></section>
