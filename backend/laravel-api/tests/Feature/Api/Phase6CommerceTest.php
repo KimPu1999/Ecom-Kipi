@@ -105,6 +105,10 @@ class Phase6CommerceTest extends TestCase
         $admin = User::factory()->create();
         $admin->roles()->attach(Role::query()->create(['name' => 'super_admin', 'label' => 'Super Administrator']));
         Sanctum::actingAs($admin);
+        $payment->update(['status' => 'failed']);
+        $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')
+            ->assertUnprocessable();
+        $payment->update(['status' => 'pending']);
         $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertOk();
         $this->postJson('/api/v1/admin/payments/'.$payment->id.'/verify-manual')->assertOk();
 

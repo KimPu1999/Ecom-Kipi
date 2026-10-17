@@ -1,6 +1,6 @@
-import { Fragment, useEffect, useId, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useState, type ReactNode } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronDown, ChevronUp, Package, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, FileImage, Package, Palette, RotateCcw, SlidersHorizontal, Type } from 'lucide-react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { adminApi } from '../services/adminApi'
 import { useAdminAuth } from '../store/auth'
@@ -90,26 +90,6 @@ function SellerBadges({ sellers }: { sellers: OrderSeller[] }) {
   return sellers.length ? <div className="seller-badge-list">{sellers.map((seller) => <SellerBadge key={seller.id} seller={seller} />)}</div> : <span className="muted">Seller unavailable</span>
 }
 
-function AccordionSection({ title, summary, defaultOpen = false, className = '', children }: { title: string; summary?: ReactNode; defaultOpen?: boolean; className?: string; children: ReactNode }) {
-  const [isOpen, setIsOpen] = useState(defaultOpen)
-  const id = useId()
-  const headingId = `${id}-heading`
-  const contentId = `${id}-content`
-
-  return <section className={`order-accordion ${isOpen ? 'is-open' : ''} ${className}`.trim()}>
-    <h3 className="order-accordion-heading" id={headingId}>
-      <button className="order-accordion-trigger" type="button" aria-expanded={isOpen} aria-controls={contentId} onClick={() => setIsOpen((open) => !open)}>
-        <span className="order-accordion-title">{title}</span>
-        {summary ? <span className="order-accordion-summary">{summary}</span> : null}
-        {isOpen ? <ChevronUp className="order-accordion-chevron" size={17} aria-hidden="true" /> : <ChevronDown className="order-accordion-chevron" size={17} aria-hidden="true" />}
-      </button>
-    </h3>
-    <div className={`order-accordion-content ${isOpen ? 'is-open' : ''}`} id={contentId} role="region" aria-labelledby={headingId} aria-hidden={!isOpen}>
-      <div className="order-accordion-content-inner">{children}</div>
-    </div>
-  </section>
-}
-
 export function OrdersPage() {
   const { search, setSearch, page, setPage } = useListSearch()
   const [status, setStatus] = useState('')
@@ -155,6 +135,7 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
   const query = useQuery({ queryKey: ['admin-order', orderId], queryFn: () => adminApi.order(orderId) })
   const [note, setNote] = useState('')
   const mutation = useMutation({ mutationFn: () => adminApi.addOrderNote(orderId, note), onSuccess: () => { setNote(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
+  const statusMutation = useMutation({ mutationFn: (status: string) => adminApi.updateOrderStatus(orderId, status), onSuccess: () => { client.invalidateQueries({ queryKey: ['admin-order', orderId] }); client.invalidateQueries({ queryKey: ['admin-orders'] }); client.invalidateQueries({ queryKey: ['admin-dashboard'] }) } })
 
   if (query.isLoading) return <Card><LoadingState /></Card>
   if (query.isError || !query.data) return <Card><ErrorState message="Unable to load order details." /></Card>
@@ -166,60 +147,56 @@ function OrderDetails({ orderId, previousOrderId, nextOrderId, onNavigate }: { o
   const primaryPayment = order.payments?.[0]
   const trackingNumbers = order.shipments?.map((shipment) => shipment.tracking_number ?? shipment.internal_tracking_id).filter(Boolean) ?? []
   const commissionSnapshots = order.seller_orders?.flatMap((sellerOrder) => (sellerOrder.commission_snapshots ?? []).map((snapshot) => ({ ...snapshot, sellerName: sellerOrder.seller?.store_name ?? `Seller #${sellerOrder.seller?.id ?? sellerOrder.id}` }))) ?? []
+  const shippingAddress = order.shipping_address && typeof order.shipping_address === 'object' ? order.shipping_address : null
+  const allowedStatusTransitions: Record<string, string[]> = { pending: ['confirmed', 'processing', 'cancelled'], confirmed: ['processing', 'cancelled'], processing: ['shipped', 'cancelled'], shipped: ['delivered'], delivered: [], cancelled: [] }
+  const nextStatuses = allowedStatusTransitions[order.fulfillment_status] ?? []
 
   return <Card className="order-detail">
-    <div className="detail-heading">
-      <button className="order-back-button" type="button" onClick={() => navigate('/admin/orders')}><ArrowLeft size={15} aria-hidden="true" /><span>Back</span></button>
+    <header className="order-detail-header">
+      <div className="order-detail-breadcrumbs"><button className="order-back-button" type="button" onClick={() => navigate('/admin/orders')} aria-label="Back"><ArrowLeft size={15} aria-hidden="true" /><span>Orders</span></button><span aria-hidden="true">/</span><strong>Order Details</strong></div>
       <div className="order-detail-heading-content">
-        <div className="order-header-line"><span className="eyebrow">Order details</span><h2>{order.order_number}</h2><StatusBadge value={order.fulfillment_status} /></div>
-        <div className="order-customer-meta"><strong>{order.user?.name ?? 'Guest'}</strong><span>{order.user?.email ?? 'No email'}</span></div>
-        <div className="order-header-sellers"><span>Seller</span><SellerBadges sellers={sellers} /></div>
-        <div className="order-heading-actions"><div className="order-detail-navigation"><button className="order-navigation-button" type="button" onClick={() => previousOrderId && onNavigate(previousOrderId)} disabled={!previousOrderId} aria-label="Previous order">← Previous Order</button><button className="order-navigation-button" type="button" onClick={() => nextOrderId && onNavigate(nextOrderId)} disabled={!nextOrderId} aria-label="Next order">Next Order →</button></div><div className="order-heading-status"><span>Payment</span><StatusBadge value={order.payment_status} /></div></div>
+        <div className="order-header-main"><div><span className="eyebrow">Order details</span><h1>{order.order_number}</h1><p>Created {formatDateTime(order.placed_at)}</p></div><div className="order-header-statuses"><div><span>Order status</span><StatusBadge value={order.fulfillment_status} /></div><div><span>Payment status</span><StatusBadge value={order.payment_status} /></div></div></div>
+        <div className="order-heading-actions"><div className="order-detail-navigation"><button className="order-navigation-button" type="button" onClick={() => previousOrderId && onNavigate(previousOrderId)} disabled={!previousOrderId} aria-label="Previous order">← Previous Order</button><button className="order-navigation-button" type="button" onClick={() => nextOrderId && onNavigate(nextOrderId)} disabled={!nextOrderId} aria-label="Next order">Next Order →</button></div><label className="order-status-control"><span>Update status</span><select value={order.fulfillment_status} onChange={(event) => statusMutation.mutate(event.target.value)} disabled={statusMutation.isPending || nextStatuses.length === 0} aria-label="Update order status"><option value={order.fulfillment_status}>{order.fulfillment_status.replaceAll('_', ' ')}</option>{nextStatuses.map((status) => <option key={status} value={status}>{status.replaceAll('_', ' ')}</option>)}</select></label></div>
+        {statusMutation.isError ? <p className="error-box order-action-error">Order status could not be updated. Refresh and try again.</p> : null}
       </div>
+    </header>
+
+    <div className="order-detail-layout">
+      <main className="order-detail-main">
+        <Card className="order-detail-card">
+          <CardHeading title="Order items" summary={`${order.items?.length ?? 0} item${order.items?.length === 1 ? '' : 's'}`} />
+          {order.items?.length ? <div className="table-wrap order-items-table-wrap"><table className="order-items-table"><thead><tr><th>Product</th><th>SKU / Variant</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{itemGroups.map((group) => <Fragment key={group.key}><tr className="order-item-seller-row"><td colSpan={5}>{group.seller ? <><span>Seller</span><SellerBadge seller={group.seller} /></> : <><span>Seller</span><span className="muted">Seller unavailable</span></>}</td></tr>{group.items.map((item, index) => { const lineTotal = item.line_total_minor ?? item.unit_price_minor * item.quantity; return <tr key={item.id ?? `${item.sku}-${index}`}><td><div className="order-product-cell">{item.product_image ? <img src={item.product_image} alt="" /> : <span className="order-item-placeholder"><Package size={18} aria-hidden="true" /></span>}<div><strong>{item.product_name}</strong>{item.attributes ? <small className="order-item-attributes">{formatAttributes(item.attributes)}</small> : null}</div></div></td><td>{item.sku || '—'}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td><strong>{money(lineTotal, order.currency)}</strong></td></tr> })}</Fragment>)}</tbody></table></div> : <p className="muted">No order items recorded.</p>}
+        </Card>
+
+        <Card className="order-detail-card">
+          <CardHeading title="Shipping / delivery information" />
+          <div className="order-detail-fields"><DetailField label="Recipient" value={addressField(shippingAddress, ['name', 'recipient_name'])} /><DetailField label="Contact" value={addressField(shippingAddress, ['phone', 'contact_phone', 'mobile'])} /><DetailField label="Delivery method" value={order.shipping_method?.name ?? primaryShipment?.delivery_method?.replaceAll('_', ' ') ?? 'Not selected'} /><DetailField label="Delivery status" value={<StatusBadge value={primaryShipment?.status ?? order.fulfillment_status} />} /><DetailField label="Carrier" value={primaryShipment?.carrier ?? '—'} /><DetailField label="Expected delivery" value={formatDate(primaryShipment?.estimated_delivery_at)} /><div className="order-field order-field-wide"><span>Shipping address</span><strong>{formatAddress(order.shipping_address)}</strong></div><div className="order-field order-field-wide"><span>Tracking number</span>{trackingNumbers.length ? <div className="order-tracking-list">{trackingNumbers.map((trackingNumber) => <strong key={trackingNumber}>{trackingNumber}</strong>)}</div> : <strong>Shipment not created</strong>}</div></div>
+        </Card>
+
+        <Card className="order-detail-card">
+          <CardHeading title="Activity & internal notes" />
+          <div className="order-history-grid"><div><h4>Status history</h4>{order.status_history?.length ? order.status_history.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.to_status} /><span>{item.from_status ?? 'created'} → {item.to_status}<small>{formatDateTime(item.created_at)}{item.note ? ` · ${item.note}` : ''}</small></span></div>) : <p className="muted">No status changes recorded.</p>}</div><div><h4>Internal notes</h4>{order.notes?.length ? order.notes.map((item) => <div className="activity-line" key={item.id}><span>{item.note}<small>{item.user?.name ?? 'Admin'} · {formatDateTime(item.created_at)}</small></span></div>) : <p className="muted">No internal notes.</p>}<form className="inline-form" onSubmit={(event) => { event.preventDefault(); mutation.mutate() }}><input required value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add internal note" /><button className="button primary" disabled={mutation.isPending}>{mutation.isPending ? 'Adding…' : 'Add note'}</button></form></div></div>
+        </Card>
+      </main>
+
+      <aside className="order-detail-sidebar">
+        <Card className="order-detail-card"><CardHeading title="Order overview" /><div className="order-detail-fields"><DetailField label="Order ID" value={order.order_number} /><DetailField label="Order date" value={formatDateTime(order.placed_at)} /><DetailField label="Fulfillment status" value={<StatusBadge value={order.fulfillment_status} />} /><DetailField label="Seller brand" value={<SellerBadges sellers={sellers} />} /></div></Card>
+        <Card className="order-detail-card"><CardHeading title="Order summary" /><div className="order-summary-list"><SummaryRow label="Subtotal" value={money(order.subtotal_minor, order.currency)} /><SummaryRow label="Discount" value={money(order.discount_minor, order.currency)} /><SummaryRow label="Shipping fee" value={money(order.shipping_minor, order.currency)} /><SummaryRow label="Tax" value={money(order.tax_minor, order.currency)} /><SummaryRow label="Grand total" value={money(order.grand_total_minor, order.currency)} emphasized /></div></Card>
+        <Card className="order-detail-card"><CardHeading title="Customer information" /><div className="order-detail-fields"><DetailField label="Customer name" value={order.user?.name ?? 'Guest'} /><DetailField label="Phone" value={order.user?.phone ?? '—'} /><DetailField label="Email" value={order.user?.email ?? '—'} /></div></Card>
+        <Card className="order-detail-card"><CardHeading title="Payment information" /><div className="order-detail-fields"><DetailField label="Payment method" value={primaryPayment?.provider?.replaceAll('_', ' ').toUpperCase() ?? '—'} /><DetailField label="Payment status" value={<StatusBadge value={order.payment_status} />} /><DetailField label="Transaction reference" value={getPaymentReference(primaryPayment)} /><DetailField label="Receipt status" value={primaryPayment?.receipt?.status?.replaceAll('_', ' ') ?? '—'} /></div></Card>
+        <Card className="order-detail-card"><CardHeading title="Commission snapshot" />{commissionSnapshots.length ? <div className="table-wrap"><table><thead><tr><th>Seller</th><th>Rule</th><th>Rate</th><th>Commission</th><th>Status</th></tr></thead><tbody>{commissionSnapshots.map((snapshot) => <tr key={snapshot.id}><td>{snapshot.sellerName}</td><td>{snapshot.rule_source.replaceAll('_', ' ')}</td><td>{snapshot.percentage_bps / 100}%</td><td>{money(snapshot.commission_minor, snapshot.currency)}</td><td><StatusBadge value={snapshot.status} /></td></tr>)}</tbody></table></div> : <p className="muted">Commission is created only after a verified payment. Pending or failed payments have no confirmed snapshot.</p>}</Card>
+        <Card className="order-detail-card order-actions-card"><CardHeading title="Order actions" /><OrderFinancials order={order} orderId={orderId} /></Card>
+      </aside>
     </div>
-
-    <AccordionSection title="Order overview" defaultOpen>
-      <div className="order-detail-fields"><DetailField label="Order ID" value={order.order_number} /><DetailField label="Order date" value={formatDateTime(order.placed_at)} /><DetailField label="Order status" value={<StatusBadge value={order.fulfillment_status} />} /><DetailField label="Seller brand" value={<SellerBadges sellers={sellers} />} /></div>
-    </AccordionSection>
-
-    <AccordionSection title="Customer information">
-      <div className="order-detail-fields"><DetailField label="Customer name" value={order.user?.name ?? 'Guest'} /><DetailField label="Phone" value={order.user?.phone ?? '—'} /><DetailField label="Email" value={order.user?.email ?? '—'} /></div>
-    </AccordionSection>
-
-    <AccordionSection title="Shipping / delivery information">
-      <div className="order-detail-fields"><DetailField label="Delivery method" value={order.shipping_method?.name ?? primaryShipment?.delivery_method?.replaceAll('_', ' ') ?? 'Not selected'} /><DetailField label="Delivery status" value={<StatusBadge value={primaryShipment?.status ?? order.fulfillment_status} />} /><DetailField label="Expected delivery" value={formatDate(primaryShipment?.estimated_delivery_at)} /><div className="order-field order-field-wide"><span>Shipping address</span><strong>{formatAddress(order.shipping_address)}</strong></div><div className="order-field order-field-wide"><span>Tracking number</span>{trackingNumbers.length ? <div className="order-tracking-list">{trackingNumbers.map((trackingNumber) => <strong key={trackingNumber}>{trackingNumber}</strong>)}</div> : <strong>Shipment not created</strong>}</div></div>
-    </AccordionSection>
-
-    <AccordionSection title="Payment information">
-      <div className="order-detail-fields"><DetailField label="Payment method" value={primaryPayment?.provider?.replaceAll('_', ' ').toUpperCase() ?? '—'} /><DetailField label="Payment status" value={<StatusBadge value={order.payment_status} />} /><DetailField label="Transaction reference" value={getPaymentReference(primaryPayment)} /></div>
-    </AccordionSection>
-
-    <AccordionSection title="Order items" summary={`${order.items?.length ?? 0} item${order.items?.length === 1 ? '' : 's'}`} className="order-items-accordion">
-      {order.items?.length ? <div className="table-wrap order-items-table-wrap"><table className="order-items-table"><thead><tr><th>Product</th><th>SKU</th><th>Qty</th><th>Unit price</th><th>Line total</th></tr></thead><tbody>{itemGroups.map((group) => <Fragment key={group.key}><tr className="order-item-seller-row"><td colSpan={5}>{group.seller ? <><span>Seller</span><SellerBadge seller={group.seller} /></> : <><span>Seller</span><span className="muted">Seller unavailable</span></>}</td></tr>{group.items.map((item, index) => { const lineTotal = item.line_total_minor ?? item.unit_price_minor * item.quantity; return <tr key={item.id ?? `${item.sku}-${index}`}><td><div className="order-product-cell">{item.product_image ? <img src={item.product_image} alt="" /> : <span className="order-item-placeholder"><Package size={18} aria-hidden="true" /></span>}<strong>{item.product_name}</strong></div></td><td>{item.sku || '—'}</td><td>{item.quantity}</td><td>{money(item.unit_price_minor, order.currency)}</td><td><strong>{money(lineTotal, order.currency)}</strong></td></tr> })}</Fragment>)}</tbody></table></div> : <p className="muted">No order items recorded.</p>}
-    </AccordionSection>
-
-    <AccordionSection title="Order summary">
-      <div className="order-summary-list">
-        <SummaryRow label="Subtotal" value={money(order.subtotal_minor, order.currency)} />
-        <SummaryRow label="Discount" value={money(order.discount_minor, order.currency)} />
-        <SummaryRow label="Shipping fee" value={money(order.shipping_minor, order.currency)} />
-        <SummaryRow label="Tax" value={money(order.tax_minor, order.currency)} />
-        <SummaryRow label="Grand total" value={money(order.grand_total_minor, order.currency)} emphasized />
-      </div>
-    </AccordionSection>
-
-    <AccordionSection title="Commission snapshots" summary={commissionSnapshots.length ? `${commissionSnapshots.length} confirmed record${commissionSnapshots.length === 1 ? '' : 's'}` : 'Not confirmed'}>
-      {commissionSnapshots.length ? <div className="table-wrap"><table><thead><tr><th>Seller</th><th>Rule source</th><th>Rate</th><th>Eligible subtotal</th><th>Commission</th><th>Status</th></tr></thead><tbody>{commissionSnapshots.map((snapshot) => <tr key={snapshot.id}><td>{snapshot.sellerName}</td><td>{snapshot.rule_source.replaceAll('_', ' ')}</td><td>{snapshot.percentage_bps / 100}%</td><td>{money(snapshot.eligible_subtotal_minor, snapshot.currency)}</td><td>{money(snapshot.commission_minor, snapshot.currency)}</td><td><StatusBadge value={snapshot.status} /></td></tr>)}</tbody></table></div> : <p className="muted">Commission is created only after a verified payment. Pending or failed payments have no confirmed commission snapshot.</p>}
-    </AccordionSection>
-
-    <AccordionSection title="Activity & internal notes" className="order-history-accordion">
-      <div className="order-history-grid"><div><h4>Status history</h4>{order.status_history?.length ? order.status_history.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.to_status} /><span>{item.from_status ?? 'created'} → {item.to_status}<small>{formatDateTime(item.created_at)}{item.note ? ` · ${item.note}` : ''}</small></span></div>) : <p className="muted">No status changes recorded.</p>}</div>
-        <div><h4>Internal notes</h4>{order.notes?.length ? order.notes.map((item) => <div className="activity-line" key={item.id}><span>{item.note}<small>{item.user?.name ?? 'Admin'} · {formatDateTime(item.created_at)}</small></span></div>) : <p className="muted">No internal notes.</p>}<form className="inline-form" onSubmit={(event) => { event.preventDefault(); mutation.mutate() }}><input required value={note} onChange={(event) => setNote(event.target.value)} placeholder="Add internal note" /><button className="button primary" disabled={mutation.isPending}>{mutation.isPending ? 'Adding…' : 'Add note'}</button></form></div>
-      </div>
-    </AccordionSection>
-
-    <AccordionSection title="Order actions" className="order-actions-accordion"><OrderFinancials order={order} orderId={orderId} /></AccordionSection>
   </Card>
+}
+
+function CardHeading({ title, summary }: { title: string; summary?: string }) {
+  return <div className="order-card-heading"><h2>{title}</h2>{summary ? <span>{summary}</span> : null}</div>
+}
+
+function PaymentDetail({ label, value }: { label: string; value: string }) {
+  return <div className="payment-detail"><span>{label}</span><strong>{value}</strong></div>
 }
 
 function DetailField({ label, value }: { label: string; value: ReactNode }) {
@@ -237,13 +214,33 @@ function OrderFinancials({ order, orderId }: { order: Order; orderId: number }) 
   const [tracking, setTracking] = useState('')
   const [trackingUrl, setTrackingUrl] = useState('')
   const [refundAmount, setRefundAmount] = useState('')
-  const collectCod = useMutation({ mutationFn: (paymentId: number) => adminApi.collectCodPayment(paymentId), onSuccess: () => { client.invalidateQueries({ queryKey: ['admin-order', orderId] }); client.invalidateQueries({ queryKey: ['admin-orders'] }); client.invalidateQueries({ queryKey: ['admin-payments'] }) } })
-  const verifyManual = useMutation({ mutationFn: (paymentId: number) => adminApi.verifyManualPayment(paymentId), onSuccess: () => { client.invalidateQueries({ queryKey: ['admin-order', orderId] }); client.invalidateQueries({ queryKey: ['admin-orders'] }); client.invalidateQueries({ queryKey: ['admin-payments'] }) } })
+  const [paymentConfirmation, setPaymentConfirmation] = useState<{ paymentId: number; provider: string } | null>(null)
+  const [receiptPreviewPaymentId, setReceiptPreviewPaymentId] = useState<number | null>(null)
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState<string | null>(null)
+  const [paymentSuccess, setPaymentSuccess] = useState('')
+  useEffect(() => () => { if (receiptPreviewUrl) URL.revokeObjectURL(receiptPreviewUrl) }, [receiptPreviewUrl])
+  const paymentConfirmationMutation = useMutation({
+    mutationFn: ({ paymentId, provider, receiptStatus }: { paymentId: number; provider: string; receiptStatus?: string }) => {
+      if (provider === 'cod') return adminApi.collectCodPayment(paymentId)
+      if (receiptStatus === 'submitted') return adminApi.approvePaymentReceipt(paymentId)
+      return adminApi.verifyManualPayment(paymentId)
+    },
+    onSuccess: async () => {
+      setPaymentConfirmation(null)
+      setPaymentSuccess('Payment confirmed by the server.')
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ['admin-order', orderId] }),
+        client.invalidateQueries({ queryKey: ['admin-orders'] }),
+        client.invalidateQueries({ queryKey: ['admin-payments'] }),
+      ])
+    },
+  })
+  const receiptPreview = useMutation({ mutationFn: (paymentId: number) => adminApi.paymentReceiptFile(paymentId), onSuccess: (blob, paymentId) => { setReceiptPreviewUrl(URL.createObjectURL(blob)); setReceiptPreviewPaymentId(paymentId) } })
   const shipment = useMutation({ mutationFn: () => adminApi.createShipment(orderId, { delivery_method: deliveryMethod, carrier: deliveryMethod === 'self_delivery' ? 'Kipi Self Delivery' : carrier || null, tracking_number: deliveryMethod === 'external_courier' ? tracking || null : null, tracking_url: trackingUrl || null }), onSuccess: () => { setCarrier(''); setTracking(''); setTrackingUrl(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
   const shipmentStatus = useMutation({ mutationFn: (payload: { id: number; status: string }) => adminApi.updateShipment(payload.id, { status: payload.status }), onSuccess: () => client.invalidateQueries({ queryKey: ['admin-order', orderId] }) })
   const refund = useMutation({ mutationFn: () => adminApi.createRefund(orderId, { amount_minor: Number(refundAmount), reason: 'Admin refund', idempotency_key: crypto.randomUUID() }), onSuccess: () => { setRefundAmount(''); client.invalidateQueries({ queryKey: ['admin-order', orderId] }) } })
   return <div className="order-financials-grid">
-    <div className="order-financial-block"><h4>Payment controls</h4>{order.payments?.length ? order.payments.map((payment) => <div className="activity-line" key={payment.id}><StatusBadge value={payment.status} /><span>{payment.provider.toUpperCase()} · {money(payment.amount_minor, payment.currency)}{payment.provider === 'cod' && payment.status !== 'paid' ? <button className="button secondary compact-action" type="button" onClick={() => collectCod.mutate(payment.id)} disabled={collectCod.isPending}>{collectCod.isPending ? 'Confirming…' : 'Mark Payment as Received'}</button> : null}{['kbzpay', 'wavepay', 'bank_transfer'].includes(payment.provider) && payment.status !== 'paid' ? <button className="button secondary compact-action" type="button" onClick={() => verifyManual.mutate(payment.id)} disabled={verifyManual.isPending}>{verifyManual.isPending ? 'Verifying…' : 'Verify online payment'}</button> : null}<small>{typeof payment.metadata?.sender_phone === 'string' ? `Phone: ${payment.metadata.sender_phone}` : null}{typeof payment.metadata?.transaction_code === 'string' ? ` · Ref: ${payment.metadata.transaction_code}` : null}</small></span></div>) : <p className="muted">No payment records.</p>}{collectCod.isError ? <p className="error-box">COD payment could not be confirmed. Verify the cash was actually received.</p> : null}{verifyManual.isError ? <p className="error-box">Online payment could not be verified. Check the receipt details and your permission.</p> : null}</div>
+    <div className="order-financial-block payment-controls-block"><div className="payment-controls-heading"><div><h4>Payment controls</h4><p>Review the payment details and receipt before confirming.</p></div><CheckCircle2 size={20} aria-hidden="true" /></div>{order.payments?.length ? order.payments.map((payment) => { const metadata = payment.metadata ?? {}; const senderName = typeof metadata.sender_name === 'string' ? metadata.sender_name : '—'; const senderPhone = typeof metadata.sender_phone === 'string' ? metadata.sender_phone : '—'; const transactionReference = getPaymentReference(payment); const isConfirmable = ['pending', 'processing'].includes(payment.status) && (payment.provider === 'cod' || ['kbzpay', 'ayapay', 'wavepay', 'bank_transfer'].includes(payment.provider)); const isConfirmationOpen = paymentConfirmation?.paymentId === payment.id; return <div className="payment-control-card" key={payment.id}><div className="payment-control-top"><div><span className="payment-control-label">Payment method</span><strong>{payment.provider.replaceAll('_', ' ').toUpperCase()}</strong></div><StatusBadge value={payment.status} /></div><div className="payment-detail-grid"><PaymentDetail label="Amount" value={money(payment.amount_minor, payment.currency)} /><PaymentDetail label="Sender name" value={senderName} /><PaymentDetail label="Phone" value={senderPhone} /><PaymentDetail label="Payment reference" value={transactionReference} />{payment.receipt ? <PaymentDetail label="Receipt" value={payment.receipt.status.replaceAll('_', ' ')} /> : null}</div><div className="payment-control-actions">{payment.receipt?.has_file ? <button className="button secondary" type="button" onClick={() => receiptPreview.mutate(payment.id)} disabled={receiptPreview.isPending}>{receiptPreview.isPending && receiptPreview.variables === payment.id ? 'Opening receipt…' : <><FileImage size={16} aria-hidden="true" />View receipt</>}</button> : null}{isConfirmable ? <button className="button primary payment-confirm-button" type="button" onClick={() => { setPaymentSuccess(''); setPaymentConfirmation({ paymentId: payment.id, provider: payment.provider }) }} disabled={paymentConfirmationMutation.isPending}><CheckCircle2 size={17} aria-hidden="true" />Confirm Payment</button> : null}</div>{payment.receipt?.status === 'rejected' && payment.receipt.rejection_reason ? <p className="payment-rejection">Receipt rejected: {payment.receipt.rejection_reason}</p> : null}{isConfirmationOpen ? <div className="payment-confirmation" role="alertdialog" aria-labelledby={`confirm-payment-${payment.id}-title`}><strong id={`confirm-payment-${payment.id}-title`}>Confirm this payment?</strong><p>{payment.receipt?.status === 'submitted' ? 'This will approve the submitted receipt and mark the payment as paid.' : 'Confirm only after the transfer or payment has been checked. The server will update the payment and order status.'}</p><div className="payment-confirmation-actions"><button className="button secondary" type="button" onClick={() => setPaymentConfirmation(null)} disabled={paymentConfirmationMutation.isPending}>Not yet</button><button className="button primary" type="button" onClick={() => paymentConfirmationMutation.mutate({ paymentId: payment.id, provider: payment.provider, receiptStatus: payment.receipt?.status })} disabled={paymentConfirmationMutation.isPending}>{paymentConfirmationMutation.isPending ? 'Confirming…' : 'Confirm Payment'}</button></div></div> : null}</div> }) : <p className="muted">No payment records.</p>}{paymentSuccess ? <p className="success-box payment-feedback" role="status">{paymentSuccess}</p> : null}{paymentConfirmationMutation.isError ? <p className="error-box payment-feedback" role="alert">Payment could not be confirmed. The server rejected or did not complete the verification. Review the details and try again.</p> : null}{receiptPreview.isError ? <p className="error-box payment-feedback" role="alert">The private receipt could not be opened.</p> : null}{receiptPreviewUrl ? <div className="payment-receipt-preview"><div className="payment-receipt-preview-header"><strong>Receipt preview{receiptPreviewPaymentId ? ` #${receiptPreviewPaymentId}` : ''}</strong><button className="icon-button" type="button" onClick={() => { setReceiptPreviewUrl(null); setReceiptPreviewPaymentId(null) }} aria-label="Close receipt preview">×</button></div><img src={receiptPreviewUrl} alt="Payment receipt" /></div> : null}</div>
     <div className="order-financial-block"><h4>Shipments</h4>{order.shipments?.length ? order.shipments.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.status} /><span>{item.carrier ?? 'No carrier'} · {item.tracking_number ?? item.internal_tracking_id ?? 'No tracking'}<small><select className="select compact" value={item.status} onChange={(event) => shipmentStatus.mutate({ id: item.id, status: event.target.value })} disabled={shipmentStatus.isPending}><option value={item.status}>{item.status}</option>{shipmentTransitions[item.status]?.map((next) => <option key={next} value={next}>{next}</option>)}</select></small></span></div>) : <p className="muted">No shipments created yet.</p>}<div className="inline-form shipment-create-form"><select value={deliveryMethod} onChange={(event) => setDeliveryMethod(event.target.value as 'self_delivery' | 'external_courier')} aria-label="Delivery method"><option value="external_courier">External courier</option><option value="self_delivery">Self delivery</option></select>{deliveryMethod === 'external_courier' ? <><input value={carrier} onChange={(event) => setCarrier(event.target.value)} placeholder="Carrier name" /><input value={tracking} onChange={(event) => setTracking(event.target.value)} placeholder="Real tracking number" /><input type="url" value={trackingUrl} onChange={(event) => setTrackingUrl(event.target.value)} placeholder="Official tracking URL" /></> : <span className="muted">Server will generate the internal Kipi delivery ID.</span>}<button className="button secondary" type="button" onClick={() => shipment.mutate()} disabled={shipment.isPending || (deliveryMethod === 'external_courier' && !tracking.trim())}>{shipment.isPending ? 'Creating…' : 'Create shipment'}</button></div></div>
     <div className="order-financial-block"><h4>Refunds</h4>{order.refunds?.length ? order.refunds.map((item) => <div className="activity-line" key={item.id}><StatusBadge value={item.status} /><span>{money(item.amount_minor, item.currency)}<small>{item.reason ?? 'No reason provided'}</small></span></div>) : <p className="muted">No refunds recorded.</p>}<div className="inline-form"><input type="number" min="1" value={refundAmount} onChange={(event) => setRefundAmount(event.target.value)} placeholder="Refund amount" aria-label="Refund amount" /><button className="button secondary" type="button" onClick={() => refund.mutate()} disabled={refund.isPending || order.payment_status !== 'paid' || !refundAmount}>{refund.isPending ? 'Processing…' : 'Refund'}</button></div></div>
   </div>
@@ -279,6 +276,16 @@ const shipmentTransitions: Record<string, string[]> = {
 function formatAddress(address: unknown) {
   if (!address || typeof address !== 'object') return 'No shipping address.'
   return Object.values(address as Record<string, unknown>).filter(Boolean).join(', ')
+}
+
+function addressField(address: Record<string, unknown> | null, keys: string[]) {
+  if (!address) return '—'
+  const value = keys.map((key) => address[key]).find((item) => item !== null && item !== undefined && item !== '')
+  return value ? String(value) : '—'
+}
+
+function formatAttributes(attributes: Record<string, unknown>) {
+  return Object.entries(attributes).filter(([, value]) => value !== null && value !== undefined && value !== '').map(([key, value]) => `${key}: ${String(value)}`).join(' · ')
 }
 
 export function AuditLogsPage() {

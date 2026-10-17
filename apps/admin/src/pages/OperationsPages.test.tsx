@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
 import { LanguageProvider } from '../store/language'
@@ -55,6 +55,7 @@ function LocationProbe() {
 test('navigates from All Orders to a dedicated structured order detail page', async () => {
   vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [order, secondOrder], meta: { current_page: 1, per_page: 10, last_page: 1, total: 2 } })
   vi.spyOn(adminApi, 'order').mockImplementation(async (id) => id === secondOrder.id ? secondOrder : order)
+  vi.spyOn(adminApi, 'updateOrderStatus').mockResolvedValue({ ...order, fulfillment_status: 'shipped' })
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
   render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders']}><Routes><Route path="/admin/orders" element={<OrdersPage />} /><Route path="/admin/orders/:id" element={<><LocationProbe /><OrderDetailsPage /></>} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
@@ -76,13 +77,11 @@ test('navigates from All Orders to a dedicated structured order detail page', as
   expect(screen.getByText('KIPI-DEL-2026-000041')).toBeInTheDocument()
   expect(screen.getByText('Order summary')).toBeInTheDocument()
   expect(screen.getByText('Order actions')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Order overview' })).toHaveAttribute('aria-expanded', 'true')
-  const customerSection = screen.getByRole('button', { name: 'Customer information' })
-  expect(customerSection).toHaveAttribute('aria-expanded', 'false')
-  fireEvent.click(customerSection)
-  expect(customerSection).toHaveAttribute('aria-expanded', 'true')
-  fireEvent.click(customerSection)
-  expect(customerSection).toHaveAttribute('aria-expanded', 'false')
+  expect(screen.getByRole('heading', { name: 'Order overview' })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Customer information' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Customer information' })).not.toBeInTheDocument()
+  fireEvent.change(screen.getByRole('combobox', { name: 'Update order status' }), { target: { value: 'shipped' } })
+  await waitFor(() => expect(adminApi.updateOrderStatus).toHaveBeenCalledWith(41, 'shipped'))
 
   fireEvent.click(screen.getByRole('button', { name: 'Next order' }))
   expect(await screen.findByRole('heading', { name: 'KIPI-ORD-0042' })).toBeInTheDocument()
@@ -107,4 +106,27 @@ test('loads the correct order details from a direct URL', async () => {
   expect(screen.getByRole('button', { name: 'Next order' })).toBeEnabled()
   expect(adminApi.order).toHaveBeenCalledWith(41)
   expect(adminApi.orders).toHaveBeenCalledWith({ per_page: '100' })
+})
+
+test('requires in-page confirmation and approves a submitted payment receipt through the real action', async () => {
+  const manualOrder: Order = {
+    ...order,
+    payments: [{ id: 8, provider: 'kbzpay', status: 'pending', amount_minor: 172500, currency: 'MMK', provider_payment_id: null, metadata: { sender_name: 'Customer Sender', sender_phone: '0912345678', transaction_code: 'KBZ-TEST-008' }, receipt: { status: 'submitted', has_file: true } }],
+  }
+  vi.spyOn(adminApi, 'order').mockResolvedValue(manualOrder)
+  vi.spyOn(adminApi, 'orders').mockResolvedValue({ data: [manualOrder], meta: { current_page: 1, per_page: 100, last_page: 1, total: 1 } })
+  const approveReceipt = vi.spyOn(adminApi, 'approvePaymentReceipt').mockResolvedValue({})
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+
+  render(<QueryClientProvider client={queryClient}><LanguageProvider><MemoryRouter initialEntries={['/admin/orders/41']}><Routes><Route path="/admin/orders/:id" element={<OrderDetailsPage />} /></Routes></MemoryRouter></LanguageProvider></QueryClientProvider>)
+
+  expect((await screen.findAllByText('KBZPAY')).length).toBeGreaterThan(0)
+  expect(screen.getAllByText('KBZ-TEST-008').length).toBeGreaterThan(0)
+  expect(screen.getByRole('button', { name: 'View receipt' })).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm Payment' }))
+  expect(screen.getByRole('alertdialog')).toHaveTextContent('approve the submitted receipt')
+  const confirmButtons = screen.getAllByRole('button', { name: 'Confirm Payment' })
+  fireEvent.click(confirmButtons[confirmButtons.length - 1])
+
+  await waitFor(() => expect(approveReceipt).toHaveBeenCalledWith(8))
 })

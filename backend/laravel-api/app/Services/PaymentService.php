@@ -123,6 +123,9 @@ class PaymentService
             if ($payment->status === 'paid') {
                 return $payment->fresh();
             }
+            if (! in_array($payment->status, ['pending', 'processing'], true)) {
+                throw ValidationException::withMessages(['payment' => 'Only pending or processing manual online payments can be verified.']);
+            }
 
             $order = $payment->order()->lockForUpdate()->firstOrFail();
             $this->reservations->commitOrder($order, $order->user_id);
