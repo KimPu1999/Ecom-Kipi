@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom/vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
 import { api } from '../lib/api'
@@ -60,4 +60,46 @@ test('Review displays a detail API error without hiding the approvals list', asy
 
   expect(await screen.findByText('Permission denied.')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Review seller application 9' })).toBeInTheDocument()
+})
+
+test('Approve submits the controlled confirmation payload and shows success after the API confirms it', async () => {
+  const request = vi.spyOn(api, 'request').mockImplementation(async (config) => {
+    if (config.url === '/admin/marketplace/applications/9') return { data: { data: application } } as never
+    if (config.url === '/admin/marketplace/applications/9/approve') return { data: { data: { id: 4, status: 'approved' } } } as never
+    return { data: { data: { data: [application], meta: { total: 1 } } } } as never
+  })
+
+  renderPage()
+  fireEvent.click(await screen.findByRole('button', { name: 'Review seller application 9' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Golden Lotus Trading' })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Approve' }))
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm approval' }))
+
+  await waitFor(() => expect(request).toHaveBeenCalledWith({
+    url: '/admin/marketplace/applications/9/approve',
+    method: 'POST',
+    data: { store_name: 'Golden Lotus Trading', slug: 'golden-lotus-trading' },
+  }))
+  expect(await screen.findByText('Seller application approved.')).toBeInTheDocument()
+})
+
+test('Reject requires a reason and submits it to the existing API', async () => {
+  const request = vi.spyOn(api, 'request').mockImplementation(async (config) => {
+    if (config.url === '/admin/marketplace/applications/9') return { data: { data: application } } as never
+    if (config.url === '/admin/marketplace/applications/9/reject') return { data: { data: { ...application, application_status: 'rejected' } } } as never
+    return { data: { data: { data: [application], meta: { total: 1 } } } } as never
+  })
+
+  renderPage()
+  fireEvent.click(await screen.findByRole('button', { name: 'Review seller application 9' }))
+  const dialog = await screen.findByRole('dialog', { name: 'Golden Lotus Trading' })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Reject' }))
+  fireEvent.change(within(dialog).getByLabelText('Rejection reason'), { target: { value: 'Missing required license.' } })
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Confirm rejection' }))
+
+  await waitFor(() => expect(request).toHaveBeenCalledWith({
+    url: '/admin/marketplace/applications/9/reject',
+    method: 'POST',
+    data: { rejection_reason: 'Missing required license.' },
+  }))
 })

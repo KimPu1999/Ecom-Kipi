@@ -193,10 +193,39 @@
 }
 
 .marketplace-review-actions {
+  align-items: flex-start;
   flex-wrap: wrap;
   margin-top: 20px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+}
+
+.marketplace-decision-form {
+  display: grid;
+  flex: 1 1 100%;
+  gap: 12px;
+}
+
+.marketplace-decision-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.marketplace-decision-form .field {
+  display: grid;
+  gap: 6px;
+}
+
+.marketplace-decision-form .field > span {
+  color: var(--muted);
+  font-size: .72rem;
+  font-weight: 700;
+}
+
+.marketplace-decision-form input,
+.marketplace-decision-form textarea {
+  width: 100%;
 }
 
 .marketplace-review-actions .error-text {
@@ -216,7 +245,8 @@
   }
 
   .marketplace-review-grid,
-  .marketplace-detail-grid {
+  .marketplace-detail-grid,
+  .marketplace-decision-fields {
     grid-template-columns: 1fr;
   }
 }

@@ -435,7 +435,7 @@ class AdminController extends Controller
             throw ValidationException::withMessages(['status' => 'Invalid order status transition.']);
         }
         $from = $order->fulfillment_status;
-        DB::transaction(function () use ($order, $next, $from, $request, $reservations) {
+        DB::transaction(function () use ($order, $next, $from, $request, $reservations, $commissions) {
             if ($next === 'cancelled') {
                 $reservations->releaseOrder($order, $request->user()->id);
             }
