@@ -672,7 +672,6 @@ const burmese: Record<string, string> = {
   'Save products with the heart button and keep them close for your next purchase.': 'နှလုံးပုံခလုတ်ဖြင့် ကုန်ပစ္စည်းများကို သိမ်းထားပြီး နောက်တစ်ကြိမ် ဝယ်ယူရန် အလွယ်တကူ ပြန်ကြည့်ပါ။',
   'Price unavailable': 'စျေးနှုန်း မရရှိနိုင်ပါ',
   'Sale': 'လျှော့စျေး',
-  'Remove {product} from wishlist': '{product} ကို နှစ်သက်ရာစာရင်းမှ ဖယ်ရန်',
   'View {product}': '{product} ကို ကြည့်ရန်',
   'Added to cart': 'စျေးခြင်းထဲသို့ ထည့်ပြီးပါပြီ',
   'Adding…': 'ထည့်နေသည်…',
@@ -741,6 +740,55 @@ const burmese: Record<string, string> = {
   'Receipt submitted for review.': 'စစ်ဆေးရန် ငွေလက်ခံဖြတ်ပိုင်း တင်ပြပြီးပါပြီ။',
   'Send payment to': 'ငွေပေးချေရန်',
   'Online payment methods are unavailable. Please use another payment method or try again later.': 'အွန်လိုင်းငွေပေးချေမှုနည်းလမ်းများ မရရှိနိုင်ပါ။ အခြားနည်းလမ်းကို အသုံးပြုပါ သို့မဟုတ် နောက်မှ ထပ်မံကြိုးစားပါ။',
+  'Sign out': 'ထွက်ရန်',
+  'Your next favorite thing could be just around the corner.': 'သင်နှစ်သက်မည့် နောက်ထပ်အရာတစ်ခုသည် အနီးအနားတွင် ရှိနေနိုင်ပါသည်။',
+  'Order timeline': 'အော်ဒါမှတ်တမ်းအချိန်လိုင်း',
+  'Status updates': 'အခြေအနေအပ်ဒိတ်များ',
+  'Categories are temporarily unavailable.': 'အမျိုးအစားများကို ယာယီမရရှိနိုင်ပါ။',
+  'No products available': 'ကုန်ပစ္စည်း မရရှိသေးပါ',
+  'New products will appear here when they are published by approved sellers.': 'အတည်ပြုထားသော ရောင်းချသူများက ထုတ်ပြန်သော ကုန်ပစ္စည်းအသစ်များ ဤနေရာတွင် ပေါ်လာပါမည်။',
+  'Kipi is a customer marketplace built to make product discovery feel more useful and less overwhelming.': 'Kipi သည် ကုန်ပစ္စည်းရှာဖွေမှုကို ပိုမိုအသုံးဝင်ပြီး မရှုပ်ထွေးစေရန် ဖန်တီးထားသော ဖောက်သည်ဈေးကွက်တစ်ခု ဖြစ်ပါသည်။',
+  'Discover useful products from approved sellers, with clear details and secure checkout.': 'အတည်ပြုထားသော ရောင်းချသူများထံမှ အသုံးဝင်သော ကုန်ပစ္စည်းများကို ရှင်းလင်းသောအသေးစိတ်နှင့် လုံခြုံသောငွေချေမှုဖြင့် ရှာဖွေပါ။',
+  'Selected from the catalog': 'ကတ်တလောက်မှ ရွေးချယ်ထားသည်',
+  'Featured products.': 'အထူးရွေးချယ်ထားသော ကုန်ပစ္စည်းများ။',
+  'Loading featured products…': 'အထူးရွေးချယ်ထားသော ကုန်ပစ္စည်းများ တင်နေသည်…',
+  'Featured products are temporarily unavailable.': 'အထူးရွေးချယ်ထားသော ကုန်ပစ္စည်းများကို ယာယီမရရှိနိုင်ပါ။',
+  'Recently added': 'မကြာသေးမီက ထည့်ထားသည်',
+  'New arrivals.': 'အသစ်ရောက်ရှိသော ကုန်ပစ္စည်းများ။',
+  'Loading new arrivals…': 'အသစ်ရောက်ရှိသော ကုန်ပစ္စည်းများ တင်နေသည်…',
+  'New arrivals are temporarily unavailable.': 'အသစ်ရောက်ရှိသော ကုန်ပစ္စည်းများကို ယာယီမရရှိနိုင်ပါ။',
+  'No stores yet': 'ဆိုင်မရှိသေးပါ',
+  'Breadcrumb': 'လမ်းကြောင်း',
+  'Primary navigation': 'ပင်မလမ်းညွှန်',
+  'Featured': 'အထူးရွေးချယ်ထားသည်',
+  'Quick add': 'အမြန်ထည့်ရန်',
+  'Decrease quantity': 'အရေအတွက်လျှော့ရန်',
+  'Increase quantity': 'အရေအတွက်တိုးရန်',
+  'Product image': 'ကုန်ပစ္စည်းပုံ',
+  'Everyday favorite': 'နေ့စဉ်နှစ်သက်ရာ',
+  'Kipi collection': 'Kipi စုစည်းမှု',
+  'Add {product} to cart': '{product} ကို စျေးခြင်းထဲသို့ ထည့်ရန်',
+  'Add {product} to wishlist': '{product} ကို နှစ်သက်ရာစာရင်းသို့ ထည့်ရန်',
+  'Remove {product} from wishlist': '{product} ကို နှစ်သက်ရာစာရင်းမှ ဖယ်ရန်',
+  'We could not load this right now.': 'ယခုအချိန်တွင် ဖွင့်၍မရပါ။',
+  'Preparing': 'ပြင်ဆင်နေသည်',
+  'Picked up': 'ပစ္စည်းယူပြီး',
+  'In transit': 'ပို့ဆောင်နေသည်',
+  'Out for delivery': 'ပို့ဆောင်ရန်ထွက်ခွာပြီး',
+  'Failed delivery': 'ပို့ဆောင်မှုမအောင်မြင်ပါ',
+  'Returned': 'ပြန်ပို့ပြီး',
+  'Everyday goods, selected with care and delivered with clarity.': 'နေ့စဉ်သုံးပစ္စည်းများကို ဂရုတစိုက်ရွေးချယ်ပြီး ရှင်းလင်းစွာ ပို့ဆောင်ပေးပါသည်။',
+  'Questions about an order or product? Our customer care team is ready to help.': 'အော်ဒါ သို့မဟုတ် ကုန်ပစ္စည်းနှင့် ပတ်သက်၍ မေးမြန်းလိုပါသလား။ ဖောက်သည်ဝန်ဆောင်မှုအဖွဲ့က ကူညီရန် အသင့်ရှိပါသည်။',
+  'Talk to customer care': 'ဖောက်သည်ဝန်ဆောင်မှုထံ ဆက်သွယ်ရန်',
+  'All rights reserved.': 'မူပိုင်ခွင့်အားလုံး လက်ဝယ်ရှိသည်။',
+  'Your store, in focus.': 'သင့်ဆိုင်ကို ရှင်းလင်းစွာ စီမံပါ။',
+  'Manage products, inventory, fulfillment, earnings, and your seller team from one workspace.': 'လုပ်ငန်းခွင်တစ်ခုတည်းမှ ကုန်ပစ္စည်း၊ စတော့၊ အော်ဒါဖြည့်ဆည်းမှု၊ ဝင်ငွေနှင့် ရောင်းချသူအဖွဲ့ကို စီမံပါ။',
+  'Welcome Back': 'ပြန်လည်ကြိုဆိုပါသည်',
+  'Use your approved seller account to continue.': 'ဆက်လက်လုပ်ဆောင်ရန် အတည်ပြုထားသော ရောင်းချသူအကောင့်ကို အသုံးပြုပါ။',
+  'Your password': 'သင့်စကားဝှက်',
+  'Hide password': 'စကားဝှက်ဖျောက်ရန်',
+  'Show password': 'စကားဝှက်ပြရန်',
+  'Signing in…': 'ဝင်ရောက်နေသည်…',
 }
 
 const values = { en: {}, my: burmese } satisfies Record<Language, Record<string, string>>
@@ -769,6 +817,7 @@ function readLanguage(): Language {
 type SourceRecord = { source: string; translated: string }
 const textSources = new WeakMap<Text, SourceRecord>()
 const attributeSources = new WeakMap<Element, Map<string, SourceRecord>>()
+const warnedMissingKeys = new Set<string>()
 
 function replaceVisibleBrandText(value: string): string {
   return value
@@ -789,7 +838,9 @@ function translateDocument(language: Language) {
       const previous = textSources.get(text)
       const source = previous && current === previous.translated ? previous.source : current
       const trimmed = source.trim()
-      const translated = replaceVisibleBrandText(language === 'my' ? values.my[trimmed] ?? source : source)
+      // Only translate known static strings. Product names, seller names, SKUs,
+      // and API-provided notes must remain data, even when they resemble a key.
+      const translated = language === 'my' ? values.my[trimmed] ?? source : source
       textSources.set(text, { source, translated })
       if (current !== translated) text.nodeValue = translated
     }
@@ -803,7 +854,7 @@ function translateDocument(language: Language) {
       if (current === null) return
       const previous = records.get(attribute)
       const source = previous && current === previous.translated ? previous.source : current
-      const translated = replaceVisibleBrandText(language === 'my' ? values.my[source] ?? source : source)
+      const translated = language === 'my' ? values.my[source] ?? source : source
       records.set(attribute, { source, translated })
       if (current !== translated) element.setAttribute(attribute, translated)
     })
@@ -845,6 +896,10 @@ export function LanguageProvider({ children }: PropsWithChildren) {
     language,
     setLanguage,
     t: (key, replacements) => {
+      if (import.meta.env?.DEV && language === 'my' && !values.my[key] && !warnedMissingKeys.has(key)) {
+        warnedMissingKeys.add(key)
+        console.warn(`[i18n] Missing Burmese translation: ${key}`)
+      }
       let translated = language === 'my' ? values.my[key] ?? key : key
       Object.entries(replacements ?? {}).forEach(([name, replacement]) => { translated = translated.replaceAll(`{${name}}`, String(replacement)) })
       return translated.replaceAll('Kipi', 'THANGPC').replaceAll('KIPI', 'THANGPC')
@@ -858,6 +913,13 @@ export function useLanguage() {
   const context = useContext(LanguageContext)
   if (!context) throw new Error('useLanguage must be used inside LanguageProvider')
   return context
+}
+
+/** Use for reusable leaf components that are also rendered in isolation by tests. */
+export function useOptionalLanguage(): LanguageContextValue {
+  const context = useContext(LanguageContext)
+  if (context) return context
+  return { language: 'en', setLanguage: () => undefined, t: (key, replacements) => Object.entries(replacements ?? {}).reduce((value, [name, replacement]) => value.replaceAll(`{${name}}`, String(replacement)), key) }
 }
 
 export function LanguageSwitcher() {

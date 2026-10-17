@@ -20,15 +20,18 @@ export function Seo({ title, description }: { title: string; description: string
 }
 
 export function LoadingState({ label = 'Loading…' }: { label?: string }) {
-  return <div className="feedback" role="status"><LoaderCircle className="spin" size={22} />{label}</div>
+  const { t } = useLanguage()
+  return <div className="feedback" role="status"><LoaderCircle className="spin" size={22} />{t(label)}</div>
 }
 
 export function ErrorState({ message = 'We could not load this right now.' }: { message?: string }) {
-  return <div className="feedback error-box" role="alert"><AlertCircle size={21} />{message}</div>
+  const { t } = useLanguage()
+  return <div className="feedback error-box" role="alert"><AlertCircle size={21} />{t(message)}</div>
 }
 
 export function EmptyState({ title, message, action }: { title: string; message: string; action?: ReactNode }) {
-  return <div className="empty-state"><div className="empty-icon">✦</div><h2>{title}</h2><p>{message}</p>{action}</div>
+  const { t } = useLanguage()
+  return <div className="empty-state"><div className="empty-icon">✦</div><h2>{t(title)}</h2><p>{t(message)}</p>{action}</div>
 }
 
 export function ProductImage({ url, alt, fallback, loading = 'lazy', className }: { url?: string | null; alt: string; fallback: string; loading?: 'eager' | 'lazy'; className?: string }) {
@@ -47,7 +50,8 @@ export function PageIntro({ title }: { eyebrow: string; title: string; descripti
 }
 
 export function Breadcrumbs({ items }: { items: { label: string; to?: string }[] }) {
-  return <nav className="breadcrumbs" aria-label="Breadcrumb">{items.map((item, index) => <span key={item.label}>{item.to ? <Link to={item.to}>{item.label}</Link> : item.label}{index < items.length - 1 ? <b>/</b> : null}</span>)}</nav>
+  const { t } = useLanguage()
+  return <nav className="breadcrumbs" aria-label={t('Breadcrumb')}>{items.map((item, index) => <span key={item.label}>{item.to ? <Link to={item.to}>{item.label}</Link> : item.label}{index < items.length - 1 ? <b>/</b> : null}</span>)}</nav>
 }
 
 export function ProductCard({ product, actionLabel = 'Quick add' }: { product: Product; actionLabel?: string }) {
@@ -65,7 +69,7 @@ export function ProductCard({ product, actionLabel = 'Quick add' }: { product: P
   const cartMutation = useMutation({ mutationFn: () => storefrontApi.addCartItem(variant?.id ?? 0, 1), onSuccess: () => client.invalidateQueries({ queryKey: ['cart'] }) })
   function openWishlist(event: MouseEvent<HTMLButtonElement>) { event.preventDefault(); event.stopPropagation(); if (!user) { navigate('/login?next=' + encodeURIComponent('/products/' + product.slug)); return } wishlistMutation.mutate() }
   function quickAdd(event: MouseEvent<HTMLButtonElement>) { event.preventDefault(); event.stopPropagation(); if (!user) { navigate('/login?next=' + encodeURIComponent('/products/' + product.slug)); return } if (variant?.available_quantity) cartMutation.mutate() }
-  return <article className={'product-card' + sellerTone}><Link to={'/products/' + product.slug}><div className="product-image"><ProductImage url={image?.url} alt={image?.alt_text || product.name} fallback={product.name.slice(0, 1)} />{product.is_featured ? <em>Featured</em> : null}{discount ? <em className="discount-badge">{discount}% {t('off')}</em> : null}<button className={saved ? 'product-action saved' : 'product-action'} onClick={openWishlist} disabled={wishlistMutation.isPending} aria-label={saved ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="product-card-body"><div><span className="seller-badge">{product.seller?.store_name ?? 'Kipi collection'}</span><h3>{product.name}</h3><p>{product.category?.name ?? 'Everyday favorite'}</p></div>{variant ? <PriceDisplay amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <span className="muted">Unavailable</span>}</div></Link><div className="product-card-footer">{variant?.available_quantity ? <span className="stock-note">In stock</span> : <span className="stock-note out">Unavailable</span>}<button className="quick-add" onClick={quickAdd} disabled={!variant?.available_quantity || cartMutation.isPending} aria-label={`Add ${product.name} to cart`}>{cartMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <ShoppingBag size={15} />} {actionLabel}</button></div></article>
+  return <article className={'product-card' + sellerTone}><Link to={'/products/' + product.slug}><div className="product-image"><ProductImage url={image?.url} alt={image?.alt_text || product.name} fallback={product.name.slice(0, 1)} />{product.is_featured ? <em>{t('Featured')}</em> : null}{discount ? <em className="discount-badge">{discount}% {t('off')}</em> : null}<button className={saved ? 'product-action saved' : 'product-action'} onClick={openWishlist} disabled={wishlistMutation.isPending} aria-label={saved ? t('Remove {product} from wishlist', { product: product.name }) : t('Add {product} to wishlist', { product: product.name })}><Heart size={17} fill={saved ? 'currentColor' : 'none'} /></button></div><div className="product-card-body"><div><span className="seller-badge">{product.seller?.store_name ?? t('Kipi collection')}</span><h3>{product.name}</h3><p>{product.category?.name ?? t('Everyday favorite')}</p></div>{variant ? <PriceDisplay amount={variant.price_minor} currency={variant.currency} compareAt={variant.compare_at_price_minor} /> : <span className="muted">{t('Unavailable')}</span>}</div></Link><div className="product-card-footer">{variant?.available_quantity ? <span className="stock-note">{t('In stock')}</span> : <span className="stock-note out">{t('Unavailable')}</span>}<button className="quick-add" onClick={quickAdd} disabled={!variant?.available_quantity || cartMutation.isPending} aria-label={t('Add {product} to cart', { product: product.name })}>{cartMutation.isPending ? <LoaderCircle className="spin" size={15} /> : <ShoppingBag size={15} />} {t(actionLabel)}</button></div></article>
 }
 
 export function PriceDisplay({ amount, currency, compareAt }: { amount: number; currency: string; compareAt?: number | null }) {
@@ -73,16 +77,19 @@ export function PriceDisplay({ amount, currency, compareAt }: { amount: number; 
 }
 
 export function QuantitySelector({ value, onChange, max = 999, disabled = false }: { value: number; onChange: (value: number) => void; max?: number; disabled?: boolean }) {
-  return <div className="quantity"><button type="button" aria-label="Decrease quantity" disabled={disabled || value <= 1} onClick={() => onChange(Math.max(1, value - 1))}><Minus size={15} /></button><output>{value}</output><button type="button" aria-label="Increase quantity" disabled={disabled || value >= max} onClick={() => onChange(Math.min(max, value + 1))}><Plus size={15} /></button></div>
+  const { t } = useLanguage()
+  return <div className="quantity"><button type="button" aria-label={t('Decrease quantity')} disabled={disabled || value <= 1} onClick={() => onChange(Math.max(1, value - 1))}><Minus size={15} /></button><output>{value}</output><button type="button" aria-label={t('Increase quantity')} disabled={disabled || value >= max} onClick={() => onChange(Math.min(max, value + 1))}><Plus size={15} /></button></div>
 }
 
 export function Pagination({ page, pages, onChange }: { page: number; pages: number; onChange: (page: number) => void }) {
   if (pages <= 1) return null
-  return <div className="pagination"><button disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label="Previous page"><ChevronLeft size={18} /></button><span>Page {page} of {pages}</span><button disabled={page >= pages} onClick={() => onChange(page + 1)} aria-label="Next page"><ChevronRight size={18} /></button></div>
+  const { t } = useLanguage()
+  return <div className="pagination"><button disabled={page <= 1} onClick={() => onChange(page - 1)} aria-label={t('Previous page')}><ChevronLeft size={18} /></button><span>{t('Page {page} of {pages}', { page, pages })}</span><button disabled={page >= pages} onClick={() => onChange(page + 1)} aria-label={t('Next page')}><ChevronRight size={18} /></button></div>
 }
 
 export function SearchInput({ value, onChange, placeholder = 'Search products' }: { value: string; onChange: (value: string) => void; placeholder?: string }) {
-  return <label className="search-input"><Search size={18} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} aria-label={placeholder} /></label>
+  const { t } = useLanguage()
+  return <label className="search-input"><Search size={18} /><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={t(placeholder)} aria-label={t(placeholder)} /></label>
 }
 
 export function Card({ children, className = '', id }: PropsWithChildren<{ className?: string; id?: string }>) {
@@ -90,5 +97,7 @@ export function Card({ children, className = '', id }: PropsWithChildren<{ class
 }
 
 export function StatusBadge({ value }: { value: string }) {
-  return <span className={'status-badge status-' + value.replaceAll('_', '-')}>{value.replaceAll('_', ' ')}</span>
+  const { t } = useLanguage()
+  const key = value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  return <span className={'status-badge status-' + value.replaceAll('_', '-')}>{t(key)}</span>
 }

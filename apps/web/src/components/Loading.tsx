@@ -1,3 +1,6 @@
+import { useLanguage } from '../../../../packages/i18n/src'
+
 export function Loading() {
-  return <p role="status">Loading…</p>
+  const { t } = useLanguage()
+  return <p role="status">{t('Loading…')}</p>
 }
