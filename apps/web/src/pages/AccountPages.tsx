@@ -1,7 +1,7 @@
 import { useEffect, useState, type InputHTMLAttributes } from 'react'
 import { ApiClientError } from '@kipi/api-client'
-import { ArrowRight, Bell, Copy, Edit3, FileText, LogOut, MapPin, Plus, Trash2 } from 'lucide-react'
-import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft, ArrowRight, Bell, CalendarDays, CheckCircle2, Copy, CreditCard, Edit3, FileText, LogOut, MapPin, PackageCheck, Plus, Search, ShieldCheck, ShoppingBag, Trash2, Truck, X } from 'lucide-react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
@@ -10,8 +10,9 @@ import { profileSchema, type ProfileInput } from '@kipi/validation'
 import { api } from '../lib/api'
 import { useAuthStore } from '../store/auth'
 import { storefrontApi } from '../services/storefrontApi'
-import type { Address, Order, Shipment, TrackingEvent } from '../types/storefront'
+import type { Address, Order, OrderSummary, Shipment, TrackingEvent } from '../types/storefront'
 import { Breadcrumbs, Card, EmptyState, ErrorState, LoadingState, PageIntro, Pagination, PriceDisplay, ProductCard, StatusBadge } from '../components/StorefrontUI'
+import { useLanguage } from '../../../../packages/i18n/src'
 
 const addressSchema = z.object({ label: z.string().max(80).optional(), recipient_name: z.string().min(2, 'Enter a recipient name.'), phone: z.string().min(5, 'Enter a phone number.'), line1: z.string().min(2, 'Enter an address.'), line2: z.string().optional(), city: z.string().min(2, 'Enter a city.'), state: z.string().optional(), postal_code: z.string().optional(), country: z.string().length(2, 'Use a 2-letter country code.'), is_default: z.boolean() })
 type AddressInput = z.infer<typeof addressSchema>
@@ -111,26 +112,100 @@ function AddressForm({ initial, onSubmit, onCancel }: { initial: Address | null;
   return <form className="stack-form" onSubmit={handleSubmit(onSubmit)}><div className="form-grid"><FormField label="Label" placeholder="Home" {...register('label')} error={errors.label?.message} /><FormField label="Recipient name" {...register('recipient_name')} error={errors.recipient_name?.message} /><FormField label="Phone" {...register('phone')} error={errors.phone?.message} /><FormField label="Country code" maxLength={2} {...register('country')} error={errors.country?.message} /><FormField label="Address line 1" {...register('line1')} error={errors.line1?.message} /><FormField label="Address line 2" {...register('line2')} error={errors.line2?.message} /><FormField label="City" {...register('city')} error={errors.city?.message} /><FormField label="State / region" {...register('state')} error={errors.state?.message} /><FormField label="Postal code" {...register('postal_code')} error={errors.postal_code?.message} /></div><label className="checkbox"><input type="checkbox" {...register('is_default')} /> Set as default address</label><div className="form-actions"><button className="button secondary" type="button" onClick={onCancel}>Cancel</button><button className="button primary" disabled={isSubmitting}>Save address</button></div></form>
 }
 
-export function OrdersPage() {
-  const [page, setPage] = useState(1)
-  const query = useQuery({ queryKey: ['orders', page], queryFn: () => storefrontApi.orders(page) })
-  if (query.isLoading) return <LoadingState />
-  if (query.isError || !query.data) return <ErrorState />
-  return <div className="account-page"><Breadcrumbs items={[{ label: 'Account', to: '/account' }, { label: 'Orders' }]} /><PageIntro eyebrow="Account" title="Order history." description="Everything you have ordered from Kipi." />{query.data.data.length ? <div className="orders-list">{query.data.data.map((order) => <OrderCard key={order.id} order={order} />)}</div> : <EmptyState title="No orders yet" message="Your next favorite thing could be just around the corner." action={<Link className="button primary" to="/products">Start shopping</Link>} />}<Pagination page={query.data.meta?.current_page ?? 1} pages={query.data.meta?.last_page ?? 1} onChange={setPage} /></div>
+function canCancelOrder(order: Order) {
+  return order.fulfillment_status === 'pending' && !order.cancelled_at
 }
 
-function OrderCard({ order }: { order: Order }) {
+function statusLabel(value: string, t: (key: string) => string) {
+  const labels: Record<string, string> = { pending: t('Pending'), confirmed: t('Confirmed'), processing: t('Processing'), shipped: t('Shipped'), delivered: t('Delivered'), cancelled: t('Cancelled'), paid: t('Paid'), failed: t('Payment failed'), refunded: t('Refunded') }
+  return labels[value] ?? value.replaceAll('_', ' ')
+}
+
+export function OrdersPage() {
+  const { t } = useLanguage()
+  const [params, setParams] = useSearchParams()
+  const page = Math.max(1, Number(params.get('page') ?? '1') || 1)
+  const q = params.get('q') ?? ''
+  const fulfillmentStatus = params.get('fulfillment_status') ?? ''
+  const paymentStatus = params.get('payment_status') ?? ''
+  const placedFrom = params.get('placed_from') ?? ''
+  const placedTo = params.get('placed_to') ?? ''
+  const [searchText, setSearchText] = useState(q)
+  const query = useQuery({
+    queryKey: ['orders', page, q, fulfillmentStatus, paymentStatus, placedFrom, placedTo],
+    queryFn: () => storefrontApi.orders(page, { q: q || undefined, fulfillment_status: fulfillmentStatus || undefined, payment_status: paymentStatus || undefined, placed_from: placedFrom || undefined, placed_to: placedTo || undefined }),
+  })
+  const queryClient = useQueryClient()
+  const cancel = useMutation({ mutationFn: storefrontApi.cancelOrder, onSuccess: () => queryClient.invalidateQueries({ queryKey: ['orders'] }) })
+  const summary = query.data?.meta?.summary
+  const hasFilters = Boolean(q || fulfillmentStatus || paymentStatus || placedFrom || placedTo)
+
+  useEffect(() => setSearchText(q), [q])
+
+  function updateParam(name: string, value: string) {
+    const next = new URLSearchParams(params)
+    if (value) next.set(name, value)
+    else next.delete(name)
+    next.delete('page')
+    setParams(next)
+  }
+
+  function submitSearch(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    updateParam('q', searchText.trim())
+  }
+
+  function clearFilters() {
+    setSearchText('')
+    setParams({})
+  }
+
+  function cancelOrder(order: Order) {
+    if (window.confirm(t('Cancel this order?'))) cancel.mutate(order.id)
+  }
+
+  const statusFilters: { value: string; label: string; icon: typeof PackageCheck }[] = [
+    { value: '', label: t('All'), icon: PackageCheck },
+    { value: 'pending', label: t('Pending'), icon: CalendarDays },
+    { value: 'confirmed', label: t('Confirmed'), icon: CheckCircle2 },
+    { value: 'processing', label: t('Processing'), icon: PackageCheck },
+    { value: 'shipped', label: t('Shipped'), icon: Truck },
+    { value: 'delivered', label: t('Delivered'), icon: CheckCircle2 },
+    { value: 'cancelled', label: t('Cancelled'), icon: X },
+  ]
+
+  return <div className="customer-orders-page">
+    <Breadcrumbs items={[{ label: t('Account'), to: '/account' }, { label: t('My Orders') }]} />
+    <header className="customer-orders-header"><div><span className="eyebrow">{t('Account')}</span><h1>{t('My Orders')}</h1><p>{t('View your purchases and track your orders.')}</p></div><Link className="button primary" to="/products"><ShoppingBag size={16} />{t('Start shopping')}</Link></header>
+    <section className="customer-orders-toolbar" aria-label={t('Order filters')}><form className="customer-order-search" onSubmit={submitSearch}><Search size={17} /><input value={searchText} onChange={(event) => setSearchText(event.target.value)} placeholder={t('Search order number or product')} aria-label={t('Search order number or product')} />{searchText ? <button type="button" aria-label={t('Clear search')} onClick={() => { setSearchText(''); updateParam('q', '') }}><X size={15} /></button> : null}<button className="button secondary" type="submit">{t('Search')}</button></form><label className="customer-date-filter"><CalendarDays size={16} /><span>{t('From')}</span><input type="date" value={placedFrom} onChange={(event) => updateParam('placed_from', event.target.value)} /></label><label className="customer-date-filter"><span>{t('To')}</span><input type="date" value={placedTo} onChange={(event) => updateParam('placed_to', event.target.value)} /></label><select className="customer-payment-filter" value={paymentStatus} onChange={(event) => updateParam('payment_status', event.target.value)} aria-label={t('Payment status')}><option value="">{t('All payment statuses')}</option><option value="pending">{t('Payment pending')}</option><option value="paid">{t('Paid')}</option><option value="failed">{t('Payment failed')}</option><option value="cancelled">{t('Payment cancelled')}</option><option value="refunded">{t('Refunded')}</option></select>{hasFilters ? <button className="text-button" type="button" onClick={clearFilters}>{t('Clear filters')}</button> : null}</section>
+    {summary ? <div className="customer-order-summary-grid">{statusFilters.map((filter) => { const Icon = filter.icon; const count = filter.value ? summary[filter.value as keyof OrderSummary] : summary.all; return <button className={fulfillmentStatus === filter.value ? 'customer-order-stat active' : 'customer-order-stat'} key={filter.value || 'all'} type="button" onClick={() => updateParam('fulfillment_status', filter.value)}><span><Icon size={16} />{filter.label}</span><strong>{count}</strong></button> })}</div> : null}
+    <nav className="customer-order-tabs" aria-label={t('Order status')} role="tablist">{statusFilters.map((filter) => <button className={fulfillmentStatus === filter.value ? 'active' : ''} key={filter.value || 'all'} type="button" role="tab" aria-selected={fulfillmentStatus === filter.value} onClick={() => updateParam('fulfillment_status', filter.value)}>{filter.label}</button>)}</nav>
+    {query.isLoading ? <div className="customer-order-skeletons" aria-label={t('Loading orders')}><span /><span /><span /></div> : query.isError ? <div className="customer-orders-feedback"><ErrorState message={t('Orders could not be loaded.')} /><button className="button secondary" type="button" onClick={() => query.refetch()}>{t('Retry')}</button></div> : query.data?.data.length ? <div className="customer-orders-list">{query.data.data.map((order) => <OrderCard key={order.id} order={order} onCancel={() => cancelOrder(order)} cancelling={cancel.isPending && cancel.variables === order.id} />)}</div> : <EmptyState title={hasFilters ? t('No matching orders') : t('No orders yet')} message={hasFilters ? t('Try changing your search or filters.') : t('Your next favorite thing could be just around the corner.')} action={hasFilters ? <button className="button secondary" type="button" onClick={clearFilters}>{t('Clear filters')}</button> : <Link className="button primary" to="/products">{t('Start shopping')}</Link>} />}
+    {query.data ? <Pagination page={query.data.meta?.current_page ?? page} pages={query.data.meta?.last_page ?? 1} onChange={(nextPage) => setParams({ ...Object.fromEntries(params.entries()), page: String(nextPage) })} /> : null}
+  </div>
+}
+
+function OrderCard({ order, onCancel, cancelling }: { order: Order; onCancel: () => void; cancelling: boolean }) {
+  const { t } = useLanguage()
   const item = order.items?.[0]
-  return <Link className="order-card" to={'/account/orders/' + order.id}>{item?.product_image ? <img className="order-thumb" src={item.product_image} alt="" /> : <div className="order-thumb placeholder">K</div>}<div><span className="eyebrow">{order.order_number}</span><h2>{item?.product_name ?? (order.placed_at ? new Date(order.placed_at).toLocaleDateString() : 'Recently placed')}</h2><small className="muted">{item?.seller?.store_name ?? 'Kipi marketplace'}{(order.items?.length ?? 0) > 1 ? ` · +${order.items!.length - 1} more item(s)` : ''}</small></div><div><StatusBadge value={order.fulfillment_status} /><strong>{order.grand_total_minor.toLocaleString()} {order.currency}</strong></div><ArrowRight size={18} /></Link>
+  const additionalItems = Math.max(0, (order.items?.length ?? 0) - 1)
+  return <article className="customer-order-card">{item?.product_image ? <img className="order-thumb" src={item.product_image} alt={item.product_name} /> : <div className="order-thumb placeholder" aria-hidden="true">K</div>}<div className="customer-order-card-content"><div className="customer-order-card-heading"><div><span className="eyebrow">{order.order_number}</span><h2>{item?.product_name ?? t('Order items')}</h2></div><div className="customer-order-card-badges"><StatusBadge value={order.payment_status} /><StatusBadge value={order.fulfillment_status} /></div></div><div className="customer-order-card-meta"><span>{order.placed_at ? new Date(order.placed_at).toLocaleString() : t('Date unavailable')}</span><span>{item?.seller?.store_name ?? t('Kipi marketplace')}</span>{additionalItems ? <span>+{additionalItems} {t('more items')}</span> : null}</div></div><div className="customer-order-card-total"><strong>{order.grand_total_minor.toLocaleString()} {order.currency}</strong><Link className="text-link" to={'/account/orders/' + order.id}>{t('View details')} <ArrowRight size={15} /></Link>{canCancelOrder(order) ? <button className="text-button danger" type="button" onClick={onCancel} disabled={cancelling}>{cancelling ? t('Cancelling…') : t('Cancel order')}</button> : null}</div></article>
 }
 
 export function OrderDetailPage() {
+  const { t } = useLanguage()
   const { id = '' } = useParams()
   const query = useQuery({ queryKey: ['order', id], queryFn: () => storefrontApi.order(id) })
+  const queryClient = useQueryClient()
+  const cancel = useMutation({ mutationFn: storefrontApi.cancelOrder, onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['order', id] }); queryClient.invalidateQueries({ queryKey: ['orders'] }) } })
   if (query.isLoading) return <LoadingState />
-  if (query.isError || !query.data) return <ErrorState message="We could not find that order." />
+  if (query.isError || !query.data) return <ErrorState message={t('We could not find that order.')} />
   const order = query.data.data
-  return <div className="account-page"><Breadcrumbs items={[{ label: 'Account', to: '/account' }, { label: 'Orders', to: '/account/orders' }, { label: order.order_number }]} /><PageIntro eyebrow="Order details" title={order.order_number} description={order.placed_at ? `Placed ${new Date(order.placed_at).toLocaleString()}` : undefined} /><div className="order-detail-layout"><Card><div className="order-status-head"><span>Fulfillment</span><StatusBadge value={order.fulfillment_status} /><span>Payment</span><StatusBadge value={order.payment_status} /></div><div className="timeline">{order.status_history?.map((item) => <div className="timeline-item" key={item.id}><span className="timeline-dot" /><div><strong>{item.to_status.replaceAll('_', ' ')}</strong><small>{new Date(item.created_at).toLocaleString()}</small>{item.note ? <p>{item.note}</p> : null}</div></div>)}</div>{order.items?.map((item) => <div className="order-line" key={item.id}><div><strong>{item.product_name}</strong><small>{item.sku} · Qty {item.quantity}{item.attributes ? ` · ${Object.entries(item.attributes).map(([key, value]) => `${key}: ${value}`).join(' · ')}` : ''}</small></div><PriceDisplay amount={item.line_total_minor ?? item.unit_price_minor * item.quantity} currency={order.currency} /></div>)}</Card><Card className="order-summary"><h2>Order summary</h2><SummaryRow label="Subtotal" value={order.subtotal_minor} currency={order.currency} /><SummaryRow label="Shipping" value={order.shipping_minor} currency={order.currency} /><SummaryRow label="Tax" value={order.tax_minor} currency={order.currency} /><div className="summary-total"><span>Total</span><strong>{order.grand_total_minor.toLocaleString()} {order.currency}</strong></div><h3>Delivery address</h3><p>{formatAddress(order.shipping_address)}</p><Link className="button secondary full" to={'/account/orders/' + order.id + '/tracking'}>Track shipment</Link></Card></div></div>
+  const payment = order.payments?.[0]
+  const shipments = order.shipments ?? []
+  const timeline = [...(order.status_history ?? []).map((event) => ({ id: 'order-' + event.id, label: event.to_status, date: event.created_at, note: event.note })), ...shipments.flatMap((shipment) => (shipment.tracking ?? []).map((event) => ({ id: 'tracking-' + event.id, label: event.status, date: event.occurred_at, note: event.message ?? event.location })))]
+    .sort((left, right) => new Date(left.date).getTime() - new Date(right.date).getTime())
+  return <div className="customer-order-detail-page"><Breadcrumbs items={[{ label: t('Account'), to: '/account' }, { label: t('My Orders'), to: '/account/orders' }, { label: order.order_number }]} /><header className="customer-order-detail-header"><div className="customer-order-detail-top"><Link className="text-link" to="/account/orders"><ArrowLeft size={15} />{t('Back to orders')}</Link><span className="customer-order-id">{order.order_number}</span></div><div className="customer-order-detail-title"><div><span className="eyebrow">{t('Order details')}</span><h1>{order.order_number}</h1><p>{order.placed_at ? `${t('Placed')} ${new Date(order.placed_at).toLocaleString()}` : t('Date unavailable')}</p></div><div className="customer-order-detail-status"><StatusBadge value={order.payment_status} /><StatusBadge value={order.fulfillment_status} /></div></div></header><div className="customer-order-detail-grid"><main className="customer-order-detail-main"><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Your purchase')}</span><h2>{t('Order items')}</h2></div><span className="muted">{order.items?.length ?? 0} {t('items')}</span></div><div className="customer-order-items">{order.items?.map((item) => <div className="customer-order-item" key={item.id}>{item.product_image ? <img src={item.product_image} alt={item.product_name} /> : <div className="customer-order-item-placeholder" aria-hidden="true">K</div>}<div className="customer-order-item-copy"><strong>{item.product_name}</strong><small>{item.sku}{item.attributes ? ` · ${Object.entries(item.attributes).map(([key, value]) => `${key}: ${value}`).join(' · ')}` : ''}</small><small>{t('Quantity')}: {item.quantity}{item.seller?.store_name ? ` · ${item.seller.store_name}` : ''}</small></div><PriceDisplay amount={item.line_total_minor ?? item.unit_price_minor * item.quantity} currency={order.currency} /></div>)}</div></Card><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Delivery')}</span><h2>{t('Shipping and tracking')}</h2></div><Truck size={19} /></div><div className="customer-detail-grid"><div><span>{t('Delivery method')}</span><strong>{order.shipping_method?.name ?? t('Shipping method unavailable')}</strong></div><div><span>{t('Fulfillment status')}</span><StatusBadge value={order.fulfillment_status} /></div></div>{shipments.length ? shipments.map((shipment) => { const trackingNumber = shipment.tracking_number ?? shipment.internal_tracking_id; const trackingUrl = shipment.metadata?.tracking_url; return <div className="customer-shipment-row" key={shipment.id}><div><strong>{shipment.carrier ?? t('Kipi delivery')}</strong><small>{trackingNumber ? `${t('Tracking number')}: ${trackingNumber}` : t('Tracking information is not available yet.')}</small></div><div>{trackingUrl ? <a className="button secondary" href={trackingUrl} target="_blank" rel="noreferrer">{t('Track package')}</a> : null}<Link className="text-link" to={'/account/orders/' + order.id + '/tracking'}>{t('View tracking')}</Link></div></div> }) : <p className="muted">{t('Tracking information is not available yet.')}</p>}</Card><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Order timeline')}</span><h2>{t('Status updates')}</h2></div><PackageCheck size={19} /></div>{timeline.length ? <div className="customer-order-timeline">{timeline.map((event) => <div className="customer-order-timeline-item" key={event.id}><span className="customer-order-timeline-dot" /><div><strong>{statusLabel(event.label, t)}</strong><small>{new Date(event.date).toLocaleString()}</small>{event.note ? <p>{event.note}</p> : null}</div></div>)}</div> : <p className="muted">{t('No order updates are available yet.')}</p>}</Card></main><aside className="customer-order-detail-side"><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Payment')}</span><h2>{t('Payment summary')}</h2></div><CreditCard size={19} /></div><div className="customer-payment-status"><span>{t('Payment status')}</span><StatusBadge value={order.payment_status} /></div><div className="customer-detail-grid"><div><span>{t('Payment method')}</span><strong>{payment?.provider ?? t('Payment method unavailable')}</strong></div><div><span>{t('Payment reference')}</span><strong>{payment?.provider_payment_id ?? t('Not available')}</strong></div></div></Card><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Total')}</span><h2>{t('Order summary')}</h2></div></div><SummaryRow label={t('Subtotal')} value={order.subtotal_minor} currency={order.currency} /><SummaryRow label={t('Discount')} value={order.discount_minor} currency={order.currency} /><SummaryRow label={t('Shipping')} value={order.shipping_minor} currency={order.currency} /><SummaryRow label={t('Tax')} value={order.tax_minor} currency={order.currency} /><div className="summary-total"><span>{t('Grand total')}</span><strong>{order.grand_total_minor.toLocaleString()} {order.currency}</strong></div></Card><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Order actions')}</span><h2>{t('Need help?')}</h2></div><ShieldCheck size={19} /></div>{canCancelOrder(order) ? <button className="button secondary full" type="button" onClick={() => { if (window.confirm(t('Cancel this order?'))) cancel.mutate(order.id) }} disabled={cancel.isPending}>{cancel.isPending ? t('Cancelling…') : t('Cancel order')}</button> : null}<Link className="button primary full" to="/contact">{t('Contact support')}</Link>{cancel.isError ? <p className="error" role="alert">{apiErrorMessage(cancel.error)}</p> : cancel.isSuccess ? <p className="success-box">{t('Order cancelled.')}</p> : null}</Card><Card><div className="customer-card-heading"><div><span className="eyebrow">{t('Delivery address')}</span><h2>{t('Where we are sending it')}</h2></div><MapPin size={19} /></div><p className="muted">{formatAddress(order.shipping_address)}</p></Card></aside></div></div>
 }
 
 export function OrderTrackingPage() {

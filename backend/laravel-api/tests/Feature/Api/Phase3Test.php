@@ -63,6 +63,51 @@ class Phase3Test extends TestCase
             ->assertJsonPath('data.0.slug', 'running-shoe');
     }
 
+    public function test_customer_order_history_filters_and_returns_status_summary(): void
+    {
+        $customer = User::factory()->create();
+        Order::query()->create([
+            'user_id' => $customer->id,
+            'order_number' => 'ORD-DELIVERED-001',
+            'shipping_address' => ['city' => 'Yangon'],
+            'subtotal_minor' => 1000,
+            'discount_minor' => 0,
+            'shipping_minor' => 0,
+            'tax_minor' => 0,
+            'grand_total_minor' => 1000,
+            'currency' => 'MMK',
+            'payment_status' => 'paid',
+            'fulfillment_status' => 'delivered',
+            'placed_at' => now()->subDay(),
+        ]);
+        Order::query()->create([
+            'user_id' => $customer->id,
+            'order_number' => 'ORD-PENDING-002',
+            'shipping_address' => ['city' => 'Mandalay'],
+            'subtotal_minor' => 2000,
+            'discount_minor' => 0,
+            'shipping_minor' => 0,
+            'tax_minor' => 0,
+            'grand_total_minor' => 2000,
+            'currency' => 'MMK',
+            'payment_status' => 'pending',
+            'fulfillment_status' => 'pending',
+            'placed_at' => now(),
+        ]);
+
+        Sanctum::actingAs($customer);
+        $this->getJson('/api/v1/orders?q=DELIVERED')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('meta.summary.all', 1)
+            ->assertJsonPath('meta.summary.delivered', 1)
+            ->assertJsonPath('data.0.order_number', 'ORD-DELIVERED-001');
+        $this->getJson('/api/v1/orders?fulfillment_status=pending')
+            ->assertOk()
+            ->assertJsonPath('meta.total', 1)
+            ->assertJsonPath('data.0.order_number', 'ORD-PENDING-002');
+    }
+
     public function test_cart_and_transactional_idempotent_order_creation(): void
     {
         [$customer, $variant] = $this->catalogFixture();

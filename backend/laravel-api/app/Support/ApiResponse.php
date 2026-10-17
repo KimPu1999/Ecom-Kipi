@@ -18,13 +18,14 @@ final class ApiResponse
         return response()->json($payload, $status);
     }
 
-    public static function paginated(LengthAwarePaginator $paginator, mixed $data, string $message): JsonResponse
+    public static function paginated(LengthAwarePaginator $paginator, mixed $data, string $message, array $extraMeta = []): JsonResponse
     {
         return self::success($data, $message, 200, [
             'current_page' => $paginator->currentPage(),
             'per_page' => $paginator->perPage(),
             'last_page' => $paginator->lastPage(),
             'total' => $paginator->total(),
+            ...$extraMeta,
         ]);
     }
 

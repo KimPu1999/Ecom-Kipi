@@ -1,6 +1,6 @@
 export interface Pagination<T> {
   data: T[]
-  meta?: { current_page: number; per_page: number; last_page: number; total: number }
+  meta?: { current_page: number; per_page: number; last_page: number; total: number; summary?: OrderSummary }
 }
 
 export interface Category {
@@ -116,6 +116,15 @@ export interface OrderItem {
   product_image?: string | null
 }
 
+export interface ShippingMethod {
+  id: number
+  code: string
+  name: string
+  description: string | null
+  price_minor: number
+  currency: string
+}
+
 export interface Order {
   id: number
   order_number: string
@@ -132,9 +141,22 @@ export interface Order {
   placed_at: string | null
   cancelled_at?: string | null
   items?: OrderItem[]
+  payments?: Payment[]
+  shipping_method?: ShippingMethod | null
+  refunds?: { id: number; status: string; amount_minor: number; currency: string; reason: string | null }[]
   status_history?: { id: number; from_status: string | null; to_status: string; note: string | null; created_at: string }[]
   seller_orders?: { id: number; order_number: string; seller?: SellerSummary | null; status: string; fulfillment_status: string; items?: OrderItem[] }[]
   shipments?: Shipment[]
+}
+
+export interface OrderSummary {
+  all: number
+  pending: number
+  confirmed: number
+  processing: number
+  shipped: number
+  delivered: number
+  cancelled: number
 }
 
 export interface CheckoutPreview {
